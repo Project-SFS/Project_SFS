@@ -23,7 +23,7 @@ const AdminDashboard = () => {
   const totalProblems = mockProblemStatements.length;
   const totalSubmissions = 340;
   const pendingApprovals = mockSpocRequests.filter(r => r.status === 'Pending').length;
-  const totalEvaluators = mockUsers.filter(u => u.role === 'Evaluator').length;
+  const totalEvaluators = mockUsers.length;
   // For the new donut chart, let's assume a number of evaluated submissions
   const evaluatedCount = 168;
 
@@ -46,7 +46,7 @@ const AdminDashboard = () => {
           <StatCard title="Total Problems" value={totalProblems} icon={FiClipboard} delay={0.1} />
           <StatCard title="Total Submissions" value={totalSubmissions} icon={FiUpload} delay={0.2} />
           <StatCard title="SPOC Pending" value={pendingApprovals} icon={FiCheckSquare} delay={0.3} to="/admin/spoc-approvals" />
-          <StatCard title="Active Evaluators" value={totalEvaluators} icon={FiUsers} delay={0.4} to="/admin/evaluators" />
+          <StatCard title="Total Evaluators" value={totalEvaluators} icon={FiUsers} delay={0.4} to="/admin/evaluators" />
         </div>
 
         {/* Second row: Submissions Graph */}

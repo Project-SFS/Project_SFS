@@ -36,6 +36,8 @@ import EvaluatorManage from "./pages/Admin/EvaluatorManage.jsx";
 import ProblemStatementsList from "./pages/Admin/ProblemStatementsList.jsx";
 import ProblemStatementCreate from "./pages/Admin/ProblemStatementCreate.jsx";
 import ProblemStatementEdit from "./pages/Admin/ProblemStatementEdit.jsx";
+import ProblemStatementDetail from "./pages/Admin/ProblemStatementDetail.jsx";
+import SubmissionDetail2 from "./pages/Admin/SubmissionDetail.jsx";
 import TeamDetails from "./pages/student/TeamDetails.jsx";
 import Team_Members from "./pages/spoc/Team_Members.jsx";
 import TeamList from "./pages/spoc/TeamList.jsx";
@@ -89,6 +91,9 @@ function App() {
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="spoc-approvals" element={<SpocApprovals />} />
+          <Route path="problems/:id/details" element={<ProblemStatementDetail />} />
+          <Route path="submissions/:id/details" element={<SubmissionDetail2 />} />
+
           {/* Problem Statement Management (CRUD) */}
           <Route path="problems" element={<ProblemStatementsList />} />
           <Route path="problems/create" element={<ProblemStatementCreate />} />

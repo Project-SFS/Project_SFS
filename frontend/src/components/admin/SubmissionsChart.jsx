@@ -25,7 +25,7 @@ const TimeRangeButton = ({ range, activeRange, setRange }) => (
   <button
     onClick={() => setRange(range)}
     className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-      activeRange === range ? 'bg-brand-orange text-white' : 'text-gray-600 hover:bg-gray-100'
+      activeRange === range ? 'bg-gray-200 text-black' : 'text-gray-600 hover:bg-gray-200'
     }`}
   >
     {range}

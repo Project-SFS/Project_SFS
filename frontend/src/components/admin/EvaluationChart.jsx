@@ -71,7 +71,7 @@ const EvaluationChart = ({ totalSubmissions, evaluatedCount }) => {
 
       {/* --- Right Section: Evaluated Submissions --- */}
       <div className="text-center">
-        <p className="text-6xl font-bold text-gray-800 mb-2">{evaluatedCount}</p>
+        <p className="text-5xl font-bold text-gray-800 mb-2">{evaluatedCount}</p>
         <p className="text-lg text-gray-600">Evaluated submissions</p>
       </div>
     </motion.div>

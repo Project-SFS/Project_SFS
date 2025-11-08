@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import Breadcrumb from '../../components/common/Breadcrumb';
 import { getProblemStatementById, getSubmissionsByProblemId } from '../../mockData';
-import { FiSearch, FiFilter, FiUsers, FiFileText } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiUsers, FiFileText, FiArrowLeft } from 'react-icons/fi';
 
 const ProblemStatementDetail = () => {
   const { id } = useParams();
@@ -34,41 +34,42 @@ const ProblemStatementDetail = () => {
   const totalSubmissions = submissions.length;
 
   return (
-    <div className="min-h-screen bg-background-light py-10">
-      <div className="max-w-4xl mx-auto bg-background-white shadow-card rounded-2xl p-8">
-        <Breadcrumb />
+    <div className="min-h-screen bg-[#F7F8FC] py-10 px-8 transition-all duration-300">
+      <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-sm p-10 border border-[#E2E8F0]">
+        <div className="flex justify-between items-center mb-6">
+          <Breadcrumb />
+          <Button
+            onClick={() => navigate(-1)}
+            className="bg-[#FF9900] hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
+          >
+            <FiArrowLeft className="w-5 h-5" />
+            <span>Back</span>
+          </Button>
+        </div>
         {/* Problem Statement Information Table */}
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-text-primary">Problem Statement Information</h2>
-          <table className="w-full text-left border-collapse border border-border-color rounded-xl overflow-hidden">
+          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">Problem Statement Information</h2>
+          <table className="w-full text-left border-collapse border border-[#E2E8F0] rounded-xl overflow-hidden">
             <tbody>
-              <tr className="border-b border-border-color">
-                <td className="p-4 font-medium bg-primary-accent/5 w-1/3 text-text-primary">Problem Statement ID</td>
-                <td className="p-4 text-text-primary">{problem.id}</td>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 w-1/3 text-[#1A202C]">Problem Statement ID</td>
+                <td className="p-4 text-[#1A202C]">{problem.id}</td>
               </tr>
-              <tr className="border-b border-border-color">
-                <td className="p-4 font-medium bg-primary-accent/5 text-text-primary">Problem Statement Title</td>
-                <td className="p-4 text-text-primary">{problem.title}</td>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Problem Statement Title</td>
+                <td className="p-4 text-[#1A202C]">{problem.title}</td>
               </tr>
-              <tr className="border-b border-border-color">
-                <td className="p-4 font-medium bg-primary-accent/5 text-text-primary">Description</td>
-                <td className="p-4 text-text-primary">{problem.description}</td>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Description</td>
+                <td className="p-4 text-[#1A202C]">{problem.description}</td>
               </tr>
-              <tr className="border-b border-border-color">
-                <td className="p-4 font-medium bg-primary-accent/5 text-text-primary">Department</td>
-                <td className="p-4 text-text-primary">{problem.department}</td>
-              </tr>
-              <tr className="border-b border-border-color">
-                <td className="p-4 font-medium bg-primary-accent/5 text-text-primary">Category</td>
-                <td className="p-4 text-text-primary">{problem.category}</td>
-              </tr>
-              <tr className="border-b border-border-color">
-                <td className="p-4 font-medium bg-primary-accent/5 text-text-primary">YouTube Link</td>
-                <td className="p-4 text-text-primary">{problem.youtube || 'N/A'}</td>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">YouTube Link</td>
+                <td className="p-4 text-[#1A202C]">{problem.youtube || 'N/A'}</td>
               </tr>
               <tr>
-                <td className="p-4 font-medium bg-primary-accent/5 text-text-primary">Dataset Link</td>
-                <td className="p-4 text-text-primary">{problem.dataset || 'N/A'}</td>
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Dataset Link</td>
+                <td className="p-4 text-[#1A202C]">{problem.dataset || 'N/A'}</td>
               </tr>
             </tbody>
           </table>
@@ -77,23 +78,23 @@ const ProblemStatementDetail = () => {
         {/* Statistics Section */}
         <div className="flex items-center space-x-10 mb-6">
           <div className="flex items-center space-x-2">
-            <FiUsers className="w-6 h-6 text-primary-accent" />
-            <span className="font-medium text-text-primary">No. of Teams Enrolled :</span>
+            <FiUsers className="w-6 h-6 text-[#FF9900]" />
+            <span className="font-medium text-[#1A202C]">No. of Teams Enrolled :</span>
             <input
               type="text"
               value={teamsEnrolled}
               readOnly
-              className="w-16 border border-border-color rounded-xl p-2 text-center bg-background-white text-text-primary"
+              className="w-16 border border-[#E2E8F0] rounded-xl p-2 text-center bg-white text-[#1A202C]"
             />
           </div>
           <div className="flex items-center space-x-2">
-            <FiFileText className="w-6 h-6 text-primary-accent" />
-            <span className="font-medium text-text-primary">No. of Submissions :</span>
+            <FiFileText className="w-6 h-6 text-[#FF9900]" />
+            <span className="font-medium text-[#1A202C]">No. of Submissions :</span>
             <input
               type="text"
               value={totalSubmissions}
               readOnly
-              className="w-16 border border-border-color rounded-xl p-2 text-center bg-background-white text-text-primary"
+              className="w-16 border border-[#E2E8F0] rounded-xl p-2 text-center bg-white text-[#1A202C]"
             />
           </div>
         </div>
@@ -106,40 +107,40 @@ const ProblemStatementDetail = () => {
               placeholder="Search With SPOC ID or Team Name"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full border border-border-color rounded-full py-3 pl-6 pr-12 focus:ring-2 focus:ring-primary-accent/20 text-lg bg-background-white text-text-primary placeholder-text-tertiary"
+              className="w-full border border-[#E2E8F0] rounded-full py-3 pl-6 pr-12 focus:ring-2 focus:ring-[#FF9900]/20 text-lg bg-white text-[#1A202C] placeholder-[#A0AEC0]"
             />
-            <button className="absolute right-4 top-3 text-text-tertiary hover:text-text-secondary">
+            <button className="absolute right-4 top-3 text-[#A0AEC0] hover:text-[#718096]">
               <FiSearch className="w-6 h-6" />
             </button>
           </div>
           <div className="relative">
             <button
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className="bg-primary-accent hover:bg-primary-accent/90 text-background-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-card hover:shadow-card-hover transition-all duration-200"
+              className="bg-[#FF9900] hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
             >
               <FiFilter className="w-5 h-5" />
               <span>Filter</span>
             </button>
             {showFilterDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-background-white border border-border-color rounded-xl shadow-card z-10">
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-sm z-10">
                 <div className="p-4">
                   <label className="flex items-center space-x-2">
                     <input
                       type="checkbox"
                       checked={filterOptions.evaluated}
                       onChange={(e) => setFilterOptions({ ...filterOptions, evaluated: e.target.checked })}
-                      className="w-4 h-4 text-primary-accent border-border-color rounded focus:ring-primary-accent/20"
+                      className="w-4 h-4 text-[#FF9900] border-[#E2E8F0] rounded focus:ring-[#FF9900]/20"
                     />
-                    <span className="text-text-primary">Evaluated</span>
+                    <span className="text-[#1A202C]">Evaluated</span>
                   </label>
                   <label className="flex items-center space-x-2 mt-3">
                     <input
                       type="checkbox"
                       checked={filterOptions.submitted}
                       onChange={(e) => setFilterOptions({ ...filterOptions, submitted: e.target.checked })}
-                      className="w-4 h-4 text-primary-accent border-border-color rounded focus:ring-primary-accent/20"
+                      className="w-4 h-4 text-[#FF9900] border-[#E2E8F0] rounded focus:ring-[#FF9900]/20"
                     />
-                    <span className="text-text-primary">Submitted</span>
+                    <span className="text-[#1A202C]">Submitted</span>
                   </label>
                 </div>
               </div>
@@ -148,29 +149,40 @@ const ProblemStatementDetail = () => {
         </div>
 
         {/* Submission List Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse border border-border-color rounded-xl overflow-hidden">
-            <thead className="bg-primary-accent/10">
+        <div className="overflow-x-auto bg-white rounded-2xl border border-[#E2E8F0]">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-[#F7F8FC] text-[#4A5568]">
               <tr>
-                <th className="p-4 font-semibold text-text-primary border border-border-color">SPOC ID</th>
-                <th className="p-4 font-semibold text-text-primary border border-border-color">Submission</th>
-                <th className="p-4 font-semibold text-text-primary border border-border-color">Approval Status</th>
+                <th className="p-4 font-semibold">SPOC ID</th>
+                <th className="p-4 font-semibold">Submission</th>
+                <th className="p-4 font-semibold">Approval Status</th>
               </tr>
             </thead>
             <tbody>
               {filteredSubmissions.map((sub) => (
-                <tr key={sub.id} className="hover:bg-background-light/50 border border-border-color transition-colors duration-150">
-                  <td className="p-4 text-text-primary border border-border-color">{sub.spocId}</td>
-                  <td className="p-4 border border-border-color">
+                <tr
+                  key={sub.id}
+                  className="hover:bg-[#F9FAFB] border-t border-[#E2E8F0] transition-all"
+                >
+                  <td className="p-4 text-[#1A202C] font-medium">{sub.spocId}</td>
+                  <td className="p-4">
                     <span
-                      className="text-action-blue hover:text-action-blue/80 cursor-pointer font-medium transition-colors duration-150"
+                      className="text-[#2B6CB0] hover:underline cursor-pointer"
                       onClick={() => navigate(`/admin/submissions/${sub.id}/details`)}
                     >
                       {sub.title}
                     </span>
                   </td>
-                  <td className="p-4 text-text-primary border border-border-color">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${sub.status === 'Evaluated' ? 'bg-green-100 text-green-800' : sub.status === 'Submitted' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                  <td className="p-4">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        sub.status === 'Evaluated'
+                          ? 'bg-green-100 text-green-800'
+                          : sub.status === 'Submitted'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
                       {sub.status}
                     </span>
                   </td>

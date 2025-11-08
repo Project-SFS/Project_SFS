@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-const SpocApprovals= () => {
-  const [selectedAction, setSelectedAction] = useState(null); // 'approve' or 'reject'
+const SpocApprovals = () => {
+  const [selectedAction, setSelectedAction] = useState(null);
   const [selectedCollege, setSelectedCollege] = useState(null);
   const [toast, setToast] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [step, setStep] = useState("confirm"); // 'confirm' or 'sent'
 
   const data = [
     {
@@ -36,24 +38,29 @@ const SpocApprovals= () => {
   const handleAction = (college, action) => {
     setSelectedCollege(college);
     setSelectedAction(action);
+    setStep("confirm");
     setShowPopup(true);
   };
 
   const confirmAction = () => {
     if (!selectedCollege) return;
 
-    if (selectedAction === "approve") {
-      showToast(`${selectedCollege.name} approved successfully.`, "success");
-    } else {
-      showToast(`${selectedCollege.name} rejected successfully.`, "error");
-    }
+    // Step 1 → switch to "sent" message
+    setStep("sent");
 
-    setShowPopup(false);
-    setSelectedAction(null);
-    setSelectedCollege(null);
+    // Step 2 → show toast and auto-close popup
+    setTimeout(() => {
+      if (selectedAction === "approve") {
+        showToast(`${selectedCollege.name} approved successfully.`, "success");
+      } else {
+        showToast(`${selectedCollege.name} rejected successfully.`, "error");
+      }
+      setShowPopup(false);
+      setSelectedAction(null);
+      setSelectedCollege(null);
+    }, 2000); // 2 seconds before auto-closing
   };
 
-  // Filter colleges based on search query
   const filteredData = data.filter(
     (college) =>
       college.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -144,55 +151,95 @@ const SpocApprovals= () => {
         </table>
       </div>
 
-      {/* Popup Modal */}
-      {showPopup && (
-        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md animate-scaleUp">
-            <h2 className="text-lg font-semibold text-[#1A202C] flex items-center gap-2">
-              {selectedAction === "approve" ? (
-                <span className="text-[#48BB78]">✔</span>
+      {/* Popup Modal with Animation */}
+      <AnimatePresence>
+        {showPopup && (
+          <motion.div
+            key="popup"
+            className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              key={step}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white rounded-2xl shadow-xl p-6 w-[90%] max-w-md"
+            >
+              {step === "confirm" ? (
+                <>
+                  <h2 className="text-lg font-semibold text-[#1A202C] flex items-center gap-2">
+                    {selectedAction === "approve" ? (
+                      <span className="text-[#48BB78]">✔</span>
+                    ) : (
+                      <span className="text-red-500">✖</span>
+                    )}
+                    {selectedAction === "approve"
+                      ? "Confirm Approval"
+                      : "Confirm Rejection"}
+                  </h2>
+                  <p className="text-[#718096] mt-3 text-sm">
+                    Are you sure you want to{" "}
+                    <span
+                      className={
+                        selectedAction === "approve"
+                          ? "text-[#48BB78] font-medium"
+                          : "text-red-500 font-medium"
+                      }
+                    >
+                      {selectedAction}
+                    </span>{" "}
+                    <b>{selectedCollege?.name}</b>?
+                  </p>
+                  <div className="flex justify-end mt-6 space-x-3">
+                    <button
+                      onClick={() => setShowPopup(false)}
+                      className="px-4 py-1.5 text-[#1A202C] bg-gray-100 hover:bg-gray-200 rounded-xl text-sm transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmAction}
+                      className={`px-4 py-1.5 rounded-xl text-sm text-white transition-all ${
+                        selectedAction === "approve"
+                          ? "bg-[#48BB78] hover:bg-green-600"
+                          : "bg-red-500 hover:bg-red-600"
+                      }`}
+                    >
+                      {selectedAction === "approve" ? "Approve" : "Reject"}
+                    </button>
+                  </div>
+                </>
               ) : (
-                <span className="text-red-500">✖</span>
+                <motion.div
+                  key="sent"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="text-center"
+                >
+                  <h2 className="text-lg font-semibold text-[#1A202C] mb-3">
+                    {selectedAction === "approve"
+                      ? "✅ Approval Mail Sent!"
+                      : "📤 Rejection Mail Sent!"}
+                  </h2>
+                  <p className="text-[#718096] text-sm">
+                    Mail has been successfully sent to{" "}
+                    <span className="font-medium text-brand-orange">
+                      {selectedCollege?.email}
+                    </span>
+                    .
+                  </p>
+                </motion.div>
               )}
-              {selectedAction === "approve"
-                ? "Confirm Approval"
-                : "Confirm Rejection"}
-            </h2>
-            <p className="text-[#718096] mt-3 text-sm">
-              Are you sure you want to{" "}
-              <span
-                className={
-                  selectedAction === "approve"
-                    ? "text-[#48BB78] font-medium"
-                    : "text-red-500 font-medium"
-                }
-              >
-                {selectedAction}
-              </span>{" "}
-              <b>{selectedCollege?.name}</b>?
-            </p>
-
-            <div className="flex justify-end mt-6 space-x-3">
-              <button
-                onClick={() => setShowPopup(false)}
-                className="px-4 py-1.5 text-[#1A202C] bg-gray-100 hover:bg-gray-200 rounded-xl text-sm transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmAction}
-                className={`px-4 py-1.5 rounded-xl text-sm text-white transition-all ${
-                  selectedAction === "approve"
-                    ? "bg-[#48BB78] hover:bg-green-600"
-                    : "bg-red-500 hover:bg-red-600"
-                }`}
-              >
-                {selectedAction === "approve" ? "Approve" : "Reject"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Toast Notification */}
       {toast && (
