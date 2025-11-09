@@ -26,7 +26,7 @@ export const mockProblemStatements = [
     created: new Date(Date.now() - 86400000 * 10).toISOString(), // Added created date
     status: 'Open',
     assignedEvaluators: ['u2', 'u3'],
-    submissions: 20,
+    submissionsCount: 2,
   },
   {
     id: 'p2',
@@ -40,6 +40,7 @@ export const mockProblemStatements = [
     created: new Date(Date.now() - 86400000 * 5).toISOString(), // Added created date
     status: 'In Review',
     assignedEvaluators: ['u3'],
+    submissions: 101,
     submissions: 112,
   },
 ];
