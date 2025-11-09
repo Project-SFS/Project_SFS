@@ -638,3 +638,30 @@ const EvaluatorList = () => {
 };
 
 export default EvaluatorList;
+
+// {confirmDelete && (
+//         <Popup visible={!!confirmDelete} onClose={() => setConfirmDelete(null)}>
+//           <h2 className="text-lg font-semibold text-[#1A202C] mb-4">
+//             Confirm Deletion
+//           </h2>
+//           <p className="text-sm text-gray-700 mb-6">
+//             Are you sure you want to delete{" "}
+//             <span className="font-semibold text-red-600">{confirmDelete.name}</span>?
+//             This action cannot be undone.
+//           </p>
+//           <div className="flex justify-end space-x-3">
+//             <button
+//               onClick={() => setConfirmDelete(null)}
+//               className="px-5 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-semibold"
+//             >
+//               Cancel
+//             </button>
+//             <button
+//               onClick={() => handleDelete(confirmDelete.id)}
+//               className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold"
+//             >
+//               Delete
+//             </button>
+//           </div>
+//         </Popup>
+//       )}
