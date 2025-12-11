@@ -1,5 +1,5 @@
 import AsyncHandler from "../utils/AsyncHandler.js";
-import connection from "../database/mysql.js";
+import connection from "../database/ms-sql.js";
 
 const SubmitSolution = AsyncHandler(async (req, res) => {
     const { problemId, teamId, SOL_LINK, SOL_TITLE = null, SOL_DESCRIPTION = null } = req.body;

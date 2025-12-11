@@ -1,4 +1,4 @@
-import connection from "../database/mysql.js";
+import connection from "../database/ms-sql.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 
 const Spoc_approve = AsyncHandler(async (req, res) => {

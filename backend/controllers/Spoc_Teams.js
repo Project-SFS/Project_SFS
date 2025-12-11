@@ -1,4 +1,4 @@
-import connection from "../database/mysql.js";
+import connection from "../database/ms-sql.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 
 const Fetch_Teams = AsyncHandler(async (req, res) => {

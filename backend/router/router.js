@@ -1,4 +1,5 @@
 import { Router } from "express";
+import sql from "../database/ms-sql.js";
 
 // Controller Imports
 import { Add_Team_Members, Update_team } from "../controllers/Team_members.js";
@@ -63,7 +64,18 @@ router.get("/problems/evaluator/:evaluatorId", Get_assigned_problems); // Assign
 
 // Update User Profile
 router.put("/update-user", requireAuth, UpdateUser);
-
 router.post("/delete_problem", requireAuth, requireRole(['ADMIN']), Delete_problem);
+
+// MSSQL routes can be added here
+router.get("/users",async (req, res) => {
+    try {
+        const result = await sql.query`SELECT * FROM Users`;
+        res.json(result);
+        console.log(result);
+    } catch (error) {
+        console.error("Error fetching users from MSSQL:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+});
 
 export default router;

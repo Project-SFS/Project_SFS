@@ -1,6 +1,6 @@
 import app from "./app.js";
 import dotenv from "dotenv"
-import connection from "../database/mysql.js";
+import connection from "../database/ms-sql.js";
 dotenv.config()
 
 const PORT = process.env.PORT
