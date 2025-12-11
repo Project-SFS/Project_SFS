@@ -4,34 +4,34 @@ import nodemailer from "nodemailer"
 import { compare, hashSync } from "bcrypt"
 import cookie from "cookie-parser"
 import jwt from "jsonwebtoken"
-
+import sql from "mssql"
 const signup = AsyncHandler(async (req, res) => {
     console.log(req.body);
     const { email, password, role, college, college_code, name, date } = req.body;
-    // basic presence check
+
     if ([email, password, role, college_code, name].some((data) => !data || String(data).trim() === "")) {
         return res.status(400).send("All fields required");
     }
-    console.log(password);
-    
+
     let bcryptpass = hashSync(password, 10);
-    // console.log(await compare('111', bcryptpass))
-    // console.log(bcryptpass)
-    // avoid logging potentially sensitive values like dates or params
+
     try {
-        if (role == "spoc") {
-            const query = `INSERT INTO Users(EMAIL,PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-            const params = [email, bcryptpass, role.toUpperCase(), college, college_code, name, date];
-            const [result] = await connection.query(query, params);
-            res.status(200).json(result);
-
+        if (role === "spoc") {
+            const result = await sql.query`
+                INSERT INTO Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE)
+                VALUES (${email}, ${bcryptpass}, ${role.toUpperCase()}, ${college}, ${college_code}, ${name}, ${date})
+            `;
+            return res.status(200).json(result.recordset);
         }
-        else if (role == "STUDENT") {
-            const query = `INSERT INTO Users(EMAIL,PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE, STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-            const params = [email, bcryptpass, role.toUpperCase(), college, college_code, name, date, 'ACTIVE'];
-            const [result] = await connection.query(query, params);
-            res.status(200).json(result);
 
+        else if (role === "STUDENT") {
+            const result = await sql.query`
+                INSERT INTO Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE, STATUS)
+                VALUES (${email}, ${bcryptpass}, ${role.toUpperCase()}, ${college}, ${college_code}, ${name}, ${date}, 'ACTIVE')
+            `;
+            res.status(200).json(result.recordset);
+
+            // send email
             const transporter = nodemailer.createTransport({
                 host: "smtp.gmail.com",
                 port: 465,
@@ -42,84 +42,30 @@ const signup = AsyncHandler(async (req, res) => {
                 },
             });
 
-          
-  
-         
-                    const info = await transporter.sendMail({
-                        from: '"Sakthi Auto Register" <damodara2006@gmail.com>',
-                        to: email,
-                        subject: "🚀Your Team Created for Solve For Sakthi!",
-                        html: `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Solve For Sakthi - Team Details</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f3f4f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+            const info = await transporter.sendMail({
+                from: '"Sakthi Auto Register" <damodara2006@gmail.com>',
+                to: email,
+                subject: "🚀Your Team Created for Solve For Sakthi!",
+                html: `<h3>Email: ${email}</h3><h3>Password: ${password}</h3>`
+            });
+
+            console.log("Message sent:", info.messageId);
         }
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            width: 300px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 12px;
-            text-align: center;
-        }
-        .info {
-            font-size: 15px;
-            margin: 6px 0;
-        }
-    </style>
-</head>
-<body>
 
-    <div class="card">
-        <div class="title">Your Team Created for Solve For Sakthi!</div>
-
-        <div class="info"><strong>Email:</strong> ${email}</div>
-        <div class="info"><strong>Password:</strong> ${password}</div>
-    </div>
-
-</body>
-</html>
-
-`
-                    });
-
-                    console.log("Message sent:", info.messageId);
-           
-
-              
-
-
-      
-
-        }
         else {
-            const query = `INSERT INTO Users(EMAIL,PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE, STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-            const params = [email, bcryptpass, role.toUpperCase(), college, college_code, name, date, 'ACTIVE'];
-            const [result] = await connection.query(query, params);
-            res.status(200).json(result);
+            const result = await sql.query`
+                INSERT INTO Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE, STATUS)
+                VALUES (${email}, ${bcryptpass}, ${role.toUpperCase()}, ${college}, ${college_code}, ${name}, ${date}, 'ACTIVE')
+            `;
+            return res.status(200).json(result.recordset);
         }
-    } catch (error) {
-        console.log(error)
-        console.log("error")
-        res.status(201).send("error")
-    }
 
-})
+    } catch (error) {
+        console.log(error);
+        return res.status(500).send("error");
+    }
+});
+
 
 // Simple in-memory login attempt tracker to mitigate brute-force
 const loginAttempts = new Map(); // key -> { count, firstAttemptTs } 
@@ -213,8 +159,10 @@ const GetAllEvaluators = AsyncHandler(async (req, res) => {
 
 const verifyEmail = async (req, res) => {
     const { email } = req.body;
-    const [data, err] = await connection.query(`SELECT * FROM Users WHERE EMAIL='${email}'`)
-    res.send(data.length == 0 ? true : false)
+    const data = await sql.query`SELECT * FROM Users WHERE EMAIL='damodara2006@gmail.com'`;
+    console.log(data.recordset);
+
+    res.send(data.recordset.length == 0 ? true : false)
 }
 
 const UpdateUser = AsyncHandler(async (req, res) => {

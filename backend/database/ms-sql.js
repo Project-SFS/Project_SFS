@@ -27,6 +27,8 @@ const connectDB = async () => {
         console.log("MS SQL Database connected successfully");
     }
     catch (error) {
+        console.log(error);
+        
         console.error('MS SQL connection error', error);
     }   
 };
