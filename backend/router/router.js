@@ -1,5 +1,5 @@
 import { Router } from "express";
-import sql from "../database/ms-sql.js";
+import sql from "mssql";
 
 // Controller Imports
 import { Add_Team_Members, Update_team } from "../controllers/Team_members.js";
@@ -13,6 +13,7 @@ import { Get_cookies } from "../controllers/Cookie.js";
 import { Get_all_submissions, SubmitSolution, Get_submission_by_id } from "../controllers/Submission.js";
 import { handleSpocApprove, Spoc_approve } from "../controllers/Spoc.js";
 import { sendMailToSpoc } from "../controllers/SendMail.js";
+import { pool1 } from "../database/ms-sql.js";
 
 const router = Router();
 
@@ -69,9 +70,10 @@ router.post("/delete_problem", requireAuth, requireRole(['ADMIN']), Delete_probl
 // MSSQL routes can be added here
 router.get("/users",async (req, res) => {
     try {
-        const result = await sql.query`SELECT * FROM Users`;
-        res.json(result);
-        console.log(result);
+        
+        const { recordset } = await sql.query`SELECT * FROM Users`;
+        res.json(recordset);
+        console.log(recordset);
     } catch (error) {
         console.error("Error fetching users from MSSQL:", error);
         res.status(500).json({ message: "Internal server error" });

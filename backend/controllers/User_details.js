@@ -1,5 +1,5 @@
 import AsyncHandler from "../utils/AsyncHandler.js";
-import connection from "../database/ms-sql.js";
+import {connectDB} from "../database/ms-sql.js";
 import nodemailer from "nodemailer"
 import { compare, hashSync } from "bcrypt"
 import cookie from "cookie-parser"

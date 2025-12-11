@@ -17,9 +17,13 @@ const config = {
    port: 1433
 };
 
+let pool1;
+
 const connectDB = async () => {
     try {
         const pool = await sql.connect(config);
+        pool1 = pool;
+        
         console.log("MS SQL Database connected successfully");
     }
     catch (error) {
@@ -27,4 +31,4 @@ const connectDB = async () => {
     }   
 };
 
-export default{ sql, connectDB };
+export {  connectDB, pool1 };

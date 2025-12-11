@@ -1,4 +1,4 @@
-import connection from "../database/ms-sql.js";
+import {connectDB} from "../database/ms-sql.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import nodemailer from "nodemailer"
 import dotenv from "dotenv"
