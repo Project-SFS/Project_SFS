@@ -6,7 +6,7 @@ import { URL } from "../../Utils";
 import samplePdf from "../../assets/sample.pdf";
 
 // --- Helper Component for the Table Rows ---
-const InfoRow = ({ label, value, isEven }) => (
+const InfoRow = ({ label, value, isEven }) => ( 
   <div className={`flex flex-col sm:flex-row border-b border-gray-100 ${isEven ? 'bg-orange-50/30' : 'bg-white'}`}>
     <div className="sm:w-1/3 p-4 font-semibold text-gray-700 sm:border-r border-gray-100">
       {label}
@@ -18,6 +18,8 @@ const InfoRow = ({ label, value, isEven }) => (
 );
 
 const PDFViewer = ({ url }) => {
+  console.log(url);
+  
   const file = url || samplePdf;
 
   return (
@@ -67,6 +69,8 @@ const SubmissionDetail = () => {
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  console.log(id);
+  
 
   // Evaluation State
   const [marks, setMarks] = useState('');
@@ -77,6 +81,8 @@ const SubmissionDetail = () => {
     const fetchSubmission = async () => {
       try {
         const res = await axios.get(`${URL}/submissions/${id}`);
+        console.log(res.data.solution_document);
+        
         setSubmission(res.data);
       } catch (err) {
         console.error("Failed to fetch submission details", err);
@@ -133,13 +139,13 @@ const SubmissionDetail = () => {
           <h2 className="text-2xl font-bold text-[#4a4a4a] mb-4">Submission Information</h2>
           <div className="bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
             {/* Note: Adjusting field keys below (e.g., PS_TITLE) based on your API response structure */}
-            <InfoRow label="Submission ID" value={submission.ID} isEven={true} />
-            <InfoRow label="Problem Title" value={submission.PS_TITLE || "Image based breed recognition for cattle and buffaloes of India"} isEven={false} />
-            <InfoRow label="Submission Title" value={submission.SOL_TITLE} isEven={true} />
-            <InfoRow label="Description" value={submission.SOL_DESCRIPTION} isEven={false} />
-            <InfoRow label="Team Name" value={submission.teamName || submission.TEAM_ID} isEven={true} />
-            <InfoRow label="SPOC ID" value={submission.SPOC_ID || "N/A"} isEven={false} />
-            <InfoRow label="Submitted Date" value={formatDate(submission.CREATED_AT || "2025-12-07")} isEven={true} />
+            <InfoRow label="Submission ID" value={submission.submission_id} isEven={true} />
+            <InfoRow label="Problem Title" value={submission.problem_title || "Image based breed recognition for cattle and buffaloes of India"} isEven={false} />
+            <InfoRow label="Submission Title" value={submission.submission_title} isEven={true} />
+            <InfoRow label="Description" value={submission.description} isEven={false} />
+            <InfoRow label="Team Name" value={submission.team_name || submission.TEAM_ID} isEven={true} />
+            <InfoRow label="SPOC ID" value={submission.spoc_id || "N/A"} isEven={false} />
+            <InfoRow label="Submitted Date" value={formatDate(submission.submitted_date || "2025-12-07")} isEven={true} />
           </div>
         </motion.div>
 
@@ -150,8 +156,10 @@ const SubmissionDetail = () => {
           transition={{ delay: 0.2, duration: 0.5 }}
         >
           <h2 className="text-2xl font-bold text-[#4a4a4a] mb-4">Solution Document</h2>
-            <div className="w-full">
-              <PDFViewer url={submission.SOL_LINK} />
+          <div className="w-full">
+            {console.log(`${URL}/` +submission.solution_document)
+            }
+            <PDFViewer url={`${URL}/`+submission.solution_document} />
             </div>
         </motion.div>
 
