@@ -1,15 +1,14 @@
-import React from "react";
 import axios from "axios";
-import { useState,useEffect } from "react";
+import { useState } from "react";
 import { auth, URL } from "../../Utils";
 import {toast,Toaster} from 'react-hot-toast';
+
 const AddProblemStatement = () => {
 
     const[title,setTitle]=useState("");
     const[description,setDescription]=useState("");
-    const[dept,setDept]=useState("");
+    const[category,setCategory]=useState("");
     const[subDate,setSubDate]=useState("");
-
     const[reference,setReference]=useState("");
     console.log( auth());
 
@@ -22,7 +21,7 @@ const AddProblemStatement = () => {
             title:title,
             description:description,
             sub_date:subDate,
-            dept:dept,
+            category:category,
             reference:reference
             
            }, 
@@ -32,7 +31,7 @@ const AddProblemStatement = () => {
              if (res.status == 200) {
                setTitle("");
                setDescription("");
-               setDept("");
+               setCategory("");
                setSubDate("");
                setReference("")
              }
@@ -84,7 +83,7 @@ const AddProblemStatement = () => {
               ></textarea>
             </div>
 
-            {/* Department */}
+            {/* Category */}
              <div>
               <label className="block text-sm font-medium text-gray-700">
                 Hardware or Software

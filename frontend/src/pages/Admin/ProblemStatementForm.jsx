@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from "react";
+import { useState,useEffect } from "react";
 import axios from "axios";
 import { URL } from "../../Utils";
 import { toast, Toaster } from "react-hot-toast";
@@ -9,8 +9,7 @@ import { useNavigate } from "react-router-dom"; // Added import
 const ProblemStatementForm = () => {
   const navigate = useNavigate(); // Added hook
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [department, setDepartment] = useState(""); // User asked for Category, mapping Dept to it or separate? specific request: "category". Detail view usually shows Dept as category. I'll stick to 'Department' as the field name but label it Category/Department to be safe, or just add Category.
+  const [description, setDescription] = useState("");// User asked for Category, mapping Dept to it or separate? specific request: "category". Detail view usually shows Dept as category. I'll stick to 'Department' as the field name but label it Category/Department to be safe, or just add Category.
   const [category, setCategory] = useState("");
   const [deadline, setDeadline] = useState("");
   const [youtubeLink, setYoutubeLink] = useState("");
@@ -24,7 +23,6 @@ const ProblemStatementForm = () => {
   const [evaluators, setEvaluators] = useState([]);
   const [selectedEvaluators, setSelectedEvaluators] = useState([]);
   const [evaluatorSearch, setEvaluatorSearch] = useState("");
-  const[subDate,setSubDate]=useState("");
   const [reference,setReference]=useState("");
   
 
@@ -80,9 +78,9 @@ const ProblemStatementForm = () => {
     try {
       const response = await axios.post(`${URL}/addproblems`, {
         title: title,
-        category: category,
         description: description,
         sub_date: deadline,
+        category: category,
         reference: reference,
         evaluators:evaluators
       });
@@ -148,7 +146,7 @@ const ProblemStatementForm = () => {
 
             {/* Category */}
             <div>
-              <label className="block text-sm font-semibold text-[#4A5568] mb-2">Category (Department)</label>
+              <label className="block text-sm font-semibold text-[#4A5568] mb-2">Category</label>
               <select
                 className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748] bg-white"
                 onChange={(e) => setCategory(e.target.value)}
