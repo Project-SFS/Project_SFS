@@ -9,7 +9,7 @@ import { Verify_OTP } from "../controllers/Verify_OTP.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { Post_problem, Get_problems, Get_problem_by_id, Delete_problem, Get_assigned_problems } from "../controllers/Problems.js";
 import { Get_cookies } from "../controllers/Cookie.js";
-import { Get_all_submissions, SubmitSolution, Get_submission_by_id } from "../controllers/Submission.js";
+import { Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id } from "../controllers/Submission.js";
 import { handleSpocApprove, Spoc_approve } from "../controllers/Spoc.js";
 import { sendMailToSpoc } from "../controllers/SendMail.js";
 import { upload, uploadFiles } from "../controllers/Upload.js";
@@ -34,7 +34,9 @@ router.route("/addproblems").post(requireAuth, requireRole(['ADMIN', 'EVALUATOR'
 router.route("/spoc_users").get(requireAuth, requireRole(['ADMIN']), Spoc_approve); // Get pending SPOC approvals
 router.route("/handlespoc").post(requireAuth, requireRole(['ADMIN']), handleSpocApprove); // Approve or reject a SPOC
 router.route("/get_all_users").get(requireAuth, requireRole(['ADMIN', 'EVALUATOR']), GetAllUsers); // Get all users
-router.route("/submissions").get(Get_all_submissions); // Get all submissions from all teams
+router.route("/submissions").post(Get_all_submissions);
+router.route("/submissions_by_id").post(Get_submission_by_prob_id); // Get all submissions from all teams
+// Get all submissions from all teams
 router.route("/submissions/:id").get(Get_submission_by_id); // Get single submission by ID
 
 // --- SPOC Routes ---

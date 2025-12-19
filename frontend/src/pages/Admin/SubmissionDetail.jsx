@@ -28,19 +28,22 @@ const SubmissionDetail = () => {
   useEffect(() => {
     const fetchSubmission = async () => {
       try {
-        const response = await axios.get(`${URL}/submissions/${id}`);
+        const response = await axios.post(`${URL}/submissions/${id}`).then(res=>console.log(res.data)
+        )
+        console.log(response);
+        
         setSubmission(response.data);
         if (response.data.marks) setMarks(response.data.marks); // Assuming backend has marks
         if (response.data.comments) setComments(response.data.comments);
       } catch (err) {
         console.error("Error fetching submission:", err);
-        setError("Failed to load submission details.");
+        setError("Failed to load  details.");
       } finally {
         setLoading(false);
       }
     };
     fetchSubmission();
-  }, [id]);
+  });
 
   if (loading) {
     return (
@@ -107,7 +110,7 @@ const SubmissionDetail = () => {
 
         {/* Submission Information Table */}
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">Submission Information</h2>
+          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">Submission </h2>
           <table className="w-full text-left border-collapse border border-[#E2E8F0] rounded-xl overflow-hidden">
             <tbody>
               <tr className="border-b border-[#E2E8F0]">

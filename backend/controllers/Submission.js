@@ -34,15 +34,12 @@ const Get_all_submissions = AsyncHandler(async (req, res) => {
     const offset = (page - 1) * limit;
 
     let query = `
-        SELECT s.*, t.SPOC_ID, u.COLLEGE as collegeName 
-        FROM submissions s
-        LEFT JOIN Team_List t ON s.TEAM_ID = t.ID
-        LEFT JOIN Users u ON t.SPOC_ID = u.ID
+        select * from submissions
     `;
     const params = [];
 
     if (problemId) {
-        query += ` WHERE s.PROBLEM_ID = ?`;
+        query += ` WHERE PROBLEM_ID = ?`;
         params.push(problemId);
     }
 
@@ -52,7 +49,7 @@ const Get_all_submissions = AsyncHandler(async (req, res) => {
     const total = totalResult[0].total;
 
     // Add pagination to the main query
-    query += ` ORDER BY s.SUB_DATE DESC LIMIT ? OFFSET ?`;
+    query += ` ORDER BY SUB_DATE DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
 
     const [result] = await connection.query(query, params);
@@ -66,15 +63,69 @@ const Get_all_submissions = AsyncHandler(async (req, res) => {
     });
 });
 
+const Get_submission_by_prob_id = AsyncHandler(async (req, res) => {
+    const { id } = req.body;
+    const [data] = await connection.query(
+        `
+  SELECT
+      s.ID AS submission_id,
+      s.PROBLEM_ID,
+      s.SOL_TITLE,
+      s.SOL_DESCRIPTION,
+      s.SUB_DATE,
+      s.STATUS,
+      s.SOL_LINK,
+      s.FILES,
+
+      t.ID AS team_id,
+      t.NAME AS team_name,
+      t.SPOC_ID,
+      t.LEAD_EMAIL,
+      t.LEAD_PHONE,
+      t.MENTOR_NAME,
+      t.MENTOR_EMAIL,
+
+      u.NAME AS spoc_name,
+      u.COLLEGE AS college_name
+
+  FROM submissions s
+  JOIN Team_List t
+      ON s.TEAM_EMAIL = t.LEAD_EMAIL
+  JOIN Users u
+      ON t.LEAD_EMAIL = u.EMAIL
+  WHERE s.PROBLEM_ID = ?
+  `,
+        [id]
+    );
+
+    console.log(data);
+
+
+
+    
+    res.send(data)
+})
+
 const Get_submission_by_id = AsyncHandler(async (req, res) => {
     const { id } = req.params;
     const query = `
-        SELECT s.*, t.NAME as teamName, t.SPOC_ID as spocId, p.TITLE as problemTitle
-        FROM submissions s
-        LEFT JOIN Team_List t ON s.TEAM_ID = t.ID
-        LEFT JOIN problems p ON s.PROBLEM_ID = p.ID
-        WHERE s.ID = ?
-    `;
+SELECT
+    s.ID AS submission_id,
+    p.TITLE AS problem_title,
+    s.SOL_TITLE AS submission_title,
+    s.SOL_DESCRIPTION AS description,
+    t.NAME AS team_name,
+    t.SPOC_ID AS spoc_id,
+    s.SUB_DATE AS submitted_date,
+    s.FILES AS solution_document,
+    u.COLLEGE AS college_name
+FROM submissions s
+JOIN problems p ON s.PROBLEM_ID = p.ID
+LEFT JOIN Team_List t ON s.TEAM_EMAIL = t.LEAD_EMAIL
+LEFT JOIN Users u ON t.LEAD_EMAIL = u.EMAIL
+WHERE s.ID = ?
+`;
+
     const [result] = await connection.query(query, [id]);
 
     if (result.length === 0) {
@@ -84,4 +135,4 @@ const Get_submission_by_id = AsyncHandler(async (req, res) => {
     res.status(200).json(result[0]);
 });
 
-export { SubmitSolution, Get_solution, Get_all_submissions, Get_submission_by_id };
+export { SubmitSolution, Get_solution, Get_all_submissions, Get_submission_by_id, Get_submission_by_prob_id };

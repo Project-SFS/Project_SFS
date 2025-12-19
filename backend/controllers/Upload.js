@@ -1,3 +1,4 @@
+import connection from "../database/mysql.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import multer from "multer"
 const storage = multer.diskStorage({
@@ -7,16 +8,30 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-        cb(null, file.fieldname + '-' + uniqueSuffix)
+        cb(null, file.fieldname + '-' + uniqueSuffix+".pdf")
     }
 })
 
 const upload = multer({ storage: storage })
-const uploadFiles = AsyncHandler((req, res) => {
+const uploadFiles = AsyncHandler(async(req, res) => {
+    // console.log(req.body.title);
     const files = req.files;
-
+    const { problemId, email, link, description, title } = req.body
+    console.log(req.body);
+    
     console.log(files[0].path);
-    res.send(files[0].path)
+
+    const [data, extra] = await connection.query("INSERT INTO submissions (PROBLEM_ID, TEAM_EMAIL, SOL_TITLE,SOL_DESCRIPTION,SUB_DATE, SOL_LINK, FILES) VALUES (?, ?, ?, ?, ?, ?, ?)", [problemId, email, title, description, new Date().toISOString().split('T')[0], link, files[0].path]);
+    
+    console.log(data);
+    if (data) {
+        
+        res.send(true);
+    }
+    else {
+        res.send(false);
+    }
+
 })
 
 export { upload, uploadFiles }

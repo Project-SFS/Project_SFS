@@ -1,5 +1,8 @@
+import axios from 'axios'
 import { useState, useRef, useEffect } from 'react'
-
+import { auth, URL } from '../../Utils'
+import { useLocation, useParams } from 'react-router-dom'
+import {toast, Toaster} from "react-hot-toast"
 const Upload = () => {
     const [files, setFiles] = useState([])
     const [previews, setPreviews] = useState([])
@@ -10,15 +13,25 @@ const Upload = () => {
     const [description, setDescription] = useState('')
     const [link, setLink] = useState('')
     const inputRef = useRef(null)
+    const [email, setEmail] = useState();
+    
+    const { problemId } = useParams();
+    console.log(problemId);
 
-    useEffect(() => {
-        // build previews and clean up old object URLs
-        const urls = files.map((f) => URL.createObjectURL(f))
-        setPreviews(urls)
-        return () => {
-            urls.forEach((u) => URL.revokeObjectURL(u))
-        }
-    }, [files])
+    const location = useLocation();
+
+    
+    const probId = location.search.split('=')[1];
+
+
+    // useEffect(() => {
+    //     // build previews and clean up old object URLs
+    //     const urls = files.map((f) => URL.createObjectURL(f))
+    //     setPreviews(urls)
+    //     return () => {
+    //         urls.forEach((u) => URL.revokeObjectURL(u))
+    //     }
+    // }, [files])
 
     const handleFileChange = (e) => {
         console.log(e.target.files);
@@ -31,6 +44,19 @@ const Upload = () => {
         }
         e.target.value = null
     }
+    console.log();
+    
+    useEffect(() => {
+        axios.defaults.withCredentials = true;
+        const res = axios.get(`${URL}/cookie`, { withCredentials: true })
+        res.then(res => {
+            setEmail(res.data.EMAIL);
+
+        }
+        )
+   },[])
+    
+    
 
     console.log(files);
     
@@ -51,6 +77,7 @@ const Upload = () => {
     }
 
     const uploadFiles = () => {
+
         if (!title.trim()) {
             setStatus({ type: 'error', msg: 'Please provide a solution title' })
             return
@@ -61,45 +88,34 @@ const Upload = () => {
             return
         }
 
+        const loading = toast.loading("Processing");
+
+
         const form = new FormData()
         form.append('title', title)
         form.append('description', description)
         form.append('link', link)
         // form.append('files',)
+        form.append('email', email);
+        form.append('problemId', probId)
         files.forEach((f) => form.append('files', f))
         // console.log(form);
-        
-
-        const xhr = new XMLHttpRequest()
-        xhr.open('POST', '/api/upload')
-
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                setProgress(Math.round((e.loaded / e.total) * 100))
+        axios.post(`${URL}/upload_files`, form, {
+            headers: {
+                "Content-Type":"multipart/form-data"
             }
+        })
+            .then(res => {
+                if (res.data) {
+                    toast.dismiss(loading);
+                    toast.success("Uploaded");
+                    clearAll()
+                }
+                else {
+                    toast.error("Error uploading")
+                }
         }
-
-        xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                setStatus({ type: 'success', msg: 'Upload successful' })
-                setFiles([])
-                setTitle('')
-                setDescription('')
-                setLink('')
-                if (inputRef.current) inputRef.current.value = null
-            } else {
-                setStatus({ type: 'error', msg: `Upload failed (${xhr.status})` })
-            }
-            setProgress(0)
-        }
-
-        xhr.onerror = () => {
-            setStatus({ type: 'error', msg: 'Network error during upload' })
-            setProgress(0)
-        }
-
-        xhr.send(form)
-        setStatus({ type: 'info', msg: 'Uploading...' })
+        )
     }
 
     const clearAll = () => {
@@ -115,6 +131,7 @@ const Upload = () => {
     return (
         // added pt-24 to push content below a fixed header; adjust value if your header height differs
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 pt-24 mb-6">
+            <Toaster/>
             <div className="w-full max-w-5xl bg-white/60 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
                 <div className="flex flex-col md:flex-row">
                     {/* Left: Dropzone + inputs */}

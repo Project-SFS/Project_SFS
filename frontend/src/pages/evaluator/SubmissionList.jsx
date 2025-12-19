@@ -40,12 +40,15 @@ const SubmissionList = () => {
   const [filterStatus, setFilterStatus] = useState("All");
   const [assignedProblems, setAssignedProblems] = useState([]);
   const [isProblemDropdownOpen, setIsProblemDropdownOpen] = useState(false);
+  const [submittedSol, setSubmissionssol] = useState([])
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  
+  
   const problemId = searchParams.get("problemId");
-
+  
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -56,18 +59,18 @@ const SubmissionList = () => {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
-
+  
   // 1. Fetch Assigned Problems for Dropdown
   useEffect(() => {
     const fetchAssignedProblems = async () => {
       try {
         const localProblems = JSON.parse(localStorage.getItem('temp_assigned_problems') || '[]');
         let fetchedProblems = [];
-
+        
         const userRes = await axios.get(`${URL}/cookie`, { withCredentials: true });
         const userData = userRes.data;
         const userId = userData?.ID || userData?.id;
-
+        
         if (userId) {
           try {
             const res = await axios.get(`${URL}/problems/evaluator/${userId}`);
@@ -78,12 +81,12 @@ const SubmissionList = () => {
             console.warn("API fetch failed, relying on local/mock", apiErr);
           }
         }
-
+        
         // Combine Local + API
         const combined = [...localProblems, ...fetchedProblems];
         // Deduplicate by ID
         const unique = combined.filter((v, i, a) => a.findIndex(t => (t.ID === v.ID)) === i);
-
+        
         if (unique.length > 0) {
           setAssignedProblems(unique);
           // If no problemId in URL, default to first (optional UX improvement)
@@ -93,7 +96,7 @@ const SubmissionList = () => {
         } else {
           setAssignedProblems([]);
         }
-
+        
       } catch (err) {
         // Fallback to mock data if fetch completely fails
         console.warn("Using mock problems for dropdown", err);
@@ -106,37 +109,42 @@ const SubmissionList = () => {
     };
     fetchAssignedProblems();
   }, [problemId, navigate]);
-
+  
   // 2. Fetch Submissions when problemId changes
   useEffect(() => {
     const fetchSubmissions = async () => {
       // Small artificial delay for UX consistency
       setLoading(true);
       await new Promise(resolve => setTimeout(resolve, 500));
-
+      
       try {
-        const url = problemId
-          ? `${URL}/submissions?problemId=${problemId}`
-          : `${URL}/submissions`;
-
-        const res = await axios.get(url, { withCredentials: true });
-
-        if (res.data && Array.isArray(res.data)) {
-          console.log("Fetched submissions:", res.data); // Debug log
-          setSubmissions(res.data);
-        } else {
-          setSubmissions(mockSubmissions);
-        }
-      } catch (err) {
-        console.warn("Failed to fetch submissions, using mock data", err);
-        setSubmissions(mockSubmissions);
-      } finally {
-        setLoading(false);
+        const res = axios.post(`${URL}/submissions_by_id`, { id: problemId })
+        .then(res => setSubmissionssol(res.data)
+      )
+      
+      
+      
+      
+      if (res.data && Array.isArray(res.data)) {
+        console.log("Fetched submissions:", res.data); // Debug log
+        setSubmissions(res.data);
+      } else {
+        setSubmissions(submittedSol);
       }
-    };
+    } catch (err) {
+      console.warn("Failed to fetch submissions, using mock data", err);
+      setSubmissions(submittedSol);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  fetchSubmissions();
+}, [problemId]);
 
-    fetchSubmissions();
-  }, [problemId]);
+// console.log(sub);
+console.log(submittedSol);
+  
 
   const filteredSubmissions = filterStatus === "All"
     ? submissions
@@ -257,27 +265,29 @@ const SubmissionList = () => {
             <table className="w-full text-left border-collapse">
               <thead className="bg-[#F7F8FC] text-[#4A5568]">
                 <tr>
+                  <th className="p-4 font-semibold">Solution Title</th>
+                  <th className="p-4 text-center font-semibold">Submitted At</th>
                   <th className="p-4 font-semibold">Spoc ID</th>
                   <th className="p-4 font-semibold">Clg name</th>
                   <th className="p-4 font-semibold">Team ID</th>
-                  <th className="p-4 font-semibold">Solution Title</th>
-                  <th className="p-4 text-center font-semibold">Submitted At</th>
-                  <th className="p-4 text-center font-semibold">Status</th>
+                    <th className="p-4 text-center font-semibold">Status</th>
                   <th className="p-4 text-center font-semibold">Action</th>
                 </tr>
-              </thead>
+                </thead>
+                {console.log(submittedSol)
+                }
               <tbody className="bg-white divide-y divide-[#E2E8F0]">
-                {filteredSubmissions.length > 0 ? (
-                  filteredSubmissions.map((sub, index) => (
+                {submittedSol.length > 0 ? (
+                  submittedSol.map((sub, index) => (
                     <tr key={index} className="hover:bg-[#F9FAFB] border-t border-[#E2E8F0] transition-all">
-                      <td className="p-4 text-[#1A202C] font-medium">{sub.SPOC_ID || sub.spocId || "N/A"}</td>
-                      <td className="p-4 text-[#1A202C] font-medium">{sub.collegeName || sub.COLLEGE || "N/A"}</td>
-                      <td className="p-4 text-[#1A202C] font-medium">TID_{sub.TEAM_ID || sub.teamId || "N/A"}</td>
                       <td className="p-4 text-[#1A202C] font-medium">{sub.SOL_TITLE || sub.title || "Untitled Solution"}</td>
                       <td className="p-4 text-center text-[#718096] text-sm">{sub.SUB_DATE || sub.submittedAt ? new Date(sub.SUB_DATE || sub.submittedAt).toLocaleDateString() : "N/A"}</td>
+                      <td className="p-4 text-[#1A202C] font-medium">{sub.SPOC_ID || sub.spocId || "N/A"}</td>
+                      <td className="p-4 text-[#1A202C] font-medium">{sub.college_name || sub.COLLEGE || "N/A"}</td>
+                      <td className="p-4 text-[#1A202C] font-medium">TID_{sub.team_id || sub.teamId || "N/A"}</td>
                       <td className="p-4 text-center"><span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(sub.STATUS || sub.status)}`}>{sub.STATUS || sub.status || "Pending"}</span></td>
                       <td className="p-4 text-center font-medium">
-                        <button onClick={() => navigate(`/evaluator/submission/${sub.ID || sub.id}`)} className="flex items-center justify-center gap-2 mx-auto bg-white border border-[#E2E8F0] hover:bg-gray-50 text-[#2D3748] px-3 py-1.5 rounded-lg text-sm transition-all shadow-sm">
+                        <button onClick={() => navigate(`/evaluator/submission/${sub.submission_id || sub.id}`)} className="flex items-center justify-center gap-2 mx-auto bg-white border border-[#E2E8F0] hover:bg-gray-50 text-[#2D3748] px-3 py-1.5 rounded-lg text-sm transition-all shadow-sm">
                           <FiEye className="text-[#FF9900]" /> View
                         </button>
                       </td>
@@ -290,12 +300,12 @@ const SubmissionList = () => {
                 )}
               </tbody>
             </table>
-          </div>
-
+            </div>
+            {}
           {/* Mobile card list */}
           <div className="sm:hidden p-4 space-y-4">
             {filteredSubmissions.length > 0 ? (
-              filteredSubmissions.map((sub, i) => (
+              submittedSol.map((sub, i) => (
                 <div key={i} className="bg-white border border-[#E2E8F0] rounded-lg p-4 shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>
