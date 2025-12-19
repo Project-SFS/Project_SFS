@@ -8,7 +8,6 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import Button from '../../components/common/button';
 import Breadcrumb from '../../components/common/Breadcrumb';
-import { getProblemStatementById, getSubmissionsByProblemId } from '../../mockData';
 import { FiSearch, FiFilter, FiUsers, FiFileText, FiArrowLeft, FiTrash2 } from 'react-icons/fi';
 import { URL } from '../../Utils';
 
@@ -81,6 +80,7 @@ const ProblemStatementDetail = () => {
     };
 
     fetchData();
+    fetchSubmissions()
 
     return () => { mounted = false };
   }, [id]);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import axios from "axios";
 import { URL } from "../../Utils";
 import { toast, Toaster } from "react-hot-toast";
@@ -24,14 +24,15 @@ const ProblemStatementForm = () => {
   const [evaluators, setEvaluators] = useState([]);
   const [selectedEvaluators, setSelectedEvaluators] = useState([]);
   const [evaluatorSearch, setEvaluatorSearch] = useState("");
-      // const[subDate,setSubDate]=useState("");
+  const[subDate,setSubDate]=useState("");
+  const [reference,setReference]=useState("");
   
 
   // Role Logic
   const [isEvaluator, setIsEvaluator] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchUserAndEvaluators = async () => {
       try {
         // 1. Get current user
@@ -79,26 +80,14 @@ const ProblemStatementForm = () => {
     try {
       const response = await axios.post(`${URL}/addproblems`, {
         title: title,
+        category: category,
         description: description,
-        sub_date: subDate,
-        dept: dept,
+        sub_date: deadline,
         reference: reference,
+        evaluators:evaluators
       });
 
-      // Save created item (fallback to posted payload if response data missing)
-      const created = {
-        ID: Date.now(), // Generate temp ID
-        TITLE: title,
-        DEPT: category,
-        submission_count: 0,
-        SUB_DATE: new Date().toISOString().split('T')[0],
-        ...response?.data,
-        evaluatorId: currentUserId // Tag with current user for local filtering
-      };
-
-      // Store in localStorage for AssignedProblem.jsx to pick up (Mock Persistence)
-      const existing = JSON.parse(localStorage.getItem('temp_assigned_problems') || '[]');
-      localStorage.setItem('temp_assigned_problems', JSON.stringify([created, ...existing]));
+      console.log(response.data);
 
       toast.success("Problem Statement Added Successfully", {
         position: "top-center",
@@ -117,7 +106,7 @@ const ProblemStatementForm = () => {
       setTimeout(() => navigate(-1), 1000);
 
     } catch (error) {
-      console.error("Error adding problem statement:", error);
+      console.log( error);
       toast.error("Failed to Add Problem Statement", { position: "top-center" });
     }
 
@@ -167,12 +156,9 @@ const ProblemStatementForm = () => {
                 required
               >
                 <option value="">Select Category</option>
-                <option value="CSE">Computer Science (CSE)</option>
-                <option value="ECE">Electronics (ECE)</option>
-                <option value="EEE">Electrical (EEE)</option>
-                <option value="MECH">Mechanical (MECH)</option>
-                <option value="CIVIL">Civil</option>
-                <option value="AI_DS">AI & DS</option>
+                <option value="hardware">Hardware</option>
+                <option value="software">Software</option>
+               
 
               </select>
             </div>
@@ -209,8 +195,8 @@ const ProblemStatementForm = () => {
                 type="url"
                 placeholder="https://youtube.com/..."
                 className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
-                onChange={(e) => setYoutubeLink(e.target.value)}
-                value={youtubeLink}
+                onChange={(e) => setReference(e.target.value)}
+                value={reference}
               />
             </div>
 

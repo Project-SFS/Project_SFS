@@ -34,15 +34,12 @@ const Get_all_submissions = AsyncHandler(async (req, res) => {
     const offset = (page - 1) * limit;
 
     let query = `
-        SELECT s.*, t.SPOC_ID, u.COLLEGE as collegeName 
-        FROM submissions s
-        LEFT JOIN Team_List t ON s.TEAM_ID = t.ID
-        LEFT JOIN Users u ON t.SPOC_ID = u.ID
+        select * from submissions
     `;
     const params = [];
 
     if (problemId) {
-        query += ` WHERE s.PROBLEM_ID = ?`;
+        query += ` WHERE PROBLEM_ID = ?`;
         params.push(problemId);
     }
 
@@ -52,7 +49,7 @@ const Get_all_submissions = AsyncHandler(async (req, res) => {
     const total = totalResult[0].total;
 
     // Add pagination to the main query
-    query += ` ORDER BY s.SUB_DATE DESC LIMIT ? OFFSET ?`;
+    query += ` ORDER BY SUB_DATE DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
 
     const [result] = await connection.query(query, params);
