@@ -21,6 +21,8 @@ const Upload = () => {
     }, [files])
 
     const handleFileChange = (e) => {
+        console.log(e.target.files);
+        
         const selected = Array.from(e.target.files)
         if (selected.length) {
             setFiles((prev) => [...prev, ...selected])
@@ -29,6 +31,9 @@ const Upload = () => {
         }
         e.target.value = null
     }
+
+    console.log(files);
+    
 
     const onDrop = (e) => {
         e.preventDefault()
@@ -60,7 +65,10 @@ const Upload = () => {
         form.append('title', title)
         form.append('description', description)
         form.append('link', link)
+        // form.append('files',)
         files.forEach((f) => form.append('files', f))
+        // console.log(form);
+        
 
         const xhr = new XMLHttpRequest()
         xhr.open('POST', '/api/upload')

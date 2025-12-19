@@ -12,6 +12,7 @@ import { Get_cookies } from "../controllers/Cookie.js";
 import { Get_all_submissions, SubmitSolution, Get_submission_by_id } from "../controllers/Submission.js";
 import { handleSpocApprove, Spoc_approve } from "../controllers/Spoc.js";
 import { sendMailToSpoc } from "../controllers/SendMail.js";
+import { upload, uploadFiles } from "../controllers/Upload.js";
 
 const router = Router();
 
@@ -65,5 +66,7 @@ router.get("/problems/evaluator/:evaluatorId", Get_assigned_problems); // Assign
 router.put("/update-user", requireAuth, UpdateUser);
 
 router.post("/delete_problem", requireAuth, requireRole(['ADMIN']), Delete_problem);
+
+router.route("/upload_files").post(upload.any(), uploadFiles )
 
 export default router;
