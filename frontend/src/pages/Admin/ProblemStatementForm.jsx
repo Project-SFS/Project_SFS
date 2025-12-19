@@ -156,8 +156,8 @@ const ProblemStatementForm = () => {
                 required
               >
                 <option value="">Select Category</option>
-                <option value="CSE">Hardware</option>
-                <option value="ECE">Software</option>
+                <option value="hardware">Hardware</option>
+                <option value="software">Software</option>
                
 
               </select>
