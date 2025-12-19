@@ -25,7 +25,8 @@ const AddProblemStatement = () => {
             dept:dept,
             reference:reference
             
-           }, { withCredentials: true }).then(res => {
+           }, 
+           { withCredentials: true }).then(res => {
              console.log(res);
              
              if (res.status == 200) {
