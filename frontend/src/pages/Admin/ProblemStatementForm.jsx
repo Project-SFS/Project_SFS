@@ -156,12 +156,9 @@ const ProblemStatementForm = () => {
                 required
               >
                 <option value="">Select Category</option>
-                <option value="CSE">Computer Science (CSE)</option>
-                <option value="ECE">Electronics (ECE)</option>
-                <option value="EEE">Electrical (EEE)</option>
-                <option value="MECH">Mechanical (MECH)</option>
-                <option value="CIVIL">Civil</option>
-                <option value="AI_DS">AI & DS</option>
+                <option value="CSE">Hardware</option>
+                <option value="ECE">Software</option>
+               
 
               </select>
             </div>
