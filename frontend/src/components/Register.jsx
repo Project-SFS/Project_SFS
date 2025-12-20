@@ -199,220 +199,267 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center mt-10 p-4 fixed-bg">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center p-4">
       <Header />
-      <Toaster position="top-right"/> 
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-[420px] bg-[#ffffff] rounded-lg shadow-lg p-6"
-        aria-label="Register form"
-      >
-        <h1 className="text-2xl font-bold mb-4 text-[#4a4a4a]">Register</h1>
-
-        {/* Email Field */}
-        <div className="mb-4">
-          <input
-            name="email"
-            type="email"
-            value={email}
-            onChange={handleemail}
-            placeholder="Enter Email"
-            disabled={emailVerified}
-            required
-            className={`w-full p-3 border ${errors.email ? 'border-red-500' : 'border-gray-200'} rounded focus:outline-none focus:ring-2 focus:ring-[#fc8f00] text-[#4a4a4a]`}
-            aria-invalid={!!errors.email}
-          />
-          {errors.email && (
-            <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
-              {errors.email}
+      <Toaster position="top-right" />
+      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden md:flex transition-all duration-500 ease-in-out">
+        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-orange-400 to-orange-600 items-center justify-center p-12 relative">
+          <div className="absolute inset-0 bg-[#494949] bg-opacity-20"></div>
+          <div className="text-white text-center relative z-10">
+            <h2 className="text-4xl font-bold mb-4">Join Us</h2>
+            <p className="text-lg opacity-90">Create your account to get started with SFS Portal</p>
+            <div className="mt-8">
+              <svg className="w-24 h-24 mx-auto text-white opacity-80" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+              </svg>
             </div>
-          )}
-        </div>
-
-        {/* Verify Email Button */}
-        {!otpSent && !emailVerified && (
-          <button
-            type="button"
-            onClick={handleSendOtp}
-            className="mb-4 w-full p-3 rounded bg-[#fc8f00] hover:bg-[#e07a00] text-white font-semibold transition"
-          >
-            Verify Email
-          </button>
-        )}
-
-        {/* OTP Field */}
-        {otpSent && (
-          <div className="mb-4">
-            <input
-              name="otp"
-              type="text"
-              value={form.otp}
-              onChange={onChange}
-              placeholder="Enter OTP" 
-              className={`w-full p-3 border ${errors.otp ? 'border-red-500' : 'border-gray-200'} rounded focus:outline-none focus:ring-2 focus:ring-[#fc8f00] text-[#4a4a4a]`}
-              aria-invalid={!!errors.otp}
-            />
-            {errors.otp && (
-              <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
-                {errors.otp}
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={handleVerifyOtp}
-              className="mt-3 w-full p-3 rounded bg-[#fc8f00] hover:bg-[#e07a00] text-white font-semibold transition"
-            >
-              Verify OTP
-            </button>
           </div>
-        )}
-
-        {/* Remaining fields only after verification */}
-        {emailVerified && (
-          <>
-            <RoleSelect
-              value={form.role}
-              onChange={onChange}
-              error={errors.role}
-            />
-
-            <div className="mb-4">
-              <input
-                name="password"
-                type="password"
-                value={form.password}
-                onChange={onChange}
-                placeholder="Password"
-                className={`w-full p-3 border ${errors.password ? 'border-red-500' : 'border-gray-200'} rounded focus:outline-none focus:ring-2 focus:ring-[#fc8f00] text-[#4a4a4a]`}
-                aria-invalid={!!errors.password}
-              />
-              {errors.password && (
-                <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
-                  {errors.password}
+        </div>
+        <div className="w-full md:w-1/2 p-10">
+          <div className="text-center mb-8">
+            <h3 className="text-3xl font-bold text-gray-800 mb-2">Sign Up</h3>
+            <p className="text-gray-600">Create your account to access the SFS Portal</p>
+          </div>
+          <form onSubmit={onSubmit} className="space-y-6" aria-label="Register form">
+            {/* Email Field */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                  </svg>
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={handleemail}
+                  required
+                  placeholder="you@college.edu"
+                  disabled={emailVerified}
+                  className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                  aria-invalid={!!errors.email}
+                />
+              </div>
+              {errors.email && (
+                <div className="mt-2 text-sm text-red-600" role="alert">
+                  {errors.email}
                 </div>
               )}
-              <PasswordStrength password={form.password} />
             </div>
 
-            {(form.role === "spoc") && (
+            {/* Verify Email Button */}
+            {!otpSent && !emailVerified && (
+              <div>
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-200 transform hover:scale-105"
+                >
+                  Verify Email
+                </button>
+              </div>
+            )}
+
+            {/* OTP Field */}
+            {otpSent && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">OTP</label>
+                <input
+                  name="otp"
+                  type="text"
+                  value={form.otp}
+                  onChange={onChange}
+                  placeholder="Enter OTP"
+                  className={`w-full px-4 py-3 border ${errors.otp ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                  aria-invalid={!!errors.otp}
+                />
+                {errors.otp && (
+                  <div className="mt-2 text-sm text-red-600" role="alert">
+                    {errors.otp}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleVerifyOtp}
+                  className="mt-3 w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-200 transform hover:scale-105"
+                >
+                  Verify OTP
+                </button>
+              </div>
+            )}
+
+            {/* Remaining fields only after verification */}
+            {emailVerified && (
               <>
-                <div className="mb-4">
-                  <input
-                   name="name"
-                   type="text"
-                   value={form.name}
-                   onChange={onChange}
-                   placeholder="SPOC Name"
-                   className={`w-full p-3 border ${errors.name ? 'border-red-500' : 'border-gray-200'} rounded focus:outline-none focus:ring-2 focus:ring-[#fc8f00] text-[#4a4a4a]`}
-                   aria-invalid={!!errors.name}
-                 />
-                 {errors.name && (
-                    <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
-                      {errors.name}
-                    </div>
-                  )}
-                  <input
-                    name="college"
-                    type="text"
-                    value={form.college}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                  <select
+                    name="role"
+                    value={form.role}
                     onChange={onChange}
-                    placeholder="SPOC College"
-                    className={`w-full p-3 border ${errors.college ? 'border-red-500' : 'border-gray-200'} rounded focus:outline-none focus:ring-2 focus:ring-[#fc8f00] text-[#4a4a4a] mt-3`}
-                    aria-invalid={!!errors.college}
-                  />
-                  {errors.college && (
-                    <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
-                      {errors.college}
+                    className={`w-full px-4 py-3 border ${errors.role ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                    aria-invalid={!!errors.role}
+                  >
+                    <option value="">Select role</option>
+                    <option value="spoc">SPOC</option>
+                    <option value="evaluator">Evaluator</option>
+                  </select>
+                  {errors.role && (
+                    <div className="mt-2 text-sm text-red-600" role="alert">
+                      {errors.role}
                     </div>
                   )}
                 </div>
 
-                <div className="mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
                   <input
-                    name="collegeid"
-                    type="text"
-                    value={form.collegeid}
+                    name="password"
+                    type="password"
+                    value={form.password}
                     onChange={onChange}
-                    placeholder="College ID"
-                    className={`w-full p-3 border ${errors.collegeid ? 'border-red-500' : 'border-gray-200'} rounded focus:outline-none focus:ring-2 focus:ring-[#fc8f00] text-[#4a4a4a]`}
-                    aria-invalid={!!errors.collegeid}
+                    placeholder="Enter your password"
+                    className={`w-full px-4 py-3 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                    aria-invalid={!!errors.password}
                   />
-                  {errors.collegeid && (
-                    <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
-                      {errors.collegeid}
+                  {errors.password && (
+                    <div className="mt-2 text-sm text-red-600" role="alert">
+                      {errors.password}
                     </div>
                   )}
+                  <PasswordStrength password={form.password} />
+                </div>
+
+                {(form.role === "spoc") && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">SPOC Name</label>
+                      <input
+                        name="name"
+                        type="text"
+                        value={form.name}
+                        onChange={onChange}
+                        placeholder="Enter SPOC Name"
+                        className={`w-full px-4 py-3 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                        aria-invalid={!!errors.name}
+                      />
+                      {errors.name && (
+                        <div className="mt-2 text-sm text-red-600" role="alert">
+                          {errors.name}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">College</label>
+                      <input
+                        name="college"
+                        type="text"
+                        value={form.college}
+                        onChange={onChange}
+                        placeholder="Enter College Name"
+                        className={`w-full px-4 py-3 border ${errors.college ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                        aria-invalid={!!errors.college}
+                      />
+                      {errors.college && (
+                        <div className="mt-2 text-sm text-red-600" role="alert">
+                          {errors.college}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">College ID</label>
+                      <input
+                        name="collegeid"
+                        type="text"
+                        value={form.collegeid}
+                        onChange={onChange}
+                        placeholder="Enter College ID"
+                        className={`w-full px-4 py-3 border ${errors.collegeid ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                        aria-invalid={!!errors.collegeid}
+                      />
+                      {errors.collegeid && (
+                        <div className="mt-2 text-sm text-red-600" role="alert">
+                          {errors.collegeid}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {form.role === "evaluator" && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Evaluator Name</label>
+                      <input
+                        name="name"
+                        type="text"
+                        value={form.name}
+                        onChange={onChange}
+                        placeholder="Enter Evaluator Name"
+                        className={`w-full px-4 py-3 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                        aria-invalid={!!errors.name}
+                      />
+                      {errors.name && (
+                        <div className="mt-2 text-sm text-red-600" role="alert">
+                          {errors.name}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Department</label>
+                      <input
+                        name="college"
+                        type="text"
+                        value={form.college}
+                        onChange={onChange}
+                        placeholder="Enter Department"
+                        className={`w-full px-4 py-3 border ${errors.college ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                        aria-invalid={!!errors.college}
+                      />
+                      {errors.college && (
+                        <div className="mt-2 text-sm text-red-600" role="alert">
+                          {errors.college}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ID</label>
+                      <input
+                        name="collegeid"
+                        type="text"
+                        value={form.collegeid}
+                        onChange={onChange}
+                        placeholder="Enter ID"
+                        className={`w-full px-4 py-3 border ${errors.collegeid ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                        aria-invalid={!!errors.collegeid}
+                      />
+                      {errors.collegeid && (
+                        <div className="mt-2 text-sm text-red-600" role="alert">
+                          {errors.collegeid}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <button
+                    type="submit"
+                    disabled={!isPasswordValid}
+                    className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-200 transform hover:scale-105"
+                  >
+                    Sign Up
+                  </button>
                 </div>
               </>
             )}
-
-            {form.role === "evaluator" && (
-              <>
-                <div className="mb-4">
-                  <input
-                    name="name"
-                    type="text"
-                    value={form.name}
-                    onChange={onChange}
-                    placeholder="Evaluator Name"
-                    className={`w-full p-3 border ${errors.name ? 'border-red-500' : 'border-gray-200'} mb-3 rounded focus:outline-none focus:ring-2 focus:ring-[#fc8f00] text-[#4a4a4a]`}
-                    aria-invalid={!!errors.name}
-                  />
-                  {errors.name && (
-                    <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
-                      {errors.name}
-                    </div>
-                  )}
-                  <input
-                    name="college"
-                    type="text"
-                    value={form.college}
-                    onChange={onChange}
-                    placeholder="Department"
-                    className={`w-full p-3 border ${errors.college ? 'border-red-500' : 'border-gray-200'} rounded focus:outline-none focus:ring-2 focus:ring-[#fc8f00] text-[#4a4a4a]`}
-                    aria-invalid={!!errors.college}
-                  />
-                  {errors.college && (
-                    <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
-                      {errors.college}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-6">
-                  <input
-                    name="collegeid"
-                    type="text"
-                    value={form.collegeid}
-                    onChange={onChange}
-                    placeholder="ID"
-                    className={`w-full p-3 border ${errors.collegeid ? 'border-red-500' : 'border-gray-200'} rounded focus:outline-none focus:ring-2 focus:ring-[#fc8f00] text-[#4a4a4a]`}
-                    aria-invalid={!!errors.collegeid}
-                  />
-                  {errors.collegeid && (
-                    <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
-                      {errors.collegeid}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-            
-            <button
-              type="submit"
-              disabled={!isPasswordValid}
-              className="w-full p-3 rounded bg-[#fc8f00] hover:bg-[#e07a00] text-[#ffffff] font-semibold transition"
-            >
-              Register
-            </button>
-          </>
-        )}
-        <p>Already Registered?
-            <a href="/login" className="text-blue-500 hover:underline"> Login here</a>
-            </p>
-      </form>
-      
-
+          </form>
+          <div className="mt-8 text-center">
+            <p className="text-gray-600">Already have an account? <a href="/login" className="text-orange-600 hover:text-orange-800 font-medium transition duration-200">Sign In</a></p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
