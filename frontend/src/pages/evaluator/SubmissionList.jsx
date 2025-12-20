@@ -33,7 +33,7 @@ const SubmissionList = () => {
   useEffect(() => {
     const fetchAssignedProblems = async () => {
       try {
-        const localProblems = JSON.parse(localStorage.getItem('temp_assigned_problems') || '[]');
+        
         let fetchedProblems = [];
         
         const userRes = await axios.get(`${URL}/cookie`, { withCredentials: true });
