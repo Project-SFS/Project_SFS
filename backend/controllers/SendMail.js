@@ -13,7 +13,9 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendMailToSpoc = AsyncHandler(async (req, res) => {
-    const { Problem } = req.body;
+  const { Problem } = req.body;
+  console.log(Problem);
+  
     const [data, err] = await connection.query("select EMAIL, NAME from Users WHERE ROLE='SPOC' AND STATUS='ACTIVE'");
     // console.log(data);
     let batchSize = 5;

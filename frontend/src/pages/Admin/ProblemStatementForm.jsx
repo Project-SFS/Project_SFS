@@ -75,6 +75,9 @@ const ProblemStatementForm = () => {
   console.log("2025-12-30T18:30:00.000Z".split('T')[0]);
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log(title, description, deadline, category, reference, currentUserId);
+    
+    
     try {
       const response = await axios.post(`${URL}/addproblems`, {
         title: title,
@@ -92,6 +95,9 @@ const ProblemStatementForm = () => {
       toast.success("Problem Statement Added Successfully", {
         position: "top-center",
       });
+
+      axios.post(`${URL}/send_mail_to_spoc`, { Problem : title }).then(res => console.log(res)
+      )
 
       // Clear form and navigate back
       setTitle("");
