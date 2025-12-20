@@ -82,8 +82,10 @@ const ProblemStatementForm = () => {
         sub_date: deadline,
         category: category,
         reference: reference,
-        evaluators:evaluators
-      });
+        evaluators:currentUserId
+      },
+      {withCredentials:true}
+    );
 
       console.log(response.data);
 

@@ -26,9 +26,9 @@ const Post_problem = AsyncHandler(async (req, res) => {
     console.log(sub_date);
     const dept = "CSE"; 
     const query = `INSERT INTO problems (TITLE, DESCRIPTION,SUB_DEADLINE, CATEGORY,DEPT,Reference, Evaluator_ID)
-                   VALUES (?, ?, ?, ? ,?, ?)`;
+                   VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
-    const params = [title, description, category, sub_date,dept,reference, evaluators];
+    const params = [title, description,sub_date, category, dept,reference, evaluators];
 
     const [result] = await connection.execute(query, params);
     const problemId = result.insertId;
