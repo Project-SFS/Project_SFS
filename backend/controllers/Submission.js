@@ -97,6 +97,8 @@ const Get_submission_by_prob_id = AsyncHandler(async (req, res) => {
   `,
         [id]
     );
+    console.log(id);
+    
 
     console.log(data);
 
