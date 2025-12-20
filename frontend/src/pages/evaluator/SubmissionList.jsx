@@ -1,9 +1,39 @@
+
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL } from "../../Utils";
 import { FiArrowLeft, FiEye, FiFilter, FiChevronDown } from "react-icons/fi";
 
+const mockSubmissions = [
+  {
+    TEAM_ID: 201,
+    SPOC_ID: "SPOC_001",
+    collegeName: "Tech Institute",
+    SOL_TITLE: "Smart Grid AI Solution",
+    SUB_DATE: "2024-03-22T10:30:00Z",
+    STATUS: "Pending",
+    SOL_LINK: "#"
+  },
+  {
+    TEAM_ID: 202,
+    SPOC_ID: "SPOC_002",
+    collegeName: "Green Valley College",
+    SOL_TITLE: "Green Energy Optimizer",
+    SUB_DATE: "2024-03-23T14:15:00Z",
+    STATUS: "Evaluated",
+    SOL_LINK: "#"
+  },
+  {
+    TEAM_ID: 205,
+    SPOC_ID: "SPOC_003",
+    collegeName: "Urban Univ",
+    SOL_TITLE: "Urban Waste Management Bot",
+    SUB_DATE: "2024-03-24T09:00:00Z",
+    STATUS: "In Review",
+    SOL_LINK: "#"
+  }
+];
 
 const SubmissionList = () => {
   const [submissions, setSubmissions] = useState([]);
@@ -16,8 +46,10 @@ const SubmissionList = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+
+
   const problemId = searchParams.get("problemId");
-  
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -28,18 +60,18 @@ const SubmissionList = () => {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
-  
+
   // 1. Fetch Assigned Problems for Dropdown
   useEffect(() => {
     const fetchAssignedProblems = async () => {
       try {
-        
+        const localProblems = JSON.parse(localStorage.getItem('temp_assigned_problems') || '[]');
         let fetchedProblems = [];
-        
+
         const userRes = await axios.get(`${URL}/cookie`, { withCredentials: true });
         const userData = userRes.data;
         const userId = userData?.ID || userData?.id;
-        
+
         if (userId) {
           try {
             const res = await axios.get(`${URL}/problems/evaluator/${userId}`);
@@ -50,12 +82,12 @@ const SubmissionList = () => {
             console.warn("API fetch failed, relying on local/mock", apiErr);
           }
         }
-        
+
         // Combine Local + API
         const combined = [...localProblems, ...fetchedProblems];
         // Deduplicate by ID
         const unique = combined.filter((v, i, a) => a.findIndex(t => (t.ID === v.ID)) === i);
-        
+
         if (unique.length > 0) {
           setAssignedProblems(unique);
           // If no problemId in URL, default to first (optional UX improvement)
@@ -65,45 +97,55 @@ const SubmissionList = () => {
         } else {
           setAssignedProblems([]);
         }
-        
+
       } catch (err) {
-        console.error("Error fetching assigned problems", err);
+        // Fallback to mock data if fetch completely fails
+        console.warn("Using mock problems for dropdown", err);
+        setAssignedProblems([
+          { ID: 101, TITLE: "AI-Driven Supply Chain Optimization" },
+          { ID: 102, TITLE: "Sustainable Packaging Solutions" },
+          { ID: 103, TITLE: "IoT Based Energy Monitoring" }
+        ]);
       }
     };
     fetchAssignedProblems();
   }, [problemId, navigate]);
-  
+
   // 2. Fetch Submissions when problemId changes
   useEffect(() => {
     const fetchSubmissions = async () => {
       // Small artificial delay for UX consistency
       setLoading(true);
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       try {
         const res = axios.post(`${URL}/submissions_by_id`, { id: problemId })
-        .then(res => setSubmissionssol(res.data)
-      )
-      if (res.data && Array.isArray(res.data)) {
-        console.log("Fetched submissions:", res.data); // Debug log
-        setSubmissions(res.data);
-      } else {
-        setSubmissions(submittedSol);
-      }
-    } catch (err) {
-      console.warn("Failed to fetch submissions, using mock data", err);
-      setSubmissions(submittedSol);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  fetchSubmissions();
-}, [problemId]);
+          .then(res => setSubmissionssol(res.data)
+          )
 
-// console.log(sub);
-console.log(submittedSol);
-  
+
+
+
+        if (res.data && Array.isArray(res.data)) {
+          console.log("Fetched submissions:", res.data); // Debug log
+          setSubmissions(res.data);
+        } else {
+          setSubmissions(submittedSol);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch submissions, using mock data", err);
+        setSubmissions(submittedSol);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubmissions();
+  }, [problemId]);
+
+  // console.log(sub);
+  console.log(submittedSol);
+
 
   const filteredSubmissions = filterStatus === "All"
     ? submissions
@@ -229,12 +271,12 @@ console.log(submittedSol);
                   <th className="p-4 font-semibold">Spoc ID</th>
                   <th className="p-4 font-semibold">College Name</th>
                   <th className="p-4 font-semibold">Team ID</th>
-                    <th className="p-4 text-center font-semibold">Status</th>
+                  <th className="p-4 text-center font-semibold">Status</th>
                   <th className="p-4 text-center font-semibold">Action</th>
                 </tr>
-                </thead>
-                {console.log(submittedSol)
-                }
+              </thead>
+              {console.log(submittedSol)
+              }
               <tbody className="bg-white divide-y divide-[#E2E8F0]">
                 {submittedSol.length > 0 ? (
                   submittedSol.map((sub, index) => (
@@ -259,8 +301,8 @@ console.log(submittedSol);
                 )}
               </tbody>
             </table>
-            </div>
-            {}
+          </div>
+          { }
           {/* Mobile card list */}
           <div className="sm:hidden p-4 space-y-4">
             {filteredSubmissions.length > 0 ? (
