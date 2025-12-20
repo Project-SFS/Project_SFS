@@ -268,7 +268,7 @@ console.log(submittedSol);
                   <th className="p-4 font-semibold">Solution Title</th>
                   <th className="p-4 text-center font-semibold">Submitted At</th>
                   <th className="p-4 font-semibold">Spoc ID</th>
-                  <th className="p-4 font-semibold">Clg name</th>
+                  <th className="p-4 font-semibold">College Name</th>
                   <th className="p-4 font-semibold">Team ID</th>
                     <th className="p-4 text-center font-semibold">Status</th>
                   <th className="p-4 text-center font-semibold">Action</th>
