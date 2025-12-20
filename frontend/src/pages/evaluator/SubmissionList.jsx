@@ -4,35 +4,6 @@ import axios from "axios";
 import { URL } from "../../Utils";
 import { FiArrowLeft, FiEye, FiFilter, FiChevronDown } from "react-icons/fi";
 
-const mockSubmissions = [
-  {
-    TEAM_ID: 201,
-    SPOC_ID: "SPOC_001",
-    collegeName: "Tech Institute",
-    SOL_TITLE: "Smart Grid AI Solution",
-    SUB_DATE: "2024-03-22T10:30:00Z",
-    STATUS: "Pending",
-    SOL_LINK: "#"
-  },
-  {
-    TEAM_ID: 202,
-    SPOC_ID: "SPOC_002",
-    collegeName: "Green Valley College",
-    SOL_TITLE: "Green Energy Optimizer",
-    SUB_DATE: "2024-03-23T14:15:00Z",
-    STATUS: "Evaluated",
-    SOL_LINK: "#"
-  },
-  {
-    TEAM_ID: 205,
-    SPOC_ID: "SPOC_003",
-    collegeName: "Urban Univ",
-    SOL_TITLE: "Urban Waste Management Bot",
-    SUB_DATE: "2024-03-24T09:00:00Z",
-    STATUS: "In Review",
-    SOL_LINK: "#"
-  }
-];
 
 const SubmissionList = () => {
   const [submissions, setSubmissions] = useState([]);
@@ -45,8 +16,6 @@ const SubmissionList = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  
-  
   const problemId = searchParams.get("problemId");
   
   // Close dropdown when clicking outside
@@ -98,13 +67,7 @@ const SubmissionList = () => {
         }
         
       } catch (err) {
-        // Fallback to mock data if fetch completely fails
-        console.warn("Using mock problems for dropdown", err);
-        setAssignedProblems([
-          { ID: 101, TITLE: "AI-Driven Supply Chain Optimization" },
-          { ID: 102, TITLE: "Sustainable Packaging Solutions" },
-          { ID: 103, TITLE: "IoT Based Energy Monitoring" }
-        ]);
+        console.error("Error fetching assigned problems", err);
       }
     };
     fetchAssignedProblems();
@@ -121,10 +84,6 @@ const SubmissionList = () => {
         const res = axios.post(`${URL}/submissions_by_id`, { id: problemId })
         .then(res => setSubmissionssol(res.data)
       )
-      
-      
-      
-      
       if (res.data && Array.isArray(res.data)) {
         console.log("Fetched submissions:", res.data); // Debug log
         setSubmissions(res.data);
