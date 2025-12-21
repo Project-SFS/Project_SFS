@@ -33,7 +33,6 @@ const ProblemStatementDetail = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  /* ---------------- Fetch Data ---------------- */
 
   useEffect(() => {
     let mounted = true;
@@ -70,10 +69,12 @@ const ProblemStatementDetail = () => {
 
     const fetchSubmissions = async () => {
       try {
-        const res = await axios.get(
-          `${URL}/submissions?problemId=${id}`,
-          { withCredentials: true }
-        );
+        const res = await axios.post(
+  `${URL}/submissions_by_id`,
+  { id },                      
+  { withCredentials: true }    
+);
+
 
         if (!Array.isArray(res.data)) return;
 
