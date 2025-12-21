@@ -1,25 +1,29 @@
-/**
- * @file ProblemStatementDetail.jsx
- * @description Displays the full details of a specific problem statement for administrative view.
- */
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import Button from '../../components/common/button';
 import Breadcrumb from '../../components/common/Breadcrumb';
-import { FiSearch, FiFilter, FiUsers, FiFileText, FiArrowLeft, FiTrash2 } from 'react-icons/fi';
+import {
+  FiSearch,
+  FiFilter,
+  FiUsers,
+  FiFileText,
+  FiArrowLeft,
+  FiTrash2
+} from 'react-icons/fi';
 import { URL } from '../../Utils';
 
 const ProblemStatementDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [problem, setProblem] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterOptions, setFilterOptions] = useState({
     evaluated: false,
-    submitted: false,
+    submitted: false
   });
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -29,107 +33,154 @@ const ProblemStatementDetail = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  // fetch problem details and submissions from backend; fallback to mockData
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    let mounted = true;
-    const base = import.meta.env.VITE_API_URL || '';
+  /* ---------------- Fetch Data ---------------- */
 
-    const fetchData = async () => {
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchProblem = async () => {
       try {
-        const res = await fetch(`${base}/problems/${id}`);
-        if (!res.ok) throw new Error('no problem');
-        const json = await res.json();
-        const p = (json.problems && json.problems[0]) || json.problem || null;
+        const res = await axios.get(`${URL}/problems/${id}`, {
+          withCredentials: true
+        });
+
+        const p =
+          res.data?.problems?.[0] ||
+          res.data?.problem ||
+          null;
+
         if (p && mounted) {
           setProblem({
-            id: p.ID ? String(p.ID) : (p.id || ''),
+            id: String(p.ID ?? p.id ?? ''),
             title: p.TITLE || p.title || 'Untitled',
             description: p.DESCRIPTION || p.description || '',
+            category: p.CATEGORY || p.category || 'N/A',
             youtube: p.YOUTUBE || p.youtube || p.youtube_link || '',
             dataset: p.DATASET || p.dataset || '',
-            created: p.SUB_DATE ? new Date(p.SUB_DATE).toISOString() : (p.created || new Date().toISOString()),
-            assignedEvaluators: p.assignedEvaluators || [],
-            submissionsCount: p.submissionsCount || 0,
+            created: p.SUB_DATE
+              ? new Date(p.SUB_DATE).toISOString()
+              : new Date().toISOString()
           });
         }
       } catch (err) {
-        // keep mock fallback
+        console.error(err);
+        toast.error('Failed to load problem statement');
       }
     };
 
     const fetchSubmissions = async () => {
       try {
-        const res = await fetch(`${base}/submissions?problemId=${id}`);
-        if (!res.ok) throw new Error('no submissions');
-        const json = await res.json();
-        if (Array.isArray(json) && mounted) {
-          const mapped = json.map(s => ({
-            id: s.ID ? String(s.ID) : (s.id || ''),
-            problemId: s.PROBLEM_ID ?? s.PROBLEMID ?? s.problemId ?? s.problem_id ?? null,
-            teamId: s.TEAM_ID ?? s.TEAMID ?? s.teamId ?? s.team_id ?? null,
-            status: String(s.STATUS ?? s.SUB_STATUS ?? s.status ?? '').trim(),
-            spocId: s.SPOC_ID ?? s.SPOCId ?? s.spocId ?? s.spoc_id ?? s.spocId ?? '',
-            title: s.SOL_TITLE ?? s.title ?? s.SOL_TITLE ?? '',
-          }));
-          setSubmissions(mapped);
-        }
+        const res = await axios.get(
+          `${URL}/submissions?problemId=${id}`,
+          { withCredentials: true }
+        );
+
+        if (!Array.isArray(res.data)) return;
+
+        const normalized = res.data.map(s => ({
+          id: String(s.ID ?? s.id ?? ''),
+          problemId:
+            s.PROBLEM_ID ??
+            s.problemId ??
+            s.problem_id ??
+            null,
+          teamId:
+            s.TEAM_ID ??
+            s.teamId ??
+            s.team_id ??
+            null,
+          status: String(
+            s.STATUS ?? s.SUB_STATUS ?? s.status ?? ''
+          )
+            .trim()
+            .toUpperCase(),
+          spocId: String(
+            s.SPOC_ID ?? s.spocId ?? s.spoc_id ?? ''
+          ),
+          title: s.SOL_TITLE || s.title || ''
+        }));
+
+        if (mounted) setSubmissions(normalized);
       } catch (err) {
-        // keep mock fallback
+        console.error(err);
+        toast.error('Failed to load submissions');
       }
     };
 
-    fetchData();
-    fetchSubmissions()
+    Promise.all([fetchProblem(), fetchSubmissions()])
+      .finally(() => mounted && setLoading(false));
 
-    return () => { mounted = false };
+    return () => {
+      mounted = false;
+    };
   }, [id]);
 
-  const handleDelete = () => {
-    setShowDeleteModal(true);
-  };
+  /* ---------------- Delete ---------------- */
 
   const confirmDelete = async () => {
     try {
-      // Trying likely endpoint pattern matches delete_team
-      await axios.post(`${URL}/delete_problem`, { id: id }, { withCredentials: true });
-      toast.success("Problem statement deleted");
+      await axios.post(
+        `${URL}/delete_problem`,
+        { id },
+        { withCredentials: true }
+      );
+      toast.success('Problem statement deleted');
       navigate('/admin/problems');
     } catch (err) {
-      console.error("Delete error:", err);
-      // Fallback attempt if first one fails? No, keep simple. 
-      // If user reports failure, we try another endpoint.
-      toast.error("Failed to delete problem statement");
+      console.error(err);
+      toast.error('Failed to delete problem statement');
     } finally {
       setShowDeleteModal(false);
     }
   };
 
+  /* ---------------- Filters ---------------- */
+
+  const filteredSubmissions = submissions.filter(sub => {
+    const search = searchTerm.toLowerCase();
+
+    const matchesSearch =
+      (sub.spocId || '').toLowerCase().includes(search) ||
+      (sub.title || '').toLowerCase().includes(search);
+
+    const status = sub.status;
+
+    const matchesFilter =
+      (!filterOptions.evaluated && !filterOptions.submitted) ||
+      (filterOptions.evaluated && status === 'EVALUATED') ||
+      (filterOptions.submitted && status === 'SUBMITTED');
+
+    return matchesSearch && matchesFilter;
+  });
+
+  const teamsEnrolled = new Set(
+    submissions.map(s => s.teamId).filter(Boolean)
+  ).size;
+
+  const totalSubmissions = submissions.length;
+
+  /* ---------------- Loading / Error ---------------- */
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F7F8FC] flex flex-col items-center justify-center space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#FF9900]"></div>
-        <h2 className="text-xl font-semibold text-gray-700">Problem Statement Loading...</h2>
+        <h2 className="text-xl font-semibold text-gray-700">
+          Problem Statement Loading...
+        </h2>
       </div>
     );
   }
 
   if (!problem) {
-    return <div className="min-h-screen bg-gray-50 py-10"><div className="max-w-4xl mx-auto bg-white shadow rounded-lg p-8"><h1>Problem Statement not found</h1></div></div>;
+    return (
+      <div className="min-h-screen bg-gray-50 py-10">
+        <div className="max-w-4xl mx-auto bg-white shadow rounded-lg p-8">
+          <h1>Problem Statement not found</h1>
+        </div>
+      </div>
+    );
   }
-
-  const filteredSubmissions = submissions.filter(sub => {
-    const matchesSearch = sub.spocId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = (!filterOptions.evaluated && !filterOptions.submitted) ||
-      (filterOptions.evaluated && sub.status === 'Evaluated') ||
-      (filterOptions.submitted && sub.status === 'Submitted');
-    return matchesSearch && matchesFilter;
-  });
-
-  const teamsEnrolled = new Set(submissions.map(s => s.teamId)).size;
-  const totalSubmissions = submissions.length;
-
   return (
     <div className="min-h-screen bg-[#F7F8FC] px-6 py-8 transition-all duration-300">
       <div className="max-w-7xl mx-auto">
@@ -137,7 +188,7 @@ const ProblemStatementDetail = () => {
           <Breadcrumb />
           <div className="flex gap-4">
             <Button
-              onClick={handleDelete}
+              onClick={confirmDelete}
               className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
             >
               <FiTrash2 className="w-5 h-5" />
