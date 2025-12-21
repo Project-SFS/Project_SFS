@@ -12,16 +12,16 @@ const statusColor = (s) => {
   return "bg-gray-200 text-black";
 };
 
-const mapSubmission = (row = {}) => ({
-  id: row.id ?? row.SUBMISSION_ID ?? row.SUB_ID ?? row.submissionId ?? row.SUBMISSION_ID,
-  problemId: row.PROBLEM_ID ?? row.problemId ?? "-",
-  teamId: row.TEAM_ID ?? row.teamId ?? "-",
-  title: row.SOL_TITLE ?? row.title ?? "Untitled Submission",
-  description: row.SOL_DESCRIPTION ?? row.description ?? "",
-  submittedAt: row.SUB_DATE ?? row.submittedAt ?? null,
-  status: row.STATUS ?? row.status ?? "PENDING",
-  pdfLink: row.SOL_LINK ?? row.pdfLink ?? "",
-});
+// const mapSubmission = (row = {}) => ({
+//   id: row.id ?? row.SUBMISSION_ID ?? row.SUB_ID ?? row.submissionId ?? row.SUBMISSION_ID,
+//   problemId: row.PROBLEM_ID ?? row.problemId ?? "-",
+//   teamId: row.TEAM_ID ?? row.teamId ?? "-",
+//   title: row.SOL_TITLE ?? row.title ?? "Untitled Submission",
+//   description: row.SOL_DESCRIPTION ?? row.description ?? "",
+//   submittedAt: row.SUB_DATE ?? row.submittedAt ?? null,
+//   status: row.STATUS ?? row.status ?? "PENDING",
+//   pdfLink: row.SOL_LINK ?? row.pdfLink ?? "",
+// });
 
 function FriendlyDate({ value }) {
   if (!value) return <span className="text-text-tertiary">—</span>;
@@ -35,6 +35,8 @@ export default function Student_submitions({ submission: propSubmission }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showViewer, setShowViewer] = useState(false);
+  const [userEmail, setEmail] = useState('');
+  const [userSubmissions, setUserSubmissions] = useState([]);
 
   const query = useMemo(() => new URLSearchParams(window.location.search), []);
   const submissionId = query.get("submissionId");
@@ -52,22 +54,25 @@ export default function Student_submitions({ submission: propSubmission }) {
         setError(null);
         axios.defaults.withCredentials = true;
         
-        let api = `${URL}/submissions`;
-        if (submissionId) api += `?submissionId=${submissionId}`;
-        else if (teamId) api += `?teamId=${teamId}`;
-
-        const res = await axios.get(api, { timeout: 5000 });
+        // let api = `${URL}/submissions`;
+        // if (submissionId) api += `?submissionId=${submissionId}`;
+        // else if (teamId) api += `?teamId=${teamId}`;
+        console.log(userEmail);
+        
+        const res = await axios.post(`${URL}/get_submissions_by_email`, { userEmail }, { timeout: 5000 });
+        console.log(res);
+        
         const data = res.data;
         if (Array.isArray(data)) {
           const first = data[0] ?? null;
-          setSubmission(mapSubmission(first));
+          setSubmission((first));
         } else if (data) {
-          setSubmission(mapSubmission(data));
+          setSubmission((data));
         } else {
           setSubmission(null);
         }
       } catch (err) {
-        setError("Failed to fetch submission details.");
+        // setError("Failed to fetch  details.");
         console.error(err);
       } finally {
         setLoading(false);
@@ -75,7 +80,7 @@ export default function Student_submitions({ submission: propSubmission }) {
     };
 
     fetch();
-  }, [propSubmission, submissionId, teamId]);
+  }, [userEmail]);
 
   const s = submission;
   // Prefer explicit pdf link from submission; fall back to bundled sample PDF.
@@ -85,7 +90,7 @@ export default function Student_submitions({ submission: propSubmission }) {
   const [previewLoaded, setPreviewLoaded] = useState(false);
   const [previewError, setPreviewError] = useState(false);
   const [copied, setCopied] = useState(false);
-
+  
   // Close modal on ESC
   useEffect(() => {
     if (!showViewer) return undefined;
@@ -108,6 +113,22 @@ export default function Student_submitions({ submission: propSubmission }) {
     return () => clearTimeout(t);
   }, [pdfSrc]);
 
+  useEffect(() => {
+    axios.get(`${URL}/cookie`, { withCredentials: true }).then(res => setEmail(res.data.EMAIL)
+    )
+  }, [])
+  console.log(submission);
+
+  // useEffect(() => {
+  //   if(userEmail!=undefined)
+  //     axios.post(`${URL}/get_submissions_by_email`, { userEmail }).then(res => setUserSubmissions(res.data))
+  // }, [userEmail])
+
+  console.log(userSubmissions);
+  
+  const sub = userSubmissions[0];
+  console.log(sub);
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[rgba(255,153,0,0.03)] to-background-light">
@@ -131,6 +152,9 @@ export default function Student_submitions({ submission: propSubmission }) {
       </div>
     );
   }
+
+  console.log(URL +"/" +submission.FILES);
+  
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-[rgba(255,153,0,0.03)] to-background-light px-4 py-12">
@@ -142,14 +166,14 @@ export default function Student_submitions({ submission: propSubmission }) {
             <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl md:text-3xl font-extrabold text-text-primary">Submission Details</h1>
-                <p className="text-sm text-text-secondary mt-1">Problem • <span className="font-medium">{s.problemId}</span> — Team <span className="font-medium">{s.teamId}</span></p>
+                <p className="text-sm text-text-secondary mt-1">Problem • <span className="font-medium">{submission.PROBLEM_ID}</span> — Team <span className="font-medium">{s.teamId}</span></p>
               </div>
 
               <div className="flex items-center gap-4">
-                <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-full ${statusColor(s.status)} font-semibold shadow-sm`}> 
-                  <span className="text-sm">{s.status?.toString().toUpperCase()}</span>
+                <div className={`inline-flex items-center gap-3 px-4 py-2 rounded-full ${statusColor(s.status)} font-semibold shadow-sm`}>
+                  <span className="text-sm">{submission.STATUS?.toString().toUpperCase()}</span>
                 </div>
-                <div className="text-sm text-text-tertiary">Submitted: <FriendlyDate value={s.submittedAt} /></div>
+                <div className="text-sm text-text-tertiary">Submitted: <FriendlyDate value={submission.SUB_DATE} /></div>
               </div>
             </header>
 
@@ -157,7 +181,7 @@ export default function Student_submitions({ submission: propSubmission }) {
               <section className="md:col-span-7 space-y-4">
                 <div className="rounded-lg overflow-hidden border border-border-color bg-white">
                   <div className="w-full h-80 md:h-[520px] bg-gray-50 relative">
-                      {pdfSrc ? (
+                    {URL + "/" + submission.FILES ? (
                         <>
                           {!previewLoaded && !previewError && (
                             <div className="absolute inset-0 flex items-center justify-center">
@@ -165,9 +189,9 @@ export default function Student_submitions({ submission: propSubmission }) {
                             </div>
                           )}
 
-                          {!previewError ? (
+                          {previewError ? (
                             <iframe
-                              src={pdfSrc}
+                            src={URL + "/" + submission.FILES}
                               title="Submission preview"
                               className={`w-full h-full border-0 ${previewLoaded ? '' : 'invisible'}`}
                               onLoad={() => setPreviewLoaded(true)}
@@ -175,7 +199,7 @@ export default function Student_submitions({ submission: propSubmission }) {
                           ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
                               <p className="text-sm text-text-secondary mb-3">Preview not available in this browser or blocked by CORS.</p>
-                              <a href={pdfSrc} target="_blank" rel="noreferrer" className="text-action-blue underline">Open PDF in new tab</a>
+                              <a href={URL + "/" + submission.FILES} target="_blank" rel="noreferrer" className="text-action-blue underline">Open PDF in new tab</a>
                             </div>
                           )}
 
@@ -195,9 +219,9 @@ export default function Student_submitions({ submission: propSubmission }) {
                 <div className="mt-3 flex">
                   <h2 className="text-xl md:text-2xl font-semibold text-text-primary">{s.title}</h2>
                   <div className="text-sm text-text-secondary leading-relaxed mt-2">
-                    {expanded ? s.description : (s.description?.slice(0, 420) + (s.description?.length > 420 ? '...' : ''))}
+                    {expanded ? submission.SOL_DESCRIPTION : (submission.SOL_DESCRIPTION?.slice(0, 420) + (submission.SOL_DESCRIPTION?.length > 420 ? '...' : ''))}
                   </div>
-                  {s.description && s.description.length > 420 && (
+                  {submission.SOL_DESCRIPTION && submission.SOL_DESCRIPTION.length > 420 && (
                     <button onClick={() => setExpanded((v) => !v)} className="text-sm text-action-blue font-medium mt-2">
                       {expanded ? 'Show less' : 'Read more'}
                     </button>
@@ -214,7 +238,7 @@ export default function Student_submitions({ submission: propSubmission }) {
                     </button>
 
                     <a
-                      href={pdfSrc}
+                      href={URL + "/" + submission.FILES}
                       download
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border-color text-text-primary bg-white hover:bg-gray-50 shadow-sm"
                     >
@@ -223,7 +247,7 @@ export default function Student_submitions({ submission: propSubmission }) {
                     </a>
 
                     <button
-                      onClick={() => window.open(pdfSrc, '_blank')}
+                      onClick={() => window.open(URL + "/" + submission.FILES, '_blank')}
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm text-text-secondary bg-gray-50 border border-border-color"
                     >
                       <HiOutlineExternalLink className="w-4 h-4" />
@@ -237,42 +261,22 @@ export default function Student_submitions({ submission: propSubmission }) {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="text-sm text-text-secondary mb-1">Submission</div>
-                    <div className="text-lg font-semibold text-text-primary">#{s.id ?? '-'}</div>
+                    <div className="text-lg font-semibold text-text-primary">#{submission.ID ?? '-'}</div>
                   </div>
                   <div className="text-right">
-                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${statusColor(s.status)} font-semibold text-sm`}>{s.status?.toString().toUpperCase()}</div>
-                    <div className="text-xs text-text-tertiary mt-1">{new Date(s.submittedAt || Date.now()).toLocaleString()}</div>
+                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${statusColor(submission.STATUS)} font-semibold text-sm`}>{submission.STATUS?.toString().toUpperCase()}</div>
+                    <div className="text-xs text-text-tertiary mt-1">{new Date(submission.SUB_DATE || Date.now()).toLocaleString()}</div>
                   </div>
                 </div>
 
-                <div className="mt-5 border-t border-border-color pt-4">
-                  <h3 className="text-sm text-text-secondary font-medium">Team</h3>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="flex -space-x-2">
-                      {/* render up to 4 member initials if available */}
-                      {(s.members || s.teamMembers || []).slice(0,4).map((m, idx) => (
-                        <div key={idx} className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-text-primary border-2 border-white">
-                          { (m.name || m.fullname || m.email || '').split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase() }
-                        </div>
-                      ))}
-                      {(!(s.members || s.teamMembers) || (s.members || s.teamMembers).length === 0) && (
-                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold text-text-primary border-2 border-white">T</div>
-                      )}
-                    </div>
-                    <div className="ml-2">
-                      <div className="text-sm font-medium text-text-primary">{s.teamName || 'Team ' + (s.teamId || '-')}</div>
-                      <div className="text-xs text-text-tertiary">{(s.members || s.teamMembers || []).length} members</div>
-                    </div>
-                  </div>
-                </div>
 
                 <div className="mt-5 border-t border-border-color pt-4">
                   <h3 className="text-sm text-text-secondary font-medium">Details</h3>
                   <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-text-secondary">
-                    <div className="flex flex-col"><span className="text-xs">Problem ID</span><span className="font-medium text-text-primary">{s.problemId}</span></div>
-                    <div className="flex flex-col"><span className="text-xs">Team ID</span><span className="font-medium text-text-primary">{s.teamId}</span></div>
-                    <div className="flex flex-col"><span className="text-xs">Submitted</span><span className="font-medium text-text-primary"><FriendlyDate value={s.submittedAt} /></span></div>
-                    <div className="flex flex-col"><span className="text-xs">Status</span><span className="font-medium text-text-primary">{s.status}</span></div>
+                    <div className="flex flex-col"><span className="text-xs">Problem ID</span><span className="font-medium text-text-primary">{submission.PROBLEM_ID}</span></div>
+                    {/* <div className="flex flex-col"><span className="textTeam-xs">Team ID</span><span className="font-medium text-text-primary">{s.teamId}</span></div> */}
+                    <div className="flex flex-col"><span className="text-xs">Submitted</span><span className="font-medium text-text-primary"><FriendlyDate value={submission.SUB_DATE} /></span></div>
+                    <div className="flex flex-col"><span className="text-xs">Status</span><span className="font-medium text-text-primary">{submission.STATUS}</span></div>
                   </div>
                 </div>
 
@@ -283,7 +287,7 @@ export default function Student_submitions({ submission: propSubmission }) {
                       <HiOutlineEye className="w-5 h-5" /> View
                     </button>
 
-                    <a href={pdfSrc} download className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-border-color bg-white text-text-primary">
+                    <a href={URL + "/" + submission.FILES} download className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-border-color bg-white text-text-primary">
                       <HiOutlineDownload className="w-5 h-5" /> Download
                     </a>
 
@@ -314,8 +318,8 @@ export default function Student_submitions({ submission: propSubmission }) {
                 <HiX className="w-5 h-5" />
               </button>
             </div>
-            {pdfSrc ? (
-              <iframe src={pdfSrc} title="PDF viewer" className="w-full h-full border-0" />
+            {URL + "/" + submission.FILES ? (
+              <iframe src={URL + "/" + submission.FILES} title="PDF viewer" className="w-full h-full border-0" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-text-tertiary">No PDF to preview</div>
             )}
@@ -323,5 +327,6 @@ export default function Student_submitions({ submission: propSubmission }) {
         </div>
       )}
     </div>
+    // <div>hey</div>
   );
 }
