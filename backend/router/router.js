@@ -34,7 +34,7 @@ router.route("/addproblems").post(requireAuth, requireRole(['ADMIN', 'EVALUATOR'
 router.route("/spoc_users").get(requireAuth, requireRole(['ADMIN']), Spoc_approve); // Get pending SPOC approvals
 router.route("/handlespoc").post(requireAuth, requireRole(['ADMIN']), handleSpocApprove); // Approve or reject a SPOC
 router.route("/get_all_users").get(requireAuth, requireRole(['ADMIN', 'EVALUATOR']), GetAllUsers); // Get all users
-router.route("/submissions").post(Get_all_submissions);
+router.route("/submissions").get(Get_all_submissions);
 router.route("/submissions_by_id").post(Get_submission_by_prob_id); // Get all submissions from all teams
 // Get all submissions from all teams
 router.route("/submissions/:id").get(Get_submission_by_id); // Get single submission by ID
