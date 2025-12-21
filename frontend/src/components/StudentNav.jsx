@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Student_submitions from "../pages/student/Student_submitions";
 import TeamDetails from "../pages/student/TeamDetails";
 import ProblemStatements from "./ProblemStatements";
+import axios from "axios"
+import { URL } from "../Utils";
 
 const StudentNav = () => {
   const [active, setActive] = useState("Problem Statements");
-
+  const [userEmail, setEmail] = useState('');
+  const [userSubmissions, setUserSubmissions] = useState([]);
   const tabs = ["Problem Statements", "My Submission", "Team Details"];
 
   const pageVariants = {
@@ -14,6 +17,16 @@ const StudentNav = () => {
     animate: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -16 },
   };
+  useEffect(() => {
+    axios.get(`${URL}/cookie`, { withCredentials: true }).then(res => setEmail(res.data.EMAIL)
+    )
+  }, [])
+  console.log(userEmail);
+
+  useEffect(() => {
+    if (userEmail != undefined)
+      axios.post(`${URL}/get_submissions_by_email`, { userEmail }).then(res => setUserSubmissions(res.data))
+  }, [userEmail])
 
   return (
     <div className="min-h-screen pt-20 bg-white/50 flex mt-4">

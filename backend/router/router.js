@@ -9,7 +9,7 @@ import { Verify_OTP } from "../controllers/Verify_OTP.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { Post_problem, Get_problems, Get_problem_by_id, Delete_problem, Get_assigned_problems } from "../controllers/Problems.js";
 import { Get_cookies } from "../controllers/Cookie.js";
-import { Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id } from "../controllers/Submission.js";
+import { Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email } from "../controllers/Submission.js";
 import { handleSpocApprove, Spoc_approve } from "../controllers/Spoc.js";
 import { sendMailToSpoc } from "../controllers/SendMail.js";
 import { upload, uploadFiles } from "../controllers/Upload.js";
@@ -48,7 +48,7 @@ router.route("/delete_team").post(Delete_team);
 router.route("/send_mail_to_spoc").post(sendMailToSpoc);
 router.route("/fetch_team_for_students").post(Fetch_Team_For_Students); 
 router.route("/fetch_team_id_email").post(fetch_team_id_email);
-
+router.route("/get_submissions_by_email").post(fetch_submissions_by_email)
 
 
 // --- Student Routes ---
