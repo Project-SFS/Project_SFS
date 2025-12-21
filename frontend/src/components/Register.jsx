@@ -199,7 +199,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center p-4">
+    <div className="min-h-screen \ flex items-center justify-center p-4">
       <Header />
       <Toaster position="top-right" />
       <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden md:flex transition-all duration-500 ease-in-out">
@@ -235,7 +235,7 @@ const Register = () => {
                   value={email}
                   onChange={handleemail}
                   required
-                  placeholder="you@college.edu"
+                  placeholder="Enter Your Email"
                   disabled={emailVerified}
                   className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
                   aria-invalid={!!errors.email}
