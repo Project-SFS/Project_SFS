@@ -137,4 +137,18 @@ WHERE s.ID = ?
     res.status(200).json(result[0]);
 });
 
-export { SubmitSolution, Get_solution, Get_all_submissions, Get_submission_by_id, Get_submission_by_prob_id };
+const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
+    const { userEmail } = req.body;
+    console.log(userEmail);
+    // let [data, extra];
+   
+        
+    const [data, extra] = await connection.query(`select * from submissions where TEAM_EMAIL='${userEmail}'`);
+    
+
+    console.log(data);
+    
+
+    res.send(data);
+})
+export { SubmitSolution, Get_solution, Get_all_submissions, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email };
