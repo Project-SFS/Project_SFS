@@ -21,7 +21,8 @@ const ProblemStatementsList = () => {
   const [submissions, setSubmissions] = useState([]);
   const [sortOrder, setSortOrder] = useState('newest');
   const [statusFilter, setStatusFilter] = useState('all');
-
+  console.log(problems);
+  
   const handleProblemClick = (problem) => {
     // Navigates to the details page using the ID (e.g., /admin/problems/7/details)
     navigate(`/admin/problems/${problem.id}/details`);

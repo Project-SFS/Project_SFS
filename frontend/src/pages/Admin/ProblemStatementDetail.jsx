@@ -70,35 +70,20 @@ const ProblemStatementDetail = () => {
     const fetchSubmissions = async () => {
       try {
         const res = await axios.post(
-  `${URL}/submissions_by_id`,
-  { id },                      
-  { withCredentials: true }    
-);
-
+          `${URL}/submissions_by_id`,
+          { id },
+          { withCredentials: true }
+        );
 
         if (!Array.isArray(res.data)) return;
 
         const normalized = res.data.map(s => ({
-          id: String(s.ID ?? s.id ?? ''),
-          problemId:
-            s.PROBLEM_ID ??
-            s.problemId ??
-            s.problem_id ??
-            null,
-          teamId:
-            s.TEAM_ID ??
-            s.teamId ??
-            s.team_id ??
-            null,
-          status: String(
-            s.STATUS ?? s.SUB_STATUS ?? s.status ?? ''
-          )
+          id: String(s.submission_id ?? ''),
+          team_name: s.team_name || 'N/A',
+          title: s.SOL_TITLE || 'No Title',
+          status: String(s.STATUS || 'N/A')
             .trim()
-            .toUpperCase(),
-          spocId: String(
-            s.SPOC_ID ?? s.spocId ?? s.spoc_id ?? ''
-          ),
-          title: s.SOL_TITLE || s.title || ''
+            .toUpperCase()
         }));
 
         if (mounted) setSubmissions(normalized);
@@ -141,7 +126,7 @@ const ProblemStatementDetail = () => {
     const search = searchTerm.toLowerCase();
 
     const matchesSearch =
-      (sub.spocId || '').toLowerCase().includes(search) ||
+      (sub.team_name || '').toLowerCase().includes(search) ||
       (sub.title || '').toLowerCase().includes(search);
 
     const status = sub.status;
@@ -155,7 +140,7 @@ const ProblemStatementDetail = () => {
   });
 
   const teamsEnrolled = new Set(
-    submissions.map(s => s.teamId).filter(Boolean)
+    submissions.map(s => s.team_name).filter(Boolean)
   ).size;
 
   const totalSubmissions = submissions.length;
@@ -328,9 +313,9 @@ const ProblemStatementDetail = () => {
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#F7F8FC] text-[#4A5568]">
               <tr>
-                <th className="p-4 font-semibold">SPOC ID</th>
-                <th className="p-4 font-semibold">Submission</th>
-                <th className="p-4 font-semibold">Approval Status</th>
+                <th className="p-4 font-semibold">Team Name</th>
+                <th className="p-4 font-semibold">Title</th>
+                <th className="p-4 font-semibold">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -339,7 +324,7 @@ const ProblemStatementDetail = () => {
                   key={sub.id}
                   className="hover:bg-[#F9FAFB] border-t border-[#E2E8F0] transition-all"
                 >
-                  <td className="p-4 text-[#1A202C] font-medium">{sub.spocId}</td>
+                  <td className="p-4 text-[#1A202C] font-medium">{sub.team_name}</td>
                   <td className="p-4">
                     <span
                       className="text-[#2B6CB0] hover:underline cursor-pointer"
@@ -350,9 +335,9 @@ const ProblemStatementDetail = () => {
                   </td>
                   <td className="p-4">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${sub.status === 'Evaluated'
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${sub.status === 'EVALUATED'
                         ? 'bg-green-100 text-green-800'
-                        : sub.status === 'Submitted'
+                        : sub.status === 'SUBMITTED'
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-gray-100 text-gray-800'
                         }`}
