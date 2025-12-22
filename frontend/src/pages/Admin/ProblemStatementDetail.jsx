@@ -32,8 +32,9 @@ const ProblemStatementDetail = () => {
   const [showSolutionModal, setShowSolutionModal] = useState(false);
 const [solutionLoading, setSolutionLoading] = useState(false);
 const [solutionData, setSolutionData] = useState(null);
-const [activeSubmissionId, setActiveSubmissionId] = useState(null);
-
+  const [activeSubmissionId, setActiveSubmissionId] = useState(null);
+  const [original, setOriginal] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(null);
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
@@ -82,9 +83,16 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
           { withCredentials: true }
         );
 
-        if (!Array.isArray(res.data)) return;
+        // console.log(res.data);
+        setOriginal(res.data)
+        
 
+        if (!Array.isArray(res.data)) return;
+        // console.log(res.data);
+        
         const normalized = res.data.map(s => ({
+          // console.log();
+          
           id: String(s.submission_id ?? ''),
           team_name: s.team_name || 'N/A',
           title: s.SOL_TITLE || 'No Title',
@@ -93,6 +101,8 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
             .toUpperCase()
         }));
 
+        console.log(normalized);
+        
         if (mounted) setSubmissions(normalized);
       } catch (err) {
         console.error(err);
@@ -170,8 +180,10 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
   } finally {
     setSolutionLoading(false);
   }
-};
-
+  };
+  
+  console.log(original);
+  
 
   /* ---------------- Loading / Error ---------------- */
 
@@ -185,6 +197,9 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
       </div>
     );
   }
+
+
+
 
   {showSolutionModal && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -201,8 +216,8 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
         >
           ✕
         </button>
-      </div>
-
+        </div>
+        
       {/* Content */}
       {solutionLoading ? (
         <div className="flex justify-center items-center py-10">
@@ -249,6 +264,7 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
       </div>
     );
   }
+  console.log(URL + "/" + "" + original[0]?.FILES)
   return (
     <div className="min-h-screen bg-[#F7F8FC] px-6 py-8 transition-all duration-300">
       <div className="max-w-7xl mx-auto">
@@ -271,6 +287,63 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
             </Button>
           </div>
         </div>
+        
+        {/*  data  */}
+
+        {showSolutionModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6">
+
+              {/* Header */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-[#1A202C]">
+                  Submission Solution
+                </h3>
+                <button
+                  onClick={() => setShowSolutionModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Content */}
+              {solutionLoading ? (
+                <div className="flex justify-center items-center py-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FF9900]"></div>
+                </div>
+              ) : original ? (
+                  <div className="space-y-4">
+                    
+                  {/* Text Solution */}
+                    {original[currentIndex].SOL_DESCRIPTION && (
+                    <div className="bg-gray-50 border rounded-xl p-4 text-[#1A202C] whitespace-pre-wrap">
+                        {original[currentIndex].SOL_DESCRIPTION}
+                    </div>
+                    )}
+                    
+                  {/* File / PDF Link */}
+                    {original[currentIndex].FILES && (
+                      
+                      
+                    <a
+                      href={URL +"/" + ""+original[currentIndex]?.FILES}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 font-medium hover:underline"
+                    >
+                      View Attached Solution File
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-6">
+                  No solution available
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Problem Statement Information Table */}
         <div className="bg-white shadow-sm rounded-2xl p-6 border border-[#E2E8F0] mb-8">
@@ -316,6 +389,7 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
             </tbody>
           </table>
         </div>
+        
 
         {/* Statistics Section */}
         <div className="flex items-center space-x-10 mb-6 px-2">
@@ -402,7 +476,7 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
               </tr>
             </thead>
             <tbody>
-              {filteredSubmissions.map((sub) => (
+              {filteredSubmissions.map((sub, key) => (
                 <tr
                   key={sub.id}
                   className="hover:bg-[#F9FAFB] border-t border-[#E2E8F0] transition-all"
@@ -410,15 +484,17 @@ const [activeSubmissionId, setActiveSubmissionId] = useState(null);
                   <td className="p-4 text-[#1A202C] font-medium">{sub.team_name}</td>
                   <td className="p-4">
                     <span
-                      className="text-[#2B6CB0] hover:underline cursor-pointer"
-                      onClick={() => navigate(`/admin/submissions/${sub.id}/details`)}
+                      className="text-[#2B6CB0] font-bold"
                     >
                       {sub.title}
                     </span>
                   </td>
                   <td>
                     <button
-  onClick={() => {
+                      onClick={() => {
+                        // console.log(key);
+                        setCurrentIndex(key);
+                        
     setActiveSubmissionId(sub.id);
     setShowSolutionModal(true);
     fetchSolution(sub.id);
