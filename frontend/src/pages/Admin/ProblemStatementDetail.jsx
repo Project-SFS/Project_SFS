@@ -29,6 +29,12 @@ const ProblemStatementDetail = () => {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  const [showSolutionModal, setShowSolutionModal] = useState(false);
+const [solutionLoading, setSolutionLoading] = useState(false);
+const [solutionData, setSolutionData] = useState(null);
+const [activeSubmissionId, setActiveSubmissionId] = useState(null);
+
+
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
@@ -146,6 +152,27 @@ const ProblemStatementDetail = () => {
 
   const totalSubmissions = submissions.length;
 
+  const fetchSolution = async (submissionId) => {
+  try {
+    setSolutionLoading(true);
+    setSolutionData(null);
+
+    const res = await axios.get(
+      `${URL}/submission_solution/${submissionId}`,
+      { withCredentials: true }
+    );
+
+    // Adjust keys based on backend response
+    setSolutionData(res.data);
+  } catch (err) {
+    console.error(err);
+    toast.error('Failed to load solution');
+  } finally {
+    setSolutionLoading(false);
+  }
+};
+
+
   /* ---------------- Loading / Error ---------------- */
 
   if (loading) {
@@ -158,6 +185,60 @@ const ProblemStatementDetail = () => {
       </div>
     );
   }
+
+  {showSolutionModal && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6">
+
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-semibold text-[#1A202C]">
+          Submission Solution
+        </h3>
+        <button
+          onClick={() => setShowSolutionModal(false)}
+          className="text-gray-500 hover:text-gray-700 text-xl"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Content */}
+      {solutionLoading ? (
+        <div className="flex justify-center items-center py-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FF9900]"></div>
+        </div>
+      ) : solutionData ? (
+        <div className="space-y-4">
+
+          {/* Text Solution */}
+          {solutionData.solutionText && (
+            <div className="bg-gray-50 border rounded-xl p-4 text-[#1A202C] whitespace-pre-wrap">
+              {solutionData.solutionText}
+            </div>
+          )}
+
+          {/* File / PDF Link */}
+          {solutionData.solutionFile && (
+            <a
+              href={solutionData.solutionFile}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 font-medium hover:underline"
+            >
+              View Attached Solution File
+            </a>
+          )}
+        </div>
+      ) : (
+        <p className="text-gray-500 text-center py-6">
+          No solution available
+        </p>
+      )}
+    </div>
+  </div>
+)}
+
 
   if (!problem) {
     return (
@@ -316,6 +397,7 @@ const ProblemStatementDetail = () => {
               <tr>
                 <th className="p-4 font-semibold">Team Name</th>
                 <th className="p-4 font-semibold">Title</th>
+                <th className='p-4 font-semibold'>View</th>
                 <th className="p-4 font-semibold">Status</th>
               </tr>
             </thead>
@@ -333,6 +415,19 @@ const ProblemStatementDetail = () => {
                     >
                       {sub.title}
                     </span>
+                  </td>
+                  <td>
+                    <button
+  onClick={() => {
+    setActiveSubmissionId(sub.id);
+    setShowSolutionModal(true);
+    fetchSolution(sub.id);
+  }}
+  className="bg-[#FF9900] text-white font-bold px-4 py-2 rounded-xl shadow hover:bg-[#e68900]"
+>
+  Solution
+</button>
+
                   </td>
                   <td className="p-4">
                     <span
@@ -383,6 +478,8 @@ const ProblemStatementDetail = () => {
         )
       }
     </div>
+
+    
   );
 };
 
