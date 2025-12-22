@@ -48,6 +48,7 @@ const ProblemStatementDetail = () => {
           res.data?.problems?.[0] ||
           res.data?.problem ||
           null;
+        console.log(p);
 
         if (p && mounted) {
           setProblem({
@@ -55,8 +56,8 @@ const ProblemStatementDetail = () => {
             title: p.TITLE || p.title || 'Untitled',
             description: p.DESCRIPTION || p.description || '',
             category: p.CATEGORY || p.category || 'N/A',
-            youtube: p.YOUTUBE || p.youtube || p.youtube_link || '',
-            dataset: p.DATASET || p.dataset || '',
+            youtube: p.Reference || p.youtube || p.youtube_link || '',
+            dataset: p.Reference || p.dataset || '',
             created: p.SUB_DATE
               ? new Date(p.SUB_DATE).toISOString()
               : new Date().toISOString()
