@@ -267,7 +267,6 @@ const ProblemStatementsList = () => {
               <th className="p-4 font-semibold">Problem Statement</th>
               <th className="p-4 text-center font-semibold">Evaluator ID</th>
               <th className="p-4 text-center font-semibold">Evaluator Email</th>
-              <th className="p-4 text-center font-semibold">Submissions</th>
               <th className="p-4 text-center font-semibold">Created</th>
             </tr>
           </thead>
@@ -313,9 +312,7 @@ const ProblemStatementsList = () => {
                     <td className="p-4 text-center text-[#1A202C]">
                       {problem.evaluator_email || 'N/A'}
                     </td>
-                    <td className="p-4 text-center text-[#1A202C]">
-                      {problem.submissionsCount || 0}
-                    </td>
+                    
                     <td className="p-4 text-center text-[#718096]">
                       {formatDateTime(problem.created)}
                     </td>

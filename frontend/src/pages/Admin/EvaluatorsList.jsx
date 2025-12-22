@@ -528,7 +528,7 @@ const EvaluatorList = () => {
               </div>
 
               {/* Assignment Management */}
-              <div>
+              {/* <div>
                 <label className="text-sm text-[#4A5568] font-medium mb-1 block">
                   Assigned Problem Statements
                 </label>
@@ -620,7 +620,7 @@ const EvaluatorList = () => {
                     Assign Selected Problem
                   </button>
                 </div>
-              </div>
+              </div> */}
               <div>
                 <label className="text-sm text-[#4A5568] font-medium mb-1 block">
                   College
@@ -684,7 +684,7 @@ const EvaluatorList = () => {
                   <option value="MECH">MECH</option>
                 </select>
               </div>
-              <div>
+              {/* <div>
                 <label className="text-sm text-[#4A5568] font-medium mb-1 block">
                   Password
                 </label>
@@ -697,7 +697,7 @@ const EvaluatorList = () => {
                   className="w-full px-4 py-2 border border-[#E2E8F0] rounded-xl text-sm"
                   placeholder="Leave blank to keep current password" // Hint for users
                 />
-              </div>
+              </div> */}
             </div>
             <div className="flex justify-end space-x-3 pt-6">
               <button
