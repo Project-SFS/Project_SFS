@@ -133,7 +133,7 @@ WHERE s.ID = ?
     if (result.length === 0) {
         return res.status(404).json({ message: "Submission not found" });
     }
-
+    console.log(result[0]);
     res.status(200).json(result[0]);
 });
 

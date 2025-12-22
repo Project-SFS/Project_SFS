@@ -33,7 +33,6 @@ const ProblemStatementDetail = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  /* ---------------- Fetch Data ---------------- */
 
   useEffect(() => {
     let mounted = true;
