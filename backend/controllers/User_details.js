@@ -158,7 +158,7 @@ const login = async (req, res) => {
         const token = jwt.sign(result[0], process.env.JWT_SCERET);
         const isProd = process.env.NODE_ENV === 'production';
         res.cookie("login_creditionals", token, {
-            maxAge: 86400000,
+            maxAge: 14400000,
             secure: true,
             // httpOnly:
             sameSite: "none",
