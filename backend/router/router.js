@@ -62,7 +62,7 @@ router.route("/problems/:id").get(Get_problem_by_id);
 router.route("/evaluators").get(GetAllEvaluators);
 
 // Delete Problem Statement
-router.get("/problems/evaluator/:evaluatorId", Get_assigned_problems); // Assigned problems for an evaluator
+router.get("/problems/evaluator/:evaluatorId", Get_assigned_problems); 
 
 // Update User Profile
 router.put("/update-user", requireAuth, UpdateUser);

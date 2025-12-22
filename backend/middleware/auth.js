@@ -4,7 +4,7 @@ const requireAuth = (req, res, next) => {
   try {
     const token = req.cookies && req.cookies.login_creditionals;
     if (!token) return res.status(401).json({ message: 'Authentication required' });
-    // console.log(token);
+    
     
     const payload = jwt.verify(token, process.env.JWT_SCERET);
     console.log(payload);

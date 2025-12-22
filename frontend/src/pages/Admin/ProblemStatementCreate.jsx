@@ -3,7 +3,6 @@
  * @description A form for administrators to create and post new problem statements.
  */
 // src/pages/admin/ProblemStatementCreate.jsx
-import React from 'react';
 import ProblemStatementForm from './ProblemStatementForm'; // We'll define a shared form component
 
 const ProblemStatementCreate = () => {
