@@ -48,6 +48,8 @@ const ProblemStatementsList = () => {
     return date.toLocaleString();
   };
 
+  let json;
+
   useEffect(() => {
     const fetchProblems = async () => {
       setLoading(true);
@@ -56,7 +58,7 @@ const ProblemStatementsList = () => {
         const base = import.meta.env.VITE_API_URL || '';
         const res = await fetch(`${URL}/get_problems`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+         json = await res.json();
         console.log("Fetched Problems:", json);
 
         let problemsData = [];
@@ -68,6 +70,11 @@ const ProblemStatementsList = () => {
           problemsData = json.data;
         }
 
+        json = json.problems
+        console.log(problemsData);
+        
+        
+
         const mapped = problemsData.map(p => ({
           id: p.ID ? String(p.ID) : (p.id ? String(p.id) : ''),
           title: p.TITLE || p.title || 'Untitled',
@@ -76,6 +83,8 @@ const ProblemStatementsList = () => {
           deadline: p.SUB_DATE || p.deadline,
           assignedEvaluators: p.assignedEvaluators || [],
           submissionsCount: p.submissionsCount || 0,
+          evaluator: p.Evaluator_ID,
+          evaluator_email : p.evaluator_email
         })).filter(p => p.id && p.id !== ''); 
         
         setProblems(mapped);
@@ -90,6 +99,9 @@ const ProblemStatementsList = () => {
     fetchProblems();
   }, []);
 
+  console.log("prob " + problems);
+
+
   useEffect(() => {
     const fetchSubmissions = async () => {
       try {
@@ -97,6 +109,8 @@ const ProblemStatementsList = () => {
         const res = await fetch(`${URL}/submissions`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
+        console.log(json);
+        
         const mapped = (json || []).map(s => ({
           id: s.ID ? String(s.ID) : (s.id || ''),
           problemId: s.PROBLEM_ID ?? s.PROBLEMID ?? s.problemId ?? s.problem_id ?? null,
@@ -119,7 +133,9 @@ const ProblemStatementsList = () => {
   const totalTeams = (submissions && submissions.length > 0)
     ? new Set(submissions.map(s => String(s.teamId))).size
     : 0;
-
+  
+  // console.log("data" + proble);
+  
   const filteredData = dataSource
     .filter(problem => {
       const matchesSearch = problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -250,7 +266,7 @@ const ProblemStatementsList = () => {
               <th className="p-4 font-semibold">PS ID</th>
               <th className="p-4 font-semibold">Problem Statement</th>
               <th className="p-4 text-center font-semibold">Evaluator ID</th>
-              <th className="p-4 text-center font-semibold">Evaluator Phone</th>
+              <th className="p-4 text-center font-semibold">Evaluator Email</th>
               <th className="p-4 text-center font-semibold">Submissions</th>
               <th className="p-4 text-center font-semibold">Created</th>
             </tr>
@@ -265,7 +281,9 @@ const ProblemStatementsList = () => {
                 </td>
               </tr>
             ) : filteredData.length > 0 ? (
-              filteredData.map((problem) => {
+                filteredData.map((problem) => {
+                console.log(problem);
+                
                 const evaluator = getEvaluatorForProblem(problem);
                 return (
                   <tr
@@ -286,12 +304,14 @@ const ProblemStatementsList = () => {
                       >
                         {problem.title}
                       </span>
+                      {console.log(problem)
+                      }
                     </td>
                     <td className="p-4 text-center text-[#1A202C]">
-                      {evaluator ? evaluator.id : 'N/A'}
+                      {problem.evaluator || 'N/A'}
                     </td>
                     <td className="p-4 text-center text-[#1A202C]">
-                      {evaluator ? evaluator.phone : 'N/A'}
+                      {problem.evaluator_email || 'N/A'}
                     </td>
                     <td className="p-4 text-center text-[#1A202C]">
                       {problem.submissionsCount || 0}

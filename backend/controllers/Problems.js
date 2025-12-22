@@ -2,11 +2,18 @@ import connection from "../database/mysql.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 
 const Get_problems = AsyncHandler(async (req, res) => {
-    const [problems] = await connection.query("SELECT * FROM problems");
-    res.status(200).json({
-        problems
-    })
-})
+    const [problems] = await connection.query(`
+        SELECT 
+            p.*,
+            u.EMAIL AS evaluator_email
+        FROM problems p
+        JOIN Users u 
+            ON p.Evaluator_ID = u.ID
+    `);
+
+    res.status(200).json({ problems });
+});
+
 
 const Get_problem_by_id = AsyncHandler(async (req, res) => {
     const { id } = req.params;
