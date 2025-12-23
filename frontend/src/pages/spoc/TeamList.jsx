@@ -705,6 +705,9 @@ function TeamList() {
             date: new Date().toString().split(" ").slice(0, 4).join(" "),
           });
 
+          // console.log();
+          
+
           if (res.status === 200) {
             toast.dismiss(mailToast);
             toast.success("Mail sent successfully!", {
