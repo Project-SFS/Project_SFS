@@ -118,7 +118,7 @@ const [solutionData, setSolutionData] = useState(null);
     };
   }, [id]);
 
-  /* ---------------- Delete ---------------- */
+
 
   const confirmDelete = async () => {
     try {

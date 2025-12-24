@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { URL } from "../../Utils";
@@ -19,13 +19,11 @@ const AssignedProblem = () => {
       await new Promise(resolve => setTimeout(resolve, 600));
 
       try {
-        // 1. Get Local Storage (newly created items)
+
         const localProblems = JSON.parse(localStorage.getItem('temp_assigned_problems') || '[]');
 
-        // 2. Mock Data
         let displayProblems = [...mockProblems];
 
-        // 3. Try Background Fetch (Real Data)
         const userRes = await axios.get(`${URL}/cookie`, { withCredentials: true });
         const userData = userRes.data;
         const userId = userData?.ID || userData?.id;
