@@ -137,6 +137,17 @@ WHERE s.ID = ?
     res.status(200).json(result[0]);
 });
 
+const AddMarkToSolution = AsyncHandler(async (req, res) => {
+    const { evaluation, subid } = req.body;
+    const [data] = await connection.query(`UPDATE submissions SET MARK=${evaluation} WHERE ID=${subid}`);
+    let status = evaluation >= 60 ? "ACCEPTED" : "REJECTED";
+    const [stat] = await connection.query(`UPDATE submissions SET STATUS='${status}' WHERE ID=${subid}`);
+
+    console.log(data);
+    
+    
+})
+
 const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
     const { userEmail } = req.body;
     console.log(userEmail);
@@ -154,14 +165,14 @@ const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
 
 const check_status_submission = AsyncHandler(async (req, res) => {
     const { teamEmail, problemId } = req.body;
-
+    
     const [data] = await connection.query(`select STATUS from submissions where TEAM_EMAIL='${teamEmail}' and PROBLEM_ID=${problemId} order by ID desc limit 1`);
-
+    
     if (data.length === 0) {
         return res.status(200).json({ status: "NO_SUBMISSION" });
     }
-
+    
     res.status(200).json({ status: data[0].STATUS });
 });
 
-export { SubmitSolution, Get_solution, Get_all_submissions, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email,check_status_submission };
+export { SubmitSolution, check_status_submission, Get_solution, Get_all_submissions, Get_submission_by_id, AddMarkToSolution, Get_submission_by_prob_id, fetch_submissions_by_email };

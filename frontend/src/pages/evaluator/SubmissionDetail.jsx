@@ -338,8 +338,8 @@ const SubmissionDetail = () => {
       submissionId,
       evaluation: scores,
       totalMarks,
-      feedback
     });
+    axios.post(`${URL}/mark_entry`, { evaluation: totalMarks, subid:submissionId }).then(res=>console.log(res))
 
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
