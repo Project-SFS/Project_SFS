@@ -98,7 +98,8 @@ const [solutionData, setSolutionData] = useState(null);
           title: s.SOL_TITLE || 'No Title',
           status: String(s.STATUS || 'N/A')
             .trim()
-            .toUpperCase()
+            .toUpperCase(),
+          marks:s.MARK
         }));
 
         console.log(normalized);
@@ -473,6 +474,7 @@ const [solutionData, setSolutionData] = useState(null);
                 <th className="p-4 font-semibold">Title</th>
                 <th className='p-4 font-semibold'>View</th>
                 <th className="p-4 font-semibold">Status</th>
+                <th className='p-4 font-semibold'>Marks</th>
               </tr>
             </thead>
             <tbody>
@@ -509,13 +511,18 @@ const [solutionData, setSolutionData] = useState(null);
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${sub.status === 'EVALUATED'
                         ? 'bg-green-100 text-green-800'
-                        : sub.status === 'SUBMITTED'
+                        : sub.status === 'PENDING'
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-gray-100 text-gray-800'
                         }`}
                     >
                       {sub.status}
                     </span>
+                  </td>
+                  <td className="p-4 text-[#1A202C]">
+                      <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
+                        {sub.marks}
+                      </span>
                   </td>
                 </tr>
               ))}
