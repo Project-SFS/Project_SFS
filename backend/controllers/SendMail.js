@@ -2,6 +2,7 @@ import connection from "../database/mysql.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import nodemailer from "nodemailer"
 import dotenv from "dotenv"
+dotenv.config();
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
   port: process.env.SMTP_PORT,

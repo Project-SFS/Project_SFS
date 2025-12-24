@@ -234,7 +234,7 @@ const ProblemStatements = ({ showHeader = true }) => {
                               {p.TITLE}
                             </span>
                             {p.CATEGORY && (
-                              <span className="mt-1 inline-flex items-center rounded-full border border-[#fc9300] px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                              <span className="inline-flex items-center rounded-full border border-[#fc9300]/40 bg-[#fff7ec] px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] text-[#fc9300] mb-3 w-max mt-2">
                                 {p.CATEGORY}
                               </span>
                             )}

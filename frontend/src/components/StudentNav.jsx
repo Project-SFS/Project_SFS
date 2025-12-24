@@ -136,7 +136,7 @@ const StudentNav = () => {
                 exit="exit"
                 transition={{ duration: 0.25 }}
               >
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6 max-w-4xl mx-auto">
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6 w-max mx-auto">
                   <div className="flex flex-col gap-1 mb-4 text-center sm:text-left">
                     <h2 className="text-lg font-semibold text-gray-900">
                       Team Details
