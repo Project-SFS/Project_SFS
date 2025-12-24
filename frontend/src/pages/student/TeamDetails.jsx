@@ -143,7 +143,7 @@ const TeamDetails = () => {
               ))}
             </div>
           </section>
-          <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mt-1">
+          <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mt-1 w-max">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Member Overview</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
