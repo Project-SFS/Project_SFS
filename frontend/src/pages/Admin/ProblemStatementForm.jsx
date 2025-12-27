@@ -21,15 +21,18 @@ const ProblemStatementForm = () => {
 
   // Evaluator Logic
   const [evaluators, setEvaluators] = useState([]);
-  const [selectedEvaluators, setSelectedEvaluators] = useState([]);
+  const [selectedEvaluators, setSelectedEvaluators] = useState();
   const [evaluatorSearch, setEvaluatorSearch] = useState("");
   const [reference,setReference]=useState("");
+  console.log(evaluators);
   
 
   // Role Logic
   const [isEvaluator, setIsEvaluator] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
 
+  console.log(currentUserId);
+  
   useEffect(() => {
     const fetchUserAndEvaluators = async () => {
       try {
@@ -62,15 +65,15 @@ const ProblemStatementForm = () => {
     (ev.ID && String(ev.ID).toLowerCase().includes(evaluatorSearch.toLowerCase()))
   );
 
-  console.log(currentUserId);
+  console.log(evaluatorSearch);
   
 
   const toggleEvaluator = (id) => {
-    setSelectedEvaluators(prev =>
-      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]
-    );
+    setSelectedEvaluators(id);
   };
   console.log(deadline.split('T')[0]);
+  console.log(selectedEvaluators)
+
 
   console.log("2025-12-30T18:30:00.000Z".split('T')[0]);
   const handleSubmit = async (e) => {
@@ -85,14 +88,14 @@ const ProblemStatementForm = () => {
         sub_date: deadline,
         category: category,
         reference: reference,
-        evaluators:currentUserId
+        evaluators:selectedEvaluators
       },
       {withCredentials:true}
     );
 
       console.log(response.data);
 
-      toast.success("Problem Statement Added Successfully", {
+      const problem = toast.success("Problem Statement Added Successfully", {
         position: "top-center",
       });
 
@@ -111,12 +114,13 @@ const ProblemStatementForm = () => {
       // Navigate back after delay
       setTimeout(() => navigate(-1), 1000);
 
+      toast.dismiss(problem)
+
     } catch (error) {
       console.log( error);
       toast.error("Failed to Add Problem Statement", { position: "top-center" });
     }
 
-    console.log(deadline)
   };
 
   return (
@@ -236,24 +240,26 @@ const ProblemStatementForm = () => {
                       filteredEvaluators.map((evaluator) => (
                         <div key={evaluator.ID} className="flex items-center space-x-3 bg-white p-2 rounded-lg border border-gray-100">
                           <input
-                            type="checkbox"
+                            type="radio"
+                            name="eval"
                             id={`eval-${evaluator.ID}`}
-                            checked={selectedEvaluators.includes(evaluator.ID)}
+                            // checked={selectedEvaluatorsluator.ID)}
+                            // checked={selectedEvaluators}
                             onChange={() => toggleEvaluator(evaluator.ID)}
                             className="w-4 h-4 text-[#FF9900] border-gray-300 rounded focus:ring-[#FF9900]"
                           />
-                          <label htmlFor={`eval-${evaluator.ID}`} className="text-sm text-gray-700 cursor-pointer flex-1">
+                         
                             <span className="font-semibold">{evaluator.NAME}</span> <span className="text-gray-400 text-xs">({evaluator.ID})</span>
-                          </label>
+                        
                         </div>
                       ))
                     ) : (
                       <p className="text-sm text-gray-500 text-center py-2">No evaluators found</p>
                     )}
                   </div>
-                  <div className="mt-2 text-xs text-gray-500">
+                  {/* <div className="mt-2 text-xs text-gray-500">
                     {selectedEvaluators.length} evaluator(s) selected
-                  </div>
+                  </div> */}
                 </div>
               </div>
             )}

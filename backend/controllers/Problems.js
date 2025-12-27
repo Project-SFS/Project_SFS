@@ -31,9 +31,12 @@ const Get_problem_by_id = AsyncHandler(async (req, res) => {
 const Post_problem = AsyncHandler(async (req, res) => {
     const { title, description, sub_date,category ,reference, evaluators } = req.body;
     console.log(sub_date);
+    console.log(evaluators);
+    
+    
     const dept = "CSE"; 
     const query = `INSERT INTO problems (TITLE, DESCRIPTION,SUB_DEADLINE, CATEGORY,DEPT,Reference, Evaluator_ID)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)`;
+                   VALUES (?, ?, ?, ?, ?, ?, ?)`; 
 
     const params = [title, description,sub_date, category, dept,reference, evaluators];
 

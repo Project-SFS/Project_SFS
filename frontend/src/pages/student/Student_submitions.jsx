@@ -6,9 +6,9 @@ import { HiOutlineDownload, HiOutlineEye, HiOutlineExternalLink, HiX, HiShare, H
 
 const statusColor = (s) => {
   const st = (s || "").toString().toUpperCase();
-  if (st.includes("APPROV")) return "bg-status-green text-white";
+  if (st.includes("ACCE")) return "bg-green-400 text-white";
   if (st.includes("REJ")) return "bg-red-500 text-white";
-  if (st.includes("PEND")) return "bg-status-yellow text-black";
+  if (st.includes("PEND")) return "bg-yellow text-black";
   return "bg-gray-200 text-black";
 };
 

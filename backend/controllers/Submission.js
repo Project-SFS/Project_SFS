@@ -120,12 +120,21 @@ SELECT
     t.SPOC_ID AS spoc_id,
     s.SUB_DATE AS submitted_date,
     s.FILES AS solution_document,
-    u.COLLEGE AS college_name
+    u.COLLEGE AS college_name,
+
+    -- marks
+    s.MARK     AS total_mark,
+    s.CP_MARK  AS cp_mark,
+    s.PS_MARK  AS ps_mark,
+    s.BV_MARK  AS bv_mark,
+    s.FP_MARK  AS fp_mark,
+    s.IN_MARK  AS in_mark
+
 FROM submissions s
 JOIN problems p ON s.PROBLEM_ID = p.ID
 LEFT JOIN Team_List t ON s.TEAM_EMAIL = t.LEAD_EMAIL
 LEFT JOIN Users u ON t.LEAD_EMAIL = u.EMAIL
-WHERE s.ID = ?
+WHERE s.ID = ?;
 `;
 
     const [result] = await connection.query(query, [id]);

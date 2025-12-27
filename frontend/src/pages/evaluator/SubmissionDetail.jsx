@@ -292,16 +292,45 @@ const SubmissionDetail = () => {
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // const [submissiondata,  setSubmissiondata]
 
+  console.log(submission);
+  
   /* ---------- Evaluation State (UPDATED) ---------- */
 
-  const [scores, setScores] = useState([
-    { title: "Client Problem Understanding & Context (20)", value: 0, max: 20 },
-    { title: "Proposed Solution Strategy (40)", value: 0, max: 40 },
-    { title: "Business Value & Impact (20)", value: 0, max: 20 },
-    { title: "Feasibility & Practical Implementation (10)", value: 0, max: 10 },
-    { title: "Innovation (10)", value: 0, max: 10 }
-  ]);
+  const [scores, setScores] = useState([]);
+  useEffect(() => {
+    if (!submission) return;
+
+    setScores([
+      {
+        title: "Client Problem Understanding & Context (20)",
+        value: submission.cp_mark ?? 0,
+        max: 20
+      },
+      {
+        title: "Proposed Solution Strategy (40)",
+        value: submission.ps_mark ?? 0,
+        max: 40
+      },
+      {
+        title: "Business Value & Impact (20)",
+        value: submission.bv_mark ?? 0,
+        max: 20
+      },
+      {
+        title: "Feasibility & Practical Implementation (10)",
+        value: submission.fp_mark ?? 0,
+        max: 10
+      },
+      {
+        title: "Innovation (10)",
+        value: submission.in_mark ?? 0,
+        max: 10
+      }
+    ]);
+  }, [submission]);
+
 
   const [totalMarks, setTotalMarks] = useState(0);
   const [saved, setSaved] = useState(false);  
