@@ -41,6 +41,10 @@ const ProblemStatementForm = () => {
         const userData = userRes.data;
         const role = userData?.ROLE || userData?.role;
         const id = userData?.ID || userData?.id;
+        setCurrentUserId(id);
+
+        console.log(userRes);
+        
 
         setCurrentUserId(id);
         const isEval = role === "EVALUATOR";
@@ -69,7 +73,7 @@ const ProblemStatementForm = () => {
   
 
   const toggleEvaluator = (id) => {
-    setSelectedEvaluators(id);
+    setCurrentUserId(id);
   };
   console.log(deadline.split('T')[0]);
   console.log(selectedEvaluators)
@@ -79,6 +83,7 @@ const ProblemStatementForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log(title, description, deadline, category, reference, currentUserId);
+    console.log(currentUserId);
     
     
     try {
@@ -88,7 +93,7 @@ const ProblemStatementForm = () => {
         sub_date: deadline,
         category: category,
         reference: reference,
-        evaluators:selectedEvaluators
+        evaluators:currentUserId
       },
       {withCredentials:true}
     );
@@ -103,6 +108,7 @@ const ProblemStatementForm = () => {
       )
 
       // Clear form and navigate back
+      // return;
       setTitle("");
       setDescription("");
       setCategory("");

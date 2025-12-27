@@ -8,6 +8,8 @@ import { FiSearch } from "react-icons/fi";
 import { motion } from "framer-motion";
 
 const RecentProblemsTable = ({ problems = [] }) => {
+  console.log(problems);
+  
   const [searchTerm, setSearchTerm] = useState("");
 
   // Sort problems by ID (descending) whenever the problems prop changes
@@ -71,7 +73,7 @@ const RecentProblemsTable = ({ problems = [] }) => {
                 Evaluator ID
               </th>
               <th className="py-3 pr-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                Submissions
+                Evaluator email
               </th>
             </tr>
           </thead>
@@ -81,8 +83,8 @@ const RecentProblemsTable = ({ problems = [] }) => {
               const id = p.ID || p.id;
               const title = p.TITLE || p.title;
               const evaluator =
-                p.assignedEvaluators?.[0] || p.EVALUATOR_ID || "N/A";
-              const submissions = p.SUBMISSIONS ?? p.submissions ?? "-";
+                p.assignedEvaluators?.[0] || p.Evaluator_ID || "N/A";
+              const evaluator_email = p.evaluator_email ?? p.evaluator_email ?? "-";
 
               return (
                 <tr key={id} className="hover:bg-gray-50">
@@ -105,7 +107,7 @@ const RecentProblemsTable = ({ problems = [] }) => {
                     {evaluator}
                   </td>
                   <td className="py-3 pr-3 text-sm text-brand-orange font-semibold">
-                    {submissions}
+                    {evaluator_email}
                   </td>
                 </tr>
               );
