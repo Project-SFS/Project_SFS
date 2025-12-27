@@ -304,7 +304,7 @@ const SubmissionDetail = () => {
   ]);
 
   const [totalMarks, setTotalMarks] = useState(0);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(false);  
 
   /* ---------- Fetch Submission ---------- */
 
@@ -339,7 +339,7 @@ const SubmissionDetail = () => {
       evaluation: scores,
       totalMarks,
     });
-    axios.post(`${URL}/mark_entry`, { evaluation: totalMarks, subid:submissionId }).then(res=>console.log(res))
+    axios.post(`${URL}/mark_entry`, { evaluation: scores, subid:submissionId }).then(res=>console.log(res))
 
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

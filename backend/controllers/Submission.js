@@ -139,8 +139,37 @@ WHERE s.ID = ?
 
 const AddMarkToSolution = AsyncHandler(async (req, res) => {
     const { evaluation, subid } = req.body;
-    const [data] = await connection.query(`UPDATE submissions SET MARK=${evaluation} WHERE ID=${subid}`);
-    let status = evaluation >= 60 ? "ACCEPTED" : "REJECTED";
+    let scores = evaluation;
+    console.log(scores);
+
+    let sum = 0;
+    scores.forEach(element => {
+        // console.log(element.value);
+        sum += element.value;
+        
+    });
+    
+    // return;
+    const cp = scores[0].value;
+    const ps = scores[1].value;
+    const bv = scores[2].value;
+    const fp = scores[3].value;
+    const inn = scores[4].value;
+
+
+
+    const [data] = await connection.query(
+        `UPDATE submissions 
+   SET CP_MARK = ?, 
+       PS_MARK = ?, 
+       BV_MARK = ?, 
+       FP_MARK = ?, 
+       IN_MARK = ?
+   WHERE ID = ?`,
+        [cp, ps, bv, fp, inn, subid]
+    );
+
+    let status = sum >= 60 ? "ACCEPTED" : "REJECTED";
     const [stat] = await connection.query(`UPDATE submissions SET STATUS='${status}' WHERE ID=${subid}`);
 
     console.log(data);
