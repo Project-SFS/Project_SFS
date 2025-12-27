@@ -8,6 +8,8 @@ const auth = async () => {
     try {
         const res = await axios.get(`${URL}/cookie`, { withCredentials: true });
         // console.log(res.data.ROLE);
+        console.log(res);
+        
         return { role: res.data.ROLE, name: res.data.NAME };
     } catch (error) {
         console.error("Error during auth:", error);

@@ -98,13 +98,13 @@ const Get_submission_by_prob_id = AsyncHandler(async (req, res) => {
         [id]
     );
     console.log(id);
-    
+
 
     console.log(data);
 
 
 
-    
+
     res.send(data)
 })
 
@@ -155,9 +155,9 @@ const AddMarkToSolution = AsyncHandler(async (req, res) => {
     scores.forEach(element => {
         // console.log(element.value);
         sum += element.value;
-        
+
     });
-    
+
     // return;
     const cp = scores[0].value;
     const ps = scores[1].value;
@@ -182,34 +182,34 @@ const AddMarkToSolution = AsyncHandler(async (req, res) => {
     const [stat] = await connection.query(`UPDATE submissions SET STATUS='${status}' WHERE ID=${subid}`);
 
     console.log(data);
-    
-    
+
+
 })
 
 const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
     const { userEmail } = req.body;
     console.log(userEmail);
     // let [data, extra];
-   
-        
+
+
     const [data, extra] = await connection.query(`select * from submissions where TEAM_EMAIL='${userEmail}'`);
-    
+
 
     console.log(data);
-    
+
 
     res.send(data);
 })
 
 const check_status_submission = AsyncHandler(async (req, res) => {
     const { teamEmail, problemId } = req.body;
-    
+
     const [data] = await connection.query(`select STATUS from submissions where TEAM_EMAIL='${teamEmail}' and PROBLEM_ID=${problemId} order by ID desc limit 1`);
-    
+
     if (data.length === 0) {
         return res.status(200).json({ status: "NO_SUBMISSION" });
     }
-    
+
     res.status(200).json({ status: data[0].STATUS });
 });
 

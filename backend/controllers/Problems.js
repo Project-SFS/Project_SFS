@@ -29,16 +29,16 @@ const Get_problem_by_id = AsyncHandler(async (req, res) => {
 })
 
 const Post_problem = AsyncHandler(async (req, res) => {
-    const { title, description, sub_date,category ,reference, evaluators } = req.body;
+    const { title, description, sub_date, category, reference, evaluators } = req.body;
     console.log(sub_date);
     console.log(evaluators);
-    
-    
-    const dept = "CSE"; 
-    const query = `INSERT INTO problems (TITLE, DESCRIPTION,SUB_DEADLINE, CATEGORY,DEPT,Reference, Evaluator_ID)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)`; 
 
-    const params = [title, description,sub_date, category, dept,reference, evaluators];
+
+    const dept = "CSE";
+    const query = `INSERT INTO problems (TITLE, DESCRIPTION,SUB_DEADLINE, CATEGORY,DEPT,Reference, Evaluator_ID)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)`;
+
+    const params = [title, description, sub_date, category, dept, reference, evaluators];
 
     const [result] = await connection.execute(query, params);
     const problemId = result.insertId;
@@ -80,7 +80,7 @@ const Get_assigned_problems = AsyncHandler(async (req, res) => {
     const { evaluatorId } = req.params;
 
     console.log(evaluatorId);
-    
+
 
     if (!evaluatorId) {
         return res.status(400).json({ message: 'Evaluator ID is required' });
@@ -91,7 +91,7 @@ const Get_assigned_problems = AsyncHandler(async (req, res) => {
     try {
         const [problems] = await connection.query(query, [evaluatorId]);
         console.log(problems);
-        
+
         res.status(200).json({ problems });
     } catch (error) {
         // Suppress "Table doesn't exist" error (errno 1146)

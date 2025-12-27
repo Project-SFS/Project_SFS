@@ -1,24 +1,56 @@
-import { createPool } from "mysql2/promise"
-import dotenv from "dotenv"
-// import dotenv from "dotenv"
+import sql from "mssql";
+import dotenv from "dotenv";
 
-dotenv.config()
-const connection = await createPool({
-    host: process.env.DB_HOST || "54.234.143.213",
-    database: process.env.DB_NAME || "Sakthi_auto",
-    user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "Damo@999428",
-    waitForConnections: true,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0
-})
+dotenv.config();
 
+/* ---------- MSSQL POOL ---------- */
+const pool = await sql.connect({
+    server: process.env.DB_HOST || "localhost",
+    database: process.env.DB_NAME || "AppDB",
+    user: process.env.DB_USER || "sa",
+    password: process.env.DB_PASSWORD || "StrongPass@123",
+    port: Number(process.env.DB_PORT) || 1433,
+    options: {
+        encrypt: true,
+        trustServerCertificate: true
+    },
+    pool: {
+        max: 10,
+        min: 0,
+        idleTimeoutMillis: 30000
+    }
+});
+
+/* ---------- MySQL-compatible wrapper ---------- */
+const connection = {
+    async query(query, params = []) {
+        const request = pool.request();
+
+        // bind params (? → @p0, @p1, ...)
+        params.forEach((val, i) => {
+            request.input(`p${i}`, val);
+        });
+
+        let index = 0;
+        const formattedQuery = query.replace(/\?/g, () => `@p${index++}`);
+
+        const result = await request.query(formattedQuery);
+        return [result.recordset];
+    },
+
+    async getConnection() {
+        return {
+            release() { } // noop (to keep existing code safe)
+        };
+    }
+};
+
+/* ---------- Connection Test (unchanged behavior) ---------- */
 try {
-    const con = await connection.getConnection();
-    console.log("MySQL Database connected successfully")
-    con.release();
+    await pool.request().query("SELECT 1");
+    console.log("MSSQL Database connected successfully");
 } catch (error) {
-    console.error('MySQL connection error', error)
+    console.error("MSSQL connection error", error);
 }
 
-export default connection
+export default connection;
