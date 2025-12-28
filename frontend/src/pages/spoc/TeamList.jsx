@@ -63,7 +63,7 @@ function TeamList() {
         setFullTeam(res.data);
         setfetched(true);
       })
-      .catch((err) => console.error("Error fetching teams:", err));
+      .catch();
   }
 
   function SelectedTeam(team) {

@@ -46,7 +46,7 @@ const Header = () => {
       setIsProfileDropdownOpen(false);
       navigate('/');
     } catch (error) {
-      console.error("Logout failed", error);
+
     }
   };
 

@@ -81,7 +81,7 @@ const ProblemStatementsList = () => {
         }
 
         json = json.problems
-        console.log(json.data);
+       
         
         
 

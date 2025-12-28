@@ -135,7 +135,7 @@ const DashboardWithSide = () => {
         }
       })
       .catch((error) => {
-        console.error('Error creating team:', error);
+        
       });
   };
 

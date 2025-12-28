@@ -54,7 +54,7 @@ const SpocDashboard = () => {
          
             navigate('/');
         } catch (error) {
-            console.error(error);
+          
             toast.error('Logout failed');
         }
     };
@@ -85,7 +85,7 @@ const SpocDashboard = () => {
                     setData(Array.isArray(teamsRes.data) ? teamsRes.data : []);
                 }
             } catch (err) {
-                console.error(err);
+               
                 toast.error('Failed to fetch teams');
             }
         };

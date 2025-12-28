@@ -43,7 +43,7 @@ const EvaluatorHeader = ({ setIsOpen }) => {
         try {
             await fetch(`${URL}/logout`, { method: 'GET', credentials: 'include' });
         } catch (err) {
-            console.error('Logout request failed', err);
+           
         }
         try {
             localStorage.clear();

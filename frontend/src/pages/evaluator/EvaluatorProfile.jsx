@@ -30,7 +30,7 @@ const EvaluatorProfile = () => {
                     });
                 }
             } catch (err) {
-                console.error("Failed to fetch user details", err);
+               
                 toast.error("Could not load profile");
             } finally {
                 setLoading(false);
@@ -55,7 +55,7 @@ const EvaluatorProfile = () => {
             toast.success("Profile updated successfully!");
             setTimeout(() => navigate(-1), 1000); // Navigate back after 1 second
         } catch (err) {
-            console.error("Update failed", err);
+          
             toast.error("Failed to update profile");
         }
     };

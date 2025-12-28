@@ -83,7 +83,7 @@ const TeamDetails = () => {
       .then((res) => {
         if (res.data?.[0]?.ID) setTeam_id(res.data[0].ID);
       })
-      .catch(console.error)
+      .catch()
   })
   }, []);
 
@@ -93,12 +93,12 @@ const TeamDetails = () => {
     axios
       .post(`${URL}/fetch_team_members`, { id: Team_id })
       .then((res) => setTeam_data1(res.data))
-      .catch(console.error);
+      .catch();
 
     axios
       .post(`${URL}/fetch_team_for_students`, { id: Team_id })
       .then((res) => setTeam_data2(res.data[0] || {}))
-      .catch(console.error);
+      .catch();
   }, [Team_id]);
 
   const team_leader = Team_data1?.result?.[0]?.NAME;

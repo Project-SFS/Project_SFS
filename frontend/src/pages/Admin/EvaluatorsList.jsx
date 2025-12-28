@@ -72,7 +72,7 @@ const EvaluatorList = () => {
         }));
         setAvailableProblemStatements(mapped);
       } catch (err) {
-        console.error("Failed to fetch problems", err);
+        
       }
     };
 
@@ -94,7 +94,7 @@ const EvaluatorList = () => {
         }));
         setEvaluators(mappedEvaluators);
       } catch (err) {
-        console.error("Failed to fetch evaluators", err);
+     
       }
     };
 
@@ -123,7 +123,7 @@ const EvaluatorList = () => {
           }));
         setSpocs(mappedSpocs);
       } catch (err) {
-        console.error("Failed to fetch SPOC", err);
+     
         // If the request fails due to auth, ensure spocs is empty rather than leaving stale data
         setSpocs([]);
       }

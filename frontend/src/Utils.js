@@ -11,7 +11,7 @@ const auth = async () => {
         
         return { role: res.data.ROLE, name: res.data.NAME };
     } catch (error) {
-        console.error("Error during auth:", error);
+       
         return null;
     }
 };

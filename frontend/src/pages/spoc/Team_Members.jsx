@@ -32,7 +32,7 @@ function Team_Members() {
         setFullTeam(res.data.result || []);
       })
       .catch((err) => {
-        console.error("Error fetching team members:", err);
+       
         setFullTeam([]);
       })
       .finally(() => {

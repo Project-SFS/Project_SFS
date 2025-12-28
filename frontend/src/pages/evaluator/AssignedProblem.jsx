@@ -54,7 +54,7 @@ const AssignedProblem = () => {
 
         setProblems(unique);
       } catch (err) {
-        console.error("Error loading problems", err);
+        
         setProblems([...mockProblems]);
       } finally {
         setLoading(false);

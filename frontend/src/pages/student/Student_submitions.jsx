@@ -69,7 +69,7 @@ export default function Student_submitions({ submission: propSubmission }) {
         }
       } catch (err) {
         // setError("Failed to fetch  details.");
-        console.error(err);
+     
       } finally {
         setLoading(false);
       }

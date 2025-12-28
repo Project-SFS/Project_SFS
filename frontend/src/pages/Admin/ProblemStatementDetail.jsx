@@ -69,7 +69,7 @@ const [solutionData, setSolutionData] = useState(null);
           });
         }
       } catch (err) {
-        console.error(err);
+
         toast.error('Failed to load problem statement');
       }
     };
@@ -105,7 +105,7 @@ const [solutionData, setSolutionData] = useState(null);
         
         if (mounted) setSubmissions(normalized);
       } catch (err) {
-        console.error(err);
+      
         toast.error('Failed to load submissions');
       }
     };
@@ -130,7 +130,7 @@ const [solutionData, setSolutionData] = useState(null);
       toast.success('Problem statement deleted');
       navigate('/admin/problems');
     } catch (err) {
-      console.error(err);
+   
       toast.error('Failed to delete problem statement');
     } finally {
       setShowDeleteModal(false);
@@ -175,7 +175,7 @@ const [solutionData, setSolutionData] = useState(null);
     // Adjust keys based on backend response
     setSolutionData(res.data);
   } catch (err) {
-    console.error(err);
+
     toast.error('Failed to load solution');
   } finally {
     setSolutionLoading(false);

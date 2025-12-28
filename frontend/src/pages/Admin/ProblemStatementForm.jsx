@@ -58,7 +58,7 @@ const ProblemStatementForm = () => {
           // If Evaluator, pre-select themselves (logic optional here, mostly done in submit)
         }
       } catch (err) {
-        console.error("Failed to fetch user or evaluators", err);
+      
       }
     };
     fetchUserAndEvaluators();

@@ -41,7 +41,7 @@ const AddProblemStatement = () => {
          
         }
         catch(error){
-            console.error("Error adding problem statement:",error);
+            
             toast.error("Failed to Add Problem Statement",{position:"top-center"});
         }
     }

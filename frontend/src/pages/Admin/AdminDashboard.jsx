@@ -57,7 +57,7 @@ const AdminDashboard = () => {
         problems: res.data?.problems || []
       }));
     } catch (err) {
-      console.error('Error fetching problems:', err);
+   
     }
   };
 
@@ -71,7 +71,7 @@ const AdminDashboard = () => {
       do {
         const res = await axios.get(`${URL}/submissions?page=${page}`);
         const result = res.data;
-        console.log(result.submissions)
+       
 
         if (!result?.submissions) break;
 
@@ -89,7 +89,7 @@ const AdminDashboard = () => {
 
       setData(prev => ({ ...prev, submissions: allSubmissions }));
     } catch (err) {
-      console.error('Error fetching submissions:', err);
+      
     }
   };
 
@@ -117,7 +117,7 @@ const AdminDashboard = () => {
         evaluators: normalizedUsers.filter(u => u.role === 'EVALUATOR')
       }));
     } catch (err) {
-      console.error('Error fetching users:', err);
+    
       setData(prev => ({ ...prev, spocs: [], evaluators: [] }));
     }
   };

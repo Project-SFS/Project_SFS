@@ -98,7 +98,7 @@ function App() {
             setRole(res.role);
           }
         } catch (err) {
-          console.error(err);
+         
           showToast("Please login to your account");
         } finally {
           setLoading(false);

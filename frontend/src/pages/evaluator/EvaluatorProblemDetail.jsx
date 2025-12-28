@@ -18,7 +18,7 @@ const EvaluatorProblemDetail = () => {
                     setProblem(res.data.problems[0]);
                 }
             } catch (err) {
-                console.error("Failed to fetch problem details", err);
+               
             } finally {
                 setLoading(false);
             }

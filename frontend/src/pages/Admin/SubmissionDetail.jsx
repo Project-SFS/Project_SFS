@@ -35,7 +35,6 @@ const SubmissionDetail = () => {
         if (response.data.marks) setMarks(response.data.marks); // Assuming backend has marks
         if (response.data.comments) setComments(response.data.comments);
       } catch (err) {
-        console.error("Error fetching submission:", err);
         setError("Failed to load  details.");
       } finally {
         setLoading(false);
