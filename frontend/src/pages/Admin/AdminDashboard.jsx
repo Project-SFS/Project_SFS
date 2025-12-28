@@ -71,6 +71,7 @@ const AdminDashboard = () => {
       do {
         const res = await axios.get(`${URL}/submissions?page=${page}`);
         const result = res.data;
+        console.log(result.submissions)
 
         if (!result?.submissions) break;
 

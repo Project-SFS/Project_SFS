@@ -4,6 +4,7 @@
  */
 // src/pages/admin/ProblemStatementsList.jsx
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiFilter, FiUsers, FiFileText, FiPlus, FiUpload } from 'react-icons/fi';
 import { mockProblemStatements, getEvaluatorUsers, mockSubmissions } from '../../mockData';
@@ -21,7 +22,8 @@ const ProblemStatementsList = () => {
   const [submissions, setSubmissions] = useState([]);
   const [sortOrder, setSortOrder] = useState('newest');
   const [statusFilter, setStatusFilter] = useState('all');
-
+  const [submissionlength,setSubmissionsLength]= useState('');
+  const [teamCount,setTeamCount]=useState('');
   
   const handleProblemClick = (problem) => {
     // Navigates to the details page using the ID (e.g., /admin/problems/7/details)
@@ -43,6 +45,15 @@ const ProblemStatementsList = () => {
     return subs.filter(sub => String(sub.status).toLowerCase().includes('evaluat')).length;
   };
 
+  useEffect(()=>{
+    const fetchTeamCount = async()=>{
+      const res = await axios.get(`${URL}/fetch_team_count`)
+                  .then(res=>(setTeamCount(res.data)))
+    }
+    fetchTeamCount();
+  },[teamCount])
+
+
   const formatDateTime = (isoString) => {
     const date = new Date(isoString);
     return date.toLocaleString();
@@ -59,7 +70,6 @@ const ProblemStatementsList = () => {
         const res = await fetch(`${URL}/get_problems`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
          json = await res.json();
-      
 
         let problemsData = [];
         if (Array.isArray(json)) {
@@ -71,7 +81,7 @@ const ProblemStatementsList = () => {
         }
 
         json = json.problems
- 
+        console.log(json.data);
         
         
 
@@ -109,7 +119,7 @@ const ProblemStatementsList = () => {
         const res = await fetch(`${URL}/submissions`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-   
+        setSubmissionsLength(json.submissions.length);
         
         const mapped = (json || []).map(s => ({
           id: s.ID ? String(s.ID) : (s.id || ''),
@@ -118,6 +128,8 @@ const ProblemStatementsList = () => {
           status: String(s.STATUS ?? s.SUB_STATUS ?? s.Sub_status ?? s.sub_status ?? s.status ?? '').trim(),
           submittedDate: s.SUB_DATE ?? s.submittedDate ?? s.submitted_date ?? null,
         }));
+        
+        
         setSubmissions(mapped);
       } catch (err) {
         setSubmissions([]);
@@ -178,7 +190,7 @@ const ProblemStatementsList = () => {
           className="flex items-center gap-2 bg-[#FF9900] hover:bg-[#e68900] text-white px-5 py-2.5 rounded-xl shadow-md transition-all"
         >
           <FiPlus className="text-lg" />
-          Create Problem Statem
+          Create Problem Statement
         </button>
       </div>
 
@@ -203,7 +215,7 @@ const ProblemStatementsList = () => {
               <h2 className="text-[#4A5568] font-medium text-base">
                 Total Teams
               </h2>
-              <p className="text-2xl font-semibold text-[#1A202C]">{totalTeams}</p>
+              <p className="text-2xl font-semibold text-[#1A202C]">{teamCount}</p>
             </div>
           </div>
         </div>
@@ -215,7 +227,7 @@ const ProblemStatementsList = () => {
               <h2 className="text-[#4A5568] font-medium text-base">
                 Total Submissions
               </h2>
-              <p className="text-2xl font-semibold text-[#1A202C]">{totalSubmissions}</p>
+              <p className="text-2xl font-semibold text-[#1A202C]">{submissionlength}</p>
             </div>
           </div>
         </div>

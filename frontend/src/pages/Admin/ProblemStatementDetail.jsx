@@ -35,11 +35,11 @@ const [solutionData, setSolutionData] = useState(null);
   const [activeSubmissionId, setActiveSubmissionId] = useState(null);
   const [original, setOriginal] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(null);
+  // const [submissions,setSubmissions]
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
-
 
   useEffect(() => {
     let mounted = true;
