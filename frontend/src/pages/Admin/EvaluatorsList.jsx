@@ -134,15 +134,6 @@ const EvaluatorList = () => {
     fetchSpocs();
   }, []);
 
-  const GetAllEvaluators = () => {
-    // Legacy function kept if needed, but logic moved to useEffect
-  }
-
-
-
-  /* useEffect(() => {
-    GetAllEvaluators()
-  }, []) */
 
 
 
@@ -238,12 +229,7 @@ const EvaluatorList = () => {
     setSelectedProblemToAdd(""); // Reset dropdown
   };
 
-  const handleRemoveProblem = (problemId) => {
-    setShowEditPopup({
-      ...showEditPopup,
-      problemStatements: showEditPopup.problemStatements.filter(ps => ps.id !== problemId)
-    });
-  };
+
 
   // Stats Calculations using useMemo for efficiency
   const totalEvaluators = evaluators.length;
@@ -322,22 +308,7 @@ const EvaluatorList = () => {
             </p>
           </div>
         </div>
-        {activeView === 'evaluators' && (
-          <div
-            onClick={() => setShowProblemStatementPopup(true)}
-            className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-5 flex items-center gap-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
-          >
-            <div className="bg-[#E6FFFA] p-4 rounded-xl">
-              <FiClipboard className="text-[#38B2AC] text-2xl" />
-            </div>
-            <div>
-              <p className="text-sm text-[#718096]">Total Problem Statements</p>
-              <p className="text-2xl font-bold text-[#1A202C]">
-                {totalProblemStatements}
-              </p>
-            </div>
-          </div>
-        )}
+        
       </div>
 
       {/* Table */}
@@ -348,8 +319,9 @@ const EvaluatorList = () => {
               <th className="text-left py-3 px-5 font-semibold">{activeView === 'evaluators' ? 'Evaluator ID' : 'SPOC ID'}</th>
               <th className="text-left py-3 px-5 font-semibold">Name</th>
               <th className="text-left py-3 px-5 font-semibold">Email</th>
-              <th className="text-left py-3 px-5 font-semibold">College</th>
-              <th className="text-center py-3 px-5 font-semibold">Actions</th>
+              <th className="text-left py-3 px-5 font-semibold">Organization</th>
+              {/* <th className="text-left py-3 px-5 font-semibold">Actions</th> */}
+              
             </tr>
           </thead>
           <tbody>
@@ -372,7 +344,7 @@ const EvaluatorList = () => {
                 </td>
                 <td className="py-4 px-5 text-[#718096]">{item.email}</td>
                 <td className="py-4 px-5 text-[#718096]">{item.college || item.dept}</td>
-                <td className="py-4 px-5 text-center space-x-4">
+                {/* <td className="py-4 px-5 text-center space-x-4">
                   <button
                     onClick={() => setShowEditPopup(item)}
                     className="text-gray-500 hover:text-[#FF9900] transition-all"
@@ -385,7 +357,7 @@ const EvaluatorList = () => {
                   >
                     <FiTrash2 size={18} />
                   </button>
-                </td>
+                </td> */}
               </tr>
             ))}
           </tbody>
@@ -417,23 +389,23 @@ const EvaluatorList = () => {
               <span className="font-medium text-[#1A202C]">{showDetailsPopup.email}</span>
             </div>
             <div className="flex">
-              <span className="font-semibold text-[#718096] w-40">College:</span>
+              <span className="font-semibold text-[#718096] w-40">Organization</span>
               <span className="font-medium text-[#1A202C]">{showDetailsPopup.college || 'N/A'}</span>
             </div>
-            <div className="flex">
+            {/* <div className="flex">
               <span className="font-semibold text-[#718096] w-40">College ID:</span>
               <span className="font-medium text-[#1A202C]">{showDetailsPopup.collegeId || 'N/A'}</span>
-            </div>
+            </div> */}
             <div className="flex">
               <span className="font-semibold text-[#718096] w-40">Joined Date:</span>
               <span className="font-medium text-[#1A202C]">{showDetailsPopup.dateJoined || 'N/A'}</span>
             </div>
-            <div className="flex">
+            {/* <div className="flex">
               <span className="font-semibold text-[#718096] w-40">Problem Statements:</span>
               <span className="font-medium text-[#1A202C]">{showDetailsPopup.problemStatements?.length || 0}</span>
-            </div>
+            </div> */}
 
-            <div className="mt-4">
+            {/* <div className="mt-4">
               <span className="font-semibold text-[#718096] block mb-2">Assigned Problem Statements:</span>
               <div className="flex flex-wrap gap-2">
                 {showDetailsPopup.problemStatements && showDetailsPopup.problemStatements.length > 0 ? (
@@ -447,11 +419,11 @@ const EvaluatorList = () => {
                         {ps.id}
                       </a>
 
-                      {/* Hover Tooltip */}
+                     
                       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 bg-gray-900 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 shadow-xl">
                         <p className="font-bold mb-1 border-b border-gray-700 pb-1">{ps.title}</p>
                         <p className="text-gray-300">Submissions: <span className="text-white font-bold">{ps.submissionCount}</span></p>
-                        {/* Arrow */}
+                        
                         <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-8 border-transparent border-t-gray-900"></div>
                       </div>
                     </div>
@@ -460,10 +432,9 @@ const EvaluatorList = () => {
                   <span className="text-gray-400 italic">No problem statements assigned.</span>
                 )}
               </div>
-            </div>
+            </div>*/}
+          </div> 
 
-
-          </div>
           <div className="flex justify-end mt-8">
             <button
               onClick={() => setShowDetailsPopup(null)}
@@ -622,7 +593,7 @@ const EvaluatorList = () => {
               </div> */}
               <div>
                 <label className="text-sm text-[#4A5568] font-medium mb-1 block">
-                  College
+                  Organization
                 </label>
                 <input
                   type="text"
@@ -635,7 +606,7 @@ const EvaluatorList = () => {
               </div>
               <div>
                 <label className="text-sm text-[#4A5568] font-medium mb-1 block">
-                  College ID
+                  Organization ID
                 </label>
                 <input
                   type="text"

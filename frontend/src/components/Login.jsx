@@ -57,8 +57,8 @@ const Login = () => {
       <Header />
       <Toaster position="top-right" />
       <div className="w-full max-w-4/6 bg-white rounded-2xl shadow-2xl overflow-hidden md:flex transition-all duration-500 ease-in-out mt-16">
-        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-orange-400 to-orange-600 items-center justify-center p-12 relative">
-          <div className="absolute inset-0 bg-[#494949] bg-opacity-20"></div>
+         <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-orange-400 to-orange-600 items-center justify-center p-12 relative">
+           <div className="absolute inset-0 bg-[#494949] bg-opacity-20"></div>
           <div className="text-white text-center relative z-10">
             <h2 className="text-4xl font-bold mb-4">Welcome Back</h2>
             <p className="text-lg opacity-90">Sign in to continue to the SFS Portal</p>
@@ -67,9 +67,9 @@ const Login = () => {
                 <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
               </svg>
             </div>
-          </div>
-        </div>
-        <div className="w-full md:w-1/2 p-10">
+          </div> 
+          </div> 
+          <div className="w-full md:w-1/2 p-10">
           <div className="text-center mb-8">
             <h3 className="text-3xl font-bold text-gray-800 mb-2">Sign In</h3>
             <p className="text-gray-600">Enter your credentials to access your account</p>

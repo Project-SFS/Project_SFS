@@ -3,7 +3,7 @@ import AsyncHandler from "../utils/AsyncHandler.js";
 
 const Fetch_All_Team = AsyncHandler(async(req,res)=>{
     const [result] = await connection.query("select * from Team_List ");
-    console.log(result)
+    
     res.send(result.length);
 })
 
