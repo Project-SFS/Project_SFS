@@ -199,6 +199,7 @@ const ProblemStatementForm = () => {
               <input
                 type="date"
                 placeholder="Submission Deadline"
+                required
                 className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-blue-300"
                 onChange={(e) => setDeadline(e.target.value)}
               />
@@ -247,6 +248,7 @@ const ProblemStatementForm = () => {
                         <div key={evaluator.ID} className="flex items-center space-x-3 bg-white p-2 rounded-lg border border-gray-100">
                           <input
                             type="radio"
+                            required
                             name="eval"
                             id={`eval-${evaluator.ID}`}
                             // checked={selectedEvaluatorsluator.ID)}

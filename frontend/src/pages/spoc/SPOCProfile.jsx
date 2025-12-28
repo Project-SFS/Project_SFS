@@ -38,7 +38,7 @@ const SPOCProfile = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  console.log(data)
+ 
 
   // ✨ Animation variants (same style as dashboard)
   const pageVariants = {
@@ -178,29 +178,9 @@ const SPOCProfile = () => {
                   className="mt-1 w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ffd0a0]"
                 />
               </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">Phone No</label>
-                <input
-                  type="text"
-                  name="phone"
-                  onChange={handleChange}
-                  placeholder="Enter Your phone number"
-                  className="mt-1 w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ffd0a0]"
-                />
-              </div>
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-gray-700">Designation</label>
-              <input
-                type="text"
-                name="designation"
-                onChange={handleChange}
-                placeholder="Enter Your Designation"
-                className="mt-1 w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#ffd0a0]"
-              />
-            </div>
+           
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -226,7 +206,7 @@ const SPOCProfile = () => {
               </div>
             </div>
 
-            <div className="mt-3 flex items-center justify-end">
+            {/* <div className="mt-3 flex items-center justify-end">
               <motion.button
                 type="button"
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-[#fc8f00] to-[#ffb347] text-white px-5 py-2 rounded-lg font-medium shadow hover:brightness-95 transition"
@@ -235,7 +215,7 @@ const SPOCProfile = () => {
               >
                 Update Profile
               </motion.button>
-            </div>
+            </div> */}
           </motion.div>
         </motion.div>
       </motion.div>

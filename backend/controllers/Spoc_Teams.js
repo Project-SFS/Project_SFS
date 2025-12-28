@@ -1,6 +1,12 @@
 import connection from "../database/mysql.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 
+const Fetch_All_Team = AsyncHandler(async(req,res)=>{
+    const [result] = await connection.query("select * from Team_List ");
+    console.log(result)
+    res.send(result.length);
+})
+
 const Fetch_Teams = AsyncHandler(async (req, res) => {
     // console.log(req.params);
 
@@ -46,4 +52,4 @@ const fetch_team_id_email = AsyncHandler(async (req, res) => {
     res.send(data)
 })
 
-export { Fetch_Teams, Fetch_Team_Members, Delete_team, Fetch_Team_For_Students, fetch_team_id_email }
+export { Fetch_Teams, Fetch_Team_Members, Delete_team, Fetch_Team_For_Students, fetch_team_id_email,Fetch_All_Team }
