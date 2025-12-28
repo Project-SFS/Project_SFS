@@ -6,5 +6,5 @@ dotenv.config()
 const PORT = process.env.PORT
 
 app.listen(PORT || 8001 ,() => {
-  onsole.log(`Backend server is running on port ${process.env.PORT}`);
+  console.log(`Backend server is running on port ${process.env.PORT}`);
 });
