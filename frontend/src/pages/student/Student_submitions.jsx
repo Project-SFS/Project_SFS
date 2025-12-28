@@ -53,14 +53,10 @@ export default function Student_submitions({ submission: propSubmission }) {
         setLoading(true);
         setError(null);
         axios.defaults.withCredentials = true;
-        
-        // let api = `${URL}/submissions`;
-        // if (submissionId) api += `?submissionId=${submissionId}`;
-        // else if (teamId) api += `?teamId=${teamId}`;
-        console.log(userEmail);
+       
         
         const res = await axios.post(`${URL}/get_submissions_by_email`, { userEmail }, { timeout: 5000 });
-        console.log(res);
+       
         
         const data = res.data;
         if (Array.isArray(data)) {
@@ -117,17 +113,17 @@ export default function Student_submitions({ submission: propSubmission }) {
     axios.get(`${URL}/cookie`, { withCredentials: true }).then(res => setEmail(res.data.EMAIL)
     )
   }, [])
-  console.log(submission);
+
 
   // useEffect(() => {
   //   if(userEmail!=undefined)
   //     axios.post(`${URL}/get_submissions_by_email`, { userEmail }).then(res => setUserSubmissions(res.data))
   // }, [userEmail])
 
-  console.log(userSubmissions);
+
   
   const sub = userSubmissions[0];
-  console.log(sub);
+
   
   if (loading) {
     return (
@@ -153,7 +149,6 @@ export default function Student_submitions({ submission: propSubmission }) {
     );
   }
 
-  console.log(URL +"/" +submission.FILES);
   
   
   return (

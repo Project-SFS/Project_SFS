@@ -7,7 +7,7 @@ const requireAuth = (req, res, next) => {
     
     
     const payload = jwt.verify(token, process.env.JWT_SCERET);
-    console.log(payload);
+    
     
     req.user = payload;
     return next();
@@ -19,7 +19,7 @@ const requireAuth = (req, res, next) => {
 const requireRole = (allowedRoles = []) => (req, res, next) => {
   if (!req.user) return res.status(401).json({ message: 'Authentication required' });
   const role = (req.user.ROLE || req.user.role || '').toString().toUpperCase();
-  console.log(role);
+  
   
   if (allowedRoles.length === 0 || allowedRoles.includes(role)) return next();
   return res.status(403).json({ message: 'Forbidden: Unauthorized Access' });

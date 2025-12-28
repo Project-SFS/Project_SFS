@@ -16,7 +16,7 @@ const Upload = () => {
     const [email, setEmail] = useState();
     
     const { problemId } = useParams();
-    console.log(problemId);
+
 
     const location = useLocation();
 
@@ -34,7 +34,7 @@ const Upload = () => {
     // }, [files])
 
     const handleFileChange = (e) => {
-        console.log(e.target.files);
+     
         
         const selected = Array.from(e.target.files)
         if (selected.length) {
@@ -44,7 +44,7 @@ const Upload = () => {
         }
         e.target.value = null
     }
-    console.log();
+     ;
     
     useEffect(() => {
         axios.defaults.withCredentials = true;
@@ -58,7 +58,7 @@ const Upload = () => {
     
     
 
-    console.log(files);
+  
     
 
     const onDrop = (e) => {
@@ -99,7 +99,7 @@ const Upload = () => {
         form.append('email', email);
         form.append('problemId', probId)
         files.forEach((f) => form.append('files', f))
-        // console.log(form);
+  
         axios.post(`${URL}/upload_files`, form, {
             headers: {
                 "Content-Type":"multipart/form-data"

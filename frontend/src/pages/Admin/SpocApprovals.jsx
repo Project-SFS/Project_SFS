@@ -13,7 +13,7 @@ const SpocApprovals = () => {
   const [step, setStep] = useState("confirm");
   const [SpocData, setSpocData] = useState([])
 
-  // console.log(SpocData)
+
 
   let fetchspoc = () => {
     axios.defaults.withCredentials = true;
@@ -27,7 +27,7 @@ const SpocApprovals = () => {
     fetchspoc()
   }, [])
 
-  // console.log(SpocData);
+
   const handleApprove = (id, approve) => {
     axios.defaults.withCredentials = true;
     axios.post(`${URL}/handlespoc`, { id: id, approve: approve })

@@ -26,7 +26,7 @@ const Add_Team_Members = AsyncHandler(async (req, res) => {
   );
 
   const insertId = rows[0].insertId; // ✅ THIS IS THE TEAM ID
-  console.log("Inserted Team ID:", insertId);
+ 
 
   /* ---------- INSERT TEAM MEMBERS ---------- */
   for (let i = 0; i < TeamMemberData.length; i++) {

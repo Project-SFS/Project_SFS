@@ -51,7 +51,7 @@ const SpocDashboard = () => {
         try {
             axios.defaults.withCredentials = true;
             const res = await axios.get(`${URL}/logout`);
-            console.log(res);
+         
             navigate('/');
         } catch (error) {
             console.error(error);
@@ -118,7 +118,7 @@ const SpocDashboard = () => {
 
     const getCollegeName = () => {
         axios.get(`${URL}/cookie`).then(res => { setSpoc_data(res.data) });
-        console.log(spoc_data);
+        
         // try to infer college from first team if present
         
         return spoc_data?.COLLEGE || spoc_data?.college || 'KIOT';

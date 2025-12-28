@@ -24,25 +24,25 @@ const DashboardWithSide = () => {
     ]
   });
   function allteams() {
-    // console.log("he")
-    axios.get(`${URL}/fetch_teams`).then(res => { setFullTeam(res.data), console.log(res.data) })
+    /
+    axios.get(`${URL}/fetch_teams`).then(res => { setFullTeam(res.data) })
 
   }
 
   function SelectedTeam(team) {
-    console.log(team.ID);
+
     navigate(`/spoc/team_details/${team.ID}`)
     // axios.post(`${URL}/fetch_team_members/${team.ID}`).then(res => setSelectedTeam(res.data))
   }
 
-  console.log(selectedTeam);
+
 
 
   useEffect(() => {
     allteams()
   }, [])
 
-  console.log(FullTeam)
+
 
   const teamsPerPage = 10;
 
@@ -113,11 +113,11 @@ const DashboardWithSide = () => {
 
   const handleCreateTeam = (e) => {
     e.preventDefault();
-    console.log('Creating team:', teamFormData);
+ 
     axios.defaults.withCredentials = true;
     axios.post(`${URL}/add_members`, teamFormData)
       .then((res) => {
-        console.log(res)
+       
         if (res.status == 200) {
           setShowCreateTeamModal(false);
           // Reset form

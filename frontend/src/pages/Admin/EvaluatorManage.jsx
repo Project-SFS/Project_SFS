@@ -36,11 +36,11 @@ const EvaluatorManage = () => {
 
     // API logic for creating/updating
     if (isCreate) {
-      console.log(`Creating new evaluator: ${email} with password: ${password}`);
+     
       // In a real app: POST to /api/users with role: 'Evaluator'
       alert(`Mock: Created new Evaluator ${email}.`);
     } else {
-      console.log(`Updating assignments for ${existingEvaluator.email}. New assignments:`, assignedProblems);
+      
       // In a real app: PUT to /api/evaluators/:id/assignments
       alert(`Mock: Updated assignments for ${existingEvaluator.email}.`);
     }

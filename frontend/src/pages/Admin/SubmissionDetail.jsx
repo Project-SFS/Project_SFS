@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -28,9 +27,9 @@ const SubmissionDetail = () => {
   useEffect(() => {
     const fetchSubmission = async () => {
       try {
-        const response = await axios.post(`${URL}/submissions/${id}`).then(res=>console.log(res.data)
+        const response = await axios.post(`${URL}/submissions/${id}`).then(res=> res.data
         )
-        console.log(response);
+       
         
         setSubmission(response.data);
         if (response.data.marks) setMarks(response.data.marks); // Assuming backend has marks

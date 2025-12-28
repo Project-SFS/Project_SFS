@@ -127,7 +127,7 @@ const SubmissionList = () => {
 
 
         if (res.data && Array.isArray(res.data)) {
-          console.log("Fetched submissions:", res.data); // Debug log
+         
           setSubmissions(res.data);
         } else {
           setSubmissions(submittedSol);
@@ -143,8 +143,6 @@ const SubmissionList = () => {
     fetchSubmissions();
   }, [problemId]);
 
-  // console.log(sub);
-  console.log(submittedSol);
 
 
   const filteredSubmissions = filterStatus === "All"
@@ -275,7 +273,7 @@ const SubmissionList = () => {
                   <th className="p-4 text-center font-semibold">Action</th>
                 </tr>
               </thead>
-              {console.log(submittedSol)
+             
               }
               <tbody className="bg-white divide-y divide-[#E2E8F0]">
                 {submittedSol.length > 0 ? (

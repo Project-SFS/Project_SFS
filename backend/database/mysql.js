@@ -48,7 +48,7 @@ const connection = {
 /* ---------- Connection Test (unchanged behavior) ---------- */
 try {
     await pool.request().query("SELECT 1");
-    console.log("MSSQL Database connected successfully");
+    
 } catch (error) {
     console.error("MSSQL connection error", error);
 }

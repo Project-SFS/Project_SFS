@@ -10,11 +10,11 @@ const AddProblemStatement = () => {
     const[category,setCategory]=useState("");
     const[subDate,setSubDate]=useState("");
     const[reference,setReference]=useState("");
-    console.log( auth());
+
 
     const handleSubmit=async(e)=>{
         e.preventDefault();
-      console.log(title, description, dept, reference, subDate);
+     
       
         try{
            const response = await axios.post(`${URL}/addproblems`,{
@@ -26,7 +26,7 @@ const AddProblemStatement = () => {
             
            }, 
            { withCredentials: true }).then(res => {
-             console.log(res);
+             
              
              if (res.status == 200) {
                setTitle("");
@@ -38,7 +38,7 @@ const AddProblemStatement = () => {
            })
            toast.success("Problem Statement Added Successfully",{position:"top-center"});
           await axios.post(`${URL}/send_mail_to_spoc`,{Problem:title})
-          //  console.log("Problem Statement Added:",response.data);
+         
         }
         catch(error){
             console.error("Error adding problem statement:",error);

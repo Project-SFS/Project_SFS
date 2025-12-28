@@ -21,7 +21,7 @@ const StudentNav = () => {
     axios.get(`${URL}/cookie`, { withCredentials: true }).then(res => setEmail(res.data.EMAIL)
     )
   }, [])
-  console.log(userEmail);
+ 
 
   useEffect(() => {
     if (userEmail != undefined)

@@ -54,8 +54,7 @@ const [solutionData, setSolutionData] = useState(null);
           res.data?.problems?.[0] ||
           res.data?.problem ||
           null;
-        console.log(p);
-
+       
         if (p && mounted) {
           setProblem({
             id: String(p.ID ?? p.id ?? ''),
@@ -83,15 +82,15 @@ const [solutionData, setSolutionData] = useState(null);
           { withCredentials: true }
         );
 
-        // console.log(res.data);
+        
         setOriginal(res.data)
         
 
         if (!Array.isArray(res.data)) return;
-        // console.log(res.data);
+      
         
         const normalized = res.data.map(s => ({
-          // console.log();
+          //  ;
           
           id: String(s.submission_id ?? ''),
           team_name: s.team_name || 'N/A',
@@ -102,7 +101,7 @@ const [solutionData, setSolutionData] = useState(null);
           marks:s.MARK
         }));
 
-        console.log(normalized);
+        
         
         if (mounted) setSubmissions(normalized);
       } catch (err) {
@@ -183,7 +182,7 @@ const [solutionData, setSolutionData] = useState(null);
   }
   };
   
-  console.log(original);
+ 
   
 
   /* ---------------- Loading / Error ---------------- */
@@ -265,7 +264,7 @@ const [solutionData, setSolutionData] = useState(null);
       </div>
     );
   }
-  console.log(URL + "/" + "" + original[0]?.FILES)
+
   return (
     <div className="min-h-screen bg-[#F7F8FC] px-6 py-8 transition-all duration-300">
       <div className="max-w-7xl mx-auto">
@@ -494,7 +493,7 @@ const [solutionData, setSolutionData] = useState(null);
                   <td>
                     <button
                       onClick={() => {
-                        // console.log(key);
+                       
                         setCurrentIndex(key);
                         
     setActiveSubmissionId(sub.id);

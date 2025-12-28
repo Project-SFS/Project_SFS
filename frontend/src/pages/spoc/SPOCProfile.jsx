@@ -18,7 +18,7 @@ const SPOCProfile = () => {
   useEffect(() => {
     axios.defaults.withCredentials = true;
     axios.get(`${URL}/cookie`).then(res => {
-      console.log(res);
+    
       
       if (res.data.message == 'jwt must be provided') {
         toast.error("Please login")
@@ -38,7 +38,7 @@ const SPOCProfile = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  console.log(data)
+
 
   // ✨ Animation variants (same style as dashboard)
   const pageVariants = {

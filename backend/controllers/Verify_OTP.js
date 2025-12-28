@@ -23,10 +23,10 @@ const Verify_OTP = (req, res) => {
             ,
         });
 
-        console.log("Message sent:", info.messageId);
+        
     }
     otp(random)
-    console.log(random.toFixed());
+    
     res.send(random.toFixed())
 }
 

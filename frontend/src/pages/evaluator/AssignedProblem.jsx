@@ -29,15 +29,15 @@ const AssignedProblem = () => {
         const userId = userData?.ID || userData?.id;
 
         if (userId) {
-          console.log(userId);
+    
           
           try {
             const res = await axios.get(`${URL}/problems/evaluator/${userId}`);
-            // console.log(res.data);
+            
             
             if (res.data.problems && res.data.problems.length > 0) {
               displayProblems = res.data.problems;
-              // console.log(res.data.problems);
+      
               
             }
           } catch (fetchErr) {
@@ -48,7 +48,6 @@ const AssignedProblem = () => {
         // Combine: Local created items first, then fetched/mock items
         const combined = [ ...displayProblems];
 
-        console.log(combined);
         
         // simple dedup by ID just in case
         const unique = combined.filter((v, i, a) => a.findIndex(t => (t.ID === v.ID)) === i);

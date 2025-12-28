@@ -105,7 +105,7 @@ const TeamDetails = () => {
   const members = Team_data1?.result || [];
   const college = Lead_data?.COLLEGE
 
-  // console.log(Spoc);
+
   
   const metaDetails = [
     { label: "Team Name", value: Team_data2?.NAME, icon: <TeamIcon /> },

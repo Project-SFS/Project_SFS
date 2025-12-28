@@ -54,7 +54,7 @@ const Register = () => {
 
 
     // const lodaing = toast.loading("Sending OTP")
-    console.log(generatedOtp, "ffg", form.otp, opt)
+    
     if (opt == form.otp) {
       setEmailVerified(true);
       setOtpSent(false);
@@ -68,7 +68,7 @@ const Register = () => {
 
   const handleemail = (e) => {
     e.preventDefault()
-    console.log(e.target.value);
+    
     setemail(e.target.value)
 
   }
@@ -84,7 +84,7 @@ const Register = () => {
   };
 
   const checkIfEmailAlreadyExist = async (email) => {
-    // console.log(email);
+   
     
     const data = await axios.post(`${URL}/checkifemailexist`, { email })
     .then(res=>(res.data)
@@ -93,23 +93,22 @@ const Register = () => {
     return data
     
     
-    // return data.then(res=>console.log(res)   )
+    
    
   }
 
   // ✅ Simulate sending OTP
   const handleSendOtp = async() => {
-    // console.log(email.trim().includes("@"));
-    // console.log(await checkIfEmailAlreadyExist(email));
+ 
     
     if (await checkIfEmailAlreadyExist(email)) {
     
       if (email.trim().includes("@")) {
-        // console.log(email);
+       
       
         const lodaing = toast.loading("Sending OTP")
 
-        console.log(email)
+        
         if (email) {
           axios.post(`${URL}/verify_email/${email}`)
             .then(res => {
@@ -117,7 +116,7 @@ const Register = () => {
             
                 toast.dismiss(lodaing)
                 toast.success("OTP Sent")
-                setGeneratedOtp(res.data), console.log(res), setopt(res.data)
+                setGeneratedOtp(res.data), 
                 setOtpSent(true);
 
               }
@@ -164,8 +163,7 @@ const Register = () => {
 
   const onSubmit = (e) => {
     e.preventDefault();
-    // console.log(form);
-    // console.log(form)
+    
     const fieldErrors = validate(form);
     
     if (Object.keys(fieldErrors).length > 0) {
@@ -182,7 +180,7 @@ const Register = () => {
         name: form.name,
         date: form.date
        }).then((res) => {
-        console.log(res);
+       
         
          if (res.status === 200) {
            toast.success("Registered!", { style: { backgroundColor: "green" } });

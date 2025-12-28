@@ -39,7 +39,7 @@ const Get_problem_by_id = AsyncHandler(async (req, res) => {
 const Post_problem = AsyncHandler(async (req, res) => {
     const { title, description, sub_date, category, reference, evaluators } = req.body;
 
-    console.log(req.body);
+   
     
 
     const dept = "CSE";
@@ -54,7 +54,7 @@ const Post_problem = AsyncHandler(async (req, res) => {
         `,
         [title, description, sub_date, category, dept, reference, evaluators]
     );
-    console.log(rows);
+    
     
 
     const problemId = rows[0].problemId;
