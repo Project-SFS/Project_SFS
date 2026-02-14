@@ -18,7 +18,7 @@ const signup = AsyncHandler(async (req, res) => {
     try {
         if (role === "spoc") {
             const query =
-                `INSERT INTO Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE)
+                `INSERT INTO SolveForSakthi_Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE)
                  VALUES (?, ?, ?, ?, ?, ?, ?)`;
 
             const params = [email, bcryptpass, role.toUpperCase(), college, college_code, name, date];
@@ -28,7 +28,7 @@ const signup = AsyncHandler(async (req, res) => {
 
         if (role === "STUDENT") {
             const query =
-                `INSERT INTO Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE, STATUS)
+                `INSERT INTO SolveForSakthi_Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE, STATUS)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
             const params = [email, bcryptpass, role.toUpperCase(), college, college_code, name, date, "ACTIVE"];
@@ -61,7 +61,7 @@ const signup = AsyncHandler(async (req, res) => {
         }
 
         const query =
-            `INSERT INTO Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE, STATUS)
+            `INSERT INTO SolveForSakthi_Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE, STATUS)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
         const params = [email, bcryptpass, role.toUpperCase(), college, college_code, name, date, "ACTIVE"];
@@ -90,7 +90,7 @@ const login = async (req, res) => {
     }
 
     const [result] = await connection.query(
-        "SELECT * FROM Users WHERE EMAIL = ?",
+        "SELECT * FROM SolveForSakthi_Users WHERE EMAIL = ?",
         [email]
     );
 
@@ -148,13 +148,13 @@ const logout = async (req, res) => {
 /* ====================== GET USERS ====================== */
 
 const GetAllUsers = AsyncHandler(async (req, res) => {
-    const [users] = await connection.query("SELECT * FROM Users");
+    const [users] = await connection.query("SELECT * FROM SolveForSakthi_Users");
     res.status(200).json(users);
 });
 
 const GetAllEvaluators = AsyncHandler(async (req, res) => {
     const [users] = await connection.query(
-        "SELECT * FROM Users WHERE ROLE = 'EVALUATOR'"
+        "SELECT * FROM SolveForSakthi_Users WHERE ROLE = 'EVALUATOR'"
     );
     res.send(users);
 });
@@ -164,7 +164,7 @@ const GetAllEvaluators = AsyncHandler(async (req, res) => {
 const verifyEmail = async (req, res) => {
     const { email } = req.body;
     const [data] = await connection.query(
-        "SELECT * FROM Users WHERE EMAIL = ?",
+        "SELECT * FROM SolveForSakthi_Users WHERE EMAIL = ?",
         [email]
     );
     res.send(data.length == 0 ? true : false);
@@ -197,7 +197,7 @@ const UpdateUser = AsyncHandler(async (req, res) => {
 
     params.push(id);
 
-    const query = `UPDATE Users SET ${fields.join(", ")} WHERE ID = ?`;
+    const query = `UPDATE SolveForSakthi_Users SET ${fields.join(", ")} WHERE ID = ?`;
 
     try {
         await connection.query(query, params);

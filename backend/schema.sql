@@ -1,4 +1,4 @@
-CREATE TABLE Users
+CREATE TABLE SolveForSakthi_Users
 (
     ID INT NOT NULL PRIMARY KEY IDENTITY(1,1),
     -- auto_increment → IDENTITY in MSSQL
@@ -15,7 +15,7 @@ CREATE TABLE Users
     DATE VARCHAR(20) NULL
 );
 
-CREATE TABLE submissions
+CREATE TABLE SolveForSakthi_Submissions
 (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     PROBLEM_ID INT,
@@ -35,7 +35,7 @@ CREATE TABLE submissions
 );
 
 
-CREATE TABLE problems
+CREATE TABLE SolveForSakthi_Problems
 (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     TITLE VARCHAR(100),
@@ -47,7 +47,7 @@ CREATE TABLE problems
     Evaluator_ID INT
 );
 
-CREATE TABLE Team_Members_List
+CREATE TABLE SolveForSakthi_Team_Members_List
 (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     NAME VARCHAR(50),
@@ -59,7 +59,7 @@ CREATE TABLE Team_Members_List
     Team_ID INT
 );
 
-CREATE TABLE Team_List
+CREATE TABLE SolveForSakthi_Team_List
 (
     ID INT IDENTITY(1,1) PRIMARY KEY,
     NAME VARCHAR(50),

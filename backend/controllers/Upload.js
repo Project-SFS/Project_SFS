@@ -33,7 +33,7 @@ const uploadFiles = AsyncHandler(async (req, res) => {
 
         await connection.query(
             `
-            INSERT INTO submissions
+            INSERT INTO SolveForSakthi_Submissions
             (PROBLEM_ID, TEAM_EMAIL, SOL_TITLE, SOL_DESCRIPTION, SUB_DATE, SOL_LINK, FILES)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             `,

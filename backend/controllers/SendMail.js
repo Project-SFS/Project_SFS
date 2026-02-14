@@ -23,7 +23,7 @@ const sendMailToSpoc = AsyncHandler(async (req, res) => {
   const { Problem } = req.body;
 
   const [data] = await connection.query(
-    "SELECT EMAIL, NAME FROM Users WHERE ROLE = 'SPOC' AND STATUS = 'ACTIVE'"
+    "SELECT EMAIL, NAME FROM SolveForSakthi_Users WHERE ROLE = 'SPOC' AND STATUS = 'ACTIVE'"
   );
 
   const batchSize = 5;

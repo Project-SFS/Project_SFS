@@ -5,7 +5,7 @@ import AsyncHandler from "../utils/AsyncHandler.js";
 
 const Spoc_approve = AsyncHandler(async (req, res) => {
     const [data] = await connection.query(
-        "SELECT * FROM Users WHERE STATUS = 'PENDING' AND ROLE = 'SPOC'"
+        "SELECT * FROM SolveForSakthi_Users WHERE STATUS = 'PENDING' AND ROLE = 'SPOC'"
     );
     res.status(200).json(data);
 });
@@ -17,9 +17,9 @@ const handleSpocApprove = AsyncHandler(async (req, res) => {
 
     let query;
     if (approve) {
-        query = "UPDATE Users SET STATUS = 'ACTIVE' WHERE ID = ?";
+        query = "UPDATE SolveForSakthi_Users SET STATUS = 'ACTIVE' WHERE ID = ?";
     } else {
-        query = "UPDATE Users SET STATUS = 'REJECTED' WHERE ID = ?";
+        query = "UPDATE SolveForSakthi_Users SET STATUS = 'REJECTED' WHERE ID = ?";
     }
 
     const [data] = await connection.query(query, [id.ID]);

@@ -8,8 +8,8 @@ const Get_problems = AsyncHandler(async (req, res) => {
         SELECT 
             p.*,
             u.EMAIL AS evaluator_email
-        FROM problems p
-        JOIN Users u 
+        FROM SolveForSakthi_Problems p
+        JOIN SolveForSakthi_Users u 
             ON p.Evaluator_ID = u.ID
     `);
 
@@ -27,7 +27,7 @@ const Get_problem_by_id = AsyncHandler(async (req, res) => {
     }
 
     const [problems] = await connection.query(
-        "SELECT * FROM problems WHERE ID = ?",
+        "SELECT * FROM SolveForSakthi_Problems WHERE ID = ?",
         [parsedId]
     );
 
@@ -39,23 +39,23 @@ const Get_problem_by_id = AsyncHandler(async (req, res) => {
 const Post_problem = AsyncHandler(async (req, res) => {
     const { title, description, sub_date, category, reference, evaluators } = req.body;
 
-   
-    
+
+
 
     const dept = "CSE";
 
     /* ---------- INSERT PROBLEM (MSSQL WAY) ---------- */
     const [rows] = await connection.query(
         `
-        INSERT INTO problems
+        INSERT INTO SolveForSakthi_Problems
         (TITLE, DESCRIPTION, SUB_DEADLINE, CATEGORY, DEPT, Reference, Evaluator_ID)
         OUTPUT INSERTED.ID AS problemId
         VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [title, description, sub_date, category, dept, reference, evaluators]
     );
-    
-    
+
+
 
     const problemId = rows[0].problemId;
 
@@ -85,7 +85,7 @@ const Delete_problem = AsyncHandler(async (req, res) => {
     }
 
     const [existing] = await connection.query(
-        "SELECT ID FROM problems WHERE ID = ?",
+        "SELECT ID FROM SolveForSakthi_Problems WHERE ID = ?",
         [id]
     );
 
@@ -94,7 +94,7 @@ const Delete_problem = AsyncHandler(async (req, res) => {
     }
 
     await connection.query(
-        "DELETE FROM problems WHERE ID = ?",
+        "DELETE FROM SolveForSakthi_Problems WHERE ID = ?",
         [id]
     );
 
@@ -111,7 +111,7 @@ const Get_assigned_problems = AsyncHandler(async (req, res) => {
     }
 
     const [problems] = await connection.query(
-        "SELECT * FROM problems WHERE Evaluator_ID = ?",
+        "SELECT * FROM SolveForSakthi_Problems WHERE Evaluator_ID = ?",
         [evaluatorId]
     );
 

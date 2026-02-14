@@ -11,7 +11,7 @@ const SubmitSolution = AsyncHandler(async (req, res) => {
     }
 
     const [teamExists] = await connection.query(
-        "SELECT ID FROM Team_List WHERE ID = ?",
+        "SELECT ID FROM SolveForSakthi_Team_List WHERE ID = ?",
         [teamId]
     );
 
@@ -24,7 +24,7 @@ const SubmitSolution = AsyncHandler(async (req, res) => {
 
     await connection.query(
         `
-        INSERT INTO submissions
+        INSERT INTO SolveForSakthi_Submissions
         (PROBLEM_ID, TEAM_ID, SOL_TITLE, SOL_DESCRIPTION, SUB_DATE, STATUS, SOL_LINK)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
@@ -43,7 +43,7 @@ const Get_solution = AsyncHandler(async (req, res) => {
     const { teamId } = req.params;
 
     const [result] = await connection.query(
-        "SELECT * FROM submissions WHERE TEAM_ID = ?",
+        "SELECT * FROM SolveForSakthi_Submissions WHERE TEAM_ID = ?",
         [teamId]
     );
 
@@ -56,7 +56,7 @@ const Get_all_submissions = AsyncHandler(async (req, res) => {
     const { problemId, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
 
-    let baseQuery = "SELECT * FROM submissions";
+    let baseQuery = "SELECT * FROM SolveForSakthi_Submissions";
     const params = [];
 
     if (problemId) {
@@ -117,9 +117,9 @@ const Get_submission_by_prob_id = AsyncHandler(async (req, res) => {
 
             u.NAME AS spoc_name,
             u.COLLEGE AS college_name
-        FROM submissions s
-        JOIN Team_List t ON s.TEAM_EMAIL = t.LEAD_EMAIL
-        JOIN Users u ON t.LEAD_EMAIL = u.EMAIL
+        FROM SolveForSakthi_Submissions s
+        JOIN SolveForSakthi_Team_List t ON s.TEAM_EMAIL = t.LEAD_EMAIL
+        JOIN SolveForSakthi_Users u ON t.LEAD_EMAIL = u.EMAIL
         WHERE s.PROBLEM_ID = ?
         `,
         [id]
@@ -152,10 +152,10 @@ const Get_submission_by_id = AsyncHandler(async (req, res) => {
             s.BV_MARK AS bv_mark,
             s.FP_MARK AS fp_mark,
             s.IN_MARK AS in_mark
-        FROM submissions s
-        JOIN problems p ON s.PROBLEM_ID = p.ID
-        LEFT JOIN Team_List t ON s.TEAM_EMAIL = t.LEAD_EMAIL
-        LEFT JOIN Users u ON t.LEAD_EMAIL = u.EMAIL
+        FROM SolveForSakthi_Submissions s
+        JOIN SolveForSakthi_Problems p ON s.PROBLEM_ID = p.ID
+        LEFT JOIN SolveForSakthi_Team_List t ON s.TEAM_EMAIL = t.LEAD_EMAIL
+        LEFT JOIN SolveForSakthi_Users u ON t.LEAD_EMAIL = u.EMAIL
         WHERE s.ID = ?
         `,
         [id]
@@ -181,7 +181,7 @@ const AddMarkToSolution = AsyncHandler(async (req, res) => {
 
     await connection.query(
         `
-        UPDATE submissions
+        UPDATE SolveForSakthi_Submissions
         SET CP_MARK = ?, PS_MARK = ?, BV_MARK = ?, FP_MARK = ?, IN_MARK = ?
         WHERE ID = ?
         `,
@@ -191,7 +191,7 @@ const AddMarkToSolution = AsyncHandler(async (req, res) => {
     const status = sum >= 60 ? "ACCEPTED" : "REJECTED";
 
     await connection.query(
-        "UPDATE submissions SET STATUS = ? WHERE ID = ?",
+        "UPDATE SolveForSakthi_Submissions SET STATUS = ? WHERE ID = ?",
         [status, subid]
     );
 });
@@ -202,7 +202,7 @@ const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
     const { userEmail } = req.body;
 
     const [data] = await connection.query(
-        "SELECT * FROM submissions WHERE TEAM_EMAIL = ?",
+        "SELECT * FROM SolveForSakthi_Submissions WHERE TEAM_EMAIL = ?",
         [userEmail]
     );
 
@@ -217,7 +217,7 @@ const check_status_submission = AsyncHandler(async (req, res) => {
     const [data] = await connection.query(
         `
         SELECT STATUS
-        FROM submissions
+        FROM SolveForSakthi_Submissions
         WHERE TEAM_EMAIL = ? AND PROBLEM_ID = ?
         ORDER BY ID DESC
         OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY

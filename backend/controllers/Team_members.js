@@ -18,7 +18,7 @@ const Add_Team_Members = AsyncHandler(async (req, res) => {
   /* ---------- INSERT TEAM (MSSQL WAY) ---------- */
   const [rows] = await connection.query(
     `
-    INSERT INTO Team_List (NAME, SPOC_ID, MENTOR_NAME, MENTOR_EMAIL)
+    INSERT INTO SolveForSakthi_Team_List (NAME, SPOC_ID, MENTOR_NAME, MENTOR_EMAIL)
     OUTPUT INSERTED.ID AS insertId
     VALUES (?, ?, ?, ?)
     `,
@@ -26,7 +26,7 @@ const Add_Team_Members = AsyncHandler(async (req, res) => {
   );
 
   const insertId = rows[0].insertId; // ✅ THIS IS THE TEAM ID
- 
+
 
   /* ---------- INSERT TEAM MEMBERS ---------- */
   for (let i = 0; i < TeamMemberData.length; i++) {
@@ -34,7 +34,7 @@ const Add_Team_Members = AsyncHandler(async (req, res) => {
 
     if (singledata.role === "Team Lead") {
       await connection.query(
-        `UPDATE Team_List SET LEAD_EMAIL = ?, LEAD_PHONE = ? WHERE ID = ?`,
+        `UPDATE SolveForSakthi_Team_List SET LEAD_EMAIL = ?, LEAD_PHONE = ? WHERE ID = ?`,
         [singledata.email, singledata.phone, insertId]
       );
       leademail = singledata.email;
@@ -42,7 +42,7 @@ const Add_Team_Members = AsyncHandler(async (req, res) => {
 
     await connection.query(
       `
-      INSERT INTO Team_Members_List
+      INSERT INTO SolveForSakthi_Team_Members_List
       (ROLE, NAME, EMAIL, PHONE, GENDER, SPOC_ID, TEAM_ID)
       VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
@@ -114,7 +114,7 @@ const Update_team = async (req, res) => {
 
   await connection.query(
     `
-    UPDATE Team_List
+    UPDATE SolveForSakthi_Team_List
     SET NAME = ?, MENTOR_NAME = ?, MENTOR_EMAIL = ?
     WHERE ID = ?
     `,
@@ -124,7 +124,7 @@ const Update_team = async (req, res) => {
   for (const member of members) {
     await connection.query(
       `
-      UPDATE Team_Members_List
+      UPDATE SolveForSakthi_Team_Members_List
       SET NAME = ?, EMAIL = ?, PHONE = ?, GENDER = ?
       WHERE TEAM_ID = ? AND ROLE = ?
       `,
