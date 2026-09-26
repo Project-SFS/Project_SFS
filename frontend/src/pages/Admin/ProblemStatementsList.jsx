@@ -80,7 +80,7 @@ const ProblemStatementsList = () => {
           title: p.TITLE || p.title || 'Untitled',
           description: p.DESCRIPTION || p.description || '',
           created: p.SUB_DATE ? new Date(p.SUB_DATE).toISOString() : (p.created || new Date().toISOString()),
-          deadline: p.SUB_DATE || p.deadline,
+          deadline: p.SUB_DEADLINE || p.deadline,
           assignedEvaluators: p.assignedEvaluators || [],
           submissionsCount: p.submissionsCount || 0,
           evaluator: p.Evaluator_ID,

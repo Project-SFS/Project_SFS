@@ -108,7 +108,7 @@ const ProblemStatementForm = () => {
       setCategory("");
       setYoutubeLink("");
       setDatasetLink("");
-      setSelectedEvaluators([]);
+      setSelectedEvaluators(undefined);
       setEvaluatorSearch("");
 
       // Navigate back after delay

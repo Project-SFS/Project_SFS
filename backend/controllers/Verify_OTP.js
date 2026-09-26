@@ -25,7 +25,7 @@ const Verify_OTP = (req, res) => {
 
         console.log("Message sent:", info.messageId);
     }
-    otp(random)
+    otp(random).catch((err) => console.error("OTP mail failed:", err.message))
     console.log(random.toFixed());
     res.send(random.toFixed())
 }

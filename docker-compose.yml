@@ -1,0 +1,57 @@
+# Full stack: MySQL + backend (Express) + frontend (Vite build served by nginx)
+#   docker compose up -d --build
+# Host ports can be changed without editing this file, e.g.
+#   BACKEND_PORT=8010 FRONTEND_PORT=8081 docker compose up -d --build
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root@1234}
+      MYSQL_DATABASE: Sakthi_auto
+    ports:
+      - "${MYSQL_PORT:-3308}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    # mail password, JWT secret, admin credentials, ...
+    env_file: ./backend/.env
+    environment:
+      PORT: 8000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: Sakthi_auto
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-root@1234}
+      CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-8080}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:${BACKEND_PORT:-8000}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+
+volumes:
+  mysql-data:
+  uploads:

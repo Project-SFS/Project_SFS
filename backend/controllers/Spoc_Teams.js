@@ -28,19 +28,20 @@ const Fetch_Team_Members = AsyncHandler(async (req, res) => {
 
 const Delete_team = AsyncHandler(async (req, res) => {
     const { id } = req.body;
+    await connection.query("DELETE FROM Team_Members_List WHERE Team_ID = ?", [id])
     const [result] = await connection.query("DELETE FROM Team_List WHERE ID = ?", [id])
     res.send(result)
 })
 
 const Fetch_Team_For_Students = AsyncHandler(async (req, res) => {
     const { id } = req.body;
-    const [data, extra] = await connection.query(`SELECT * FROM Team_List WHERE ID=${id}`)
+    const [data, extra] = await connection.query("SELECT * FROM Team_List WHERE ID = ?", [id])
     res.send(data)
 })
 
 const fetch_team_id_email = AsyncHandler(async (req, res) => {
     const { email } = req.body;
-    const [data, extra] = await connection.query(`SELECT ID FROM Team_List WHERE LEAD_EMAIL='${email}'`)
+    const [data, extra] = await connection.query("SELECT ID FROM Team_List WHERE LEAD_EMAIL = ?", [email])
     console.log(data);
     
     res.send(data)

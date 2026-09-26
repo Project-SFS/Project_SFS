@@ -88,10 +88,11 @@ const sendMailToSpoc = AsyncHandler(async (req, res) => {
         const batch = data.slice(i, i + batchSize);
 
         await Promise.all(
-            batch.map(user => email(user, Problem))
+            batch.map(user => email(user, Problem).catch(err => console.error("SPOC mail failed:", user.EMAIL, err.message)))
         )
     }
 
+    res.status(200).json({ message: "Mails processed", count: data.length });
 
 })
 

@@ -7,7 +7,7 @@ const Get_problems = AsyncHandler(async (req, res) => {
             p.*,
             u.EMAIL AS evaluator_email
         FROM problems p
-        JOIN Users u 
+        LEFT JOIN Users u 
             ON p.Evaluator_ID = u.ID
     `);
 
@@ -38,7 +38,12 @@ const Post_problem = AsyncHandler(async (req, res) => {
     const query = `INSERT INTO problems (TITLE, DESCRIPTION,SUB_DEADLINE, CATEGORY,DEPT,Reference, Evaluator_ID)
                    VALUES (?, ?, ?, ?, ?, ?, ?)`; 
 
-    const params = [title, description,sub_date, category, dept,reference, evaluators];
+    // evaluators may arrive as an id, an array of ids, or nothing; an evaluator creating a problem owns it
+    let evaluatorId = Array.isArray(evaluators) ? evaluators[0] : evaluators;
+    if (evaluatorId == null && req.user?.ROLE === "EVALUATOR") evaluatorId = req.user.ID;
+    evaluatorId = evaluatorId != null && evaluatorId !== "" && Number.isInteger(Number(evaluatorId)) ? Number(evaluatorId) : null;
+
+    const params = [title, description, sub_date, category, dept, reference ?? null, evaluatorId];
 
     const [result] = await connection.execute(query, params);
     const problemId = result.insertId;
@@ -86,7 +91,7 @@ const Get_assigned_problems = AsyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'Evaluator ID is required' });
     }
 
-    const query = `SELECT * FROM problems WHERE Evaluator_ID=${evaluatorId}`;
+    const query = `SELECT * FROM problems WHERE Evaluator_ID = ?`;
 
     try {
         const [problems] = await connection.query(query, [evaluatorId]);

@@ -3,7 +3,7 @@ import AsyncHandler from "../utils/AsyncHandler.js";
 
 const Spoc_approve = AsyncHandler(async (req, res) => {
     const [data,error] = await connection.query("SELECT * FROM Users WHERE STATUS='PENDING' AND ROLE='SPOC'");
-    res.status(200).json(data)
+    res.status(200).json(data.map(({ PASSWORD, ...rest }) => rest))
 })
 
 const handleSpocApprove = AsyncHandler(async (req, res) => {

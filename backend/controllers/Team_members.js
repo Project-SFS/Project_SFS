@@ -84,7 +84,11 @@ const Add_Team_Members = AsyncHandler(async (req, res) => {
             console.log("Message sent:", info.messageId);
         }
 
-        await email()
+        try {
+            await email()
+        } catch (err) {
+            console.error("Team member mail failed:", err.message)
+        }
         // console.log(dev)
     }
   

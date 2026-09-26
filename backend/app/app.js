@@ -9,7 +9,11 @@ const app = express()
 // Express knows the connection is secure (useful for cookies and req.protocol)
 app.set('trust proxy', 1)
 app.use(cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", "https://project-sfs.onrender.com"],
+    origin: [
+        "http://localhost:5173", "http://localhost:5174", "https://project-sfs.onrender.com",
+        // extra comma-separated origins, e.g. the docker-compose frontend
+        ...(process.env.CORS_ORIGINS || "").split(",").map(o => o.trim()).filter(Boolean)
+    ],
     credentials: true
 }))
 

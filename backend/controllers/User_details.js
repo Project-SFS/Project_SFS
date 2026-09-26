@@ -142,6 +142,7 @@ const login = async (req, res) => {
     }
 
     const user = result[0];
+    const safeUser = result.map(({ PASSWORD, ...rest }) => rest);
 
     let response;
     try {
@@ -155,7 +156,7 @@ const login = async (req, res) => {
         // successful login: clear any recorded attempts
         loginAttempts.delete(clientKey);
 
-        const token = jwt.sign(result[0], process.env.JWT_SCERET);
+        const token = jwt.sign(safeUser[0], process.env.JWT_SCERET);
         const isProd = process.env.NODE_ENV === 'production';
         res.cookie("login_creditionals", token, {
             maxAge: 14400000,
@@ -167,10 +168,10 @@ const login = async (req, res) => {
         console.log("done");
 
 
-        res.json({ data: response, user: result })
+        res.json({ data: response, user: safeUser })
     }
     else if (rs == 'PENDING') {
-        res.json({ data: "PENDING", user: result })
+        res.json({ data: "PENDING", user: safeUser })
     }
     else {
         // failed auth: increment attempts
@@ -180,7 +181,7 @@ const login = async (req, res) => {
             attempt.count = (attempt.count || 0) + 1;
             loginAttempts.set(clientKey, attempt);
         }
-        res.status(401).json({ data: "REJECTED", user: result })
+        res.status(401).json({ data: "REJECTED", user: safeUser })
     }
 
 }
@@ -203,17 +204,17 @@ const logout = async (req, res) => {
 
 const GetAllUsers = AsyncHandler(async (req, res) => {
     const [users] = await connection.query("SELECT * FROM Users");
-    res.status(200).json(users);
+    res.status(200).json(users.map(({ PASSWORD, ...rest }) => rest));
 });
 
 const GetAllEvaluators = AsyncHandler(async (req, res) => {
     const [users, error] = await connection.query("SELECT * FROM Users WHERE ROLE='EVALUATOR'")
-    res.send(users)
+    res.send(users.map(({ PASSWORD, ...rest }) => rest))
 })
 
 const verifyEmail = async (req, res) => {
     const { email } = req.body;
-    const [data, err] = await connection.query(`SELECT * FROM Users WHERE EMAIL='${email}'`)
+    const [data, err] = await connection.query("SELECT ID FROM Users WHERE EMAIL = ?", [email])
     res.send(data.length == 0 ? true : false)
 }
 

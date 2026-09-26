@@ -173,17 +173,15 @@ const AddMarkToSolution = AsyncHandler(async (req, res) => {
        PS_MARK = ?, 
        BV_MARK = ?, 
        FP_MARK = ?, 
-       IN_MARK = ?
+       IN_MARK = ?,
+       MARK = ?,
+       STATUS = ?
    WHERE ID = ?`,
-        [cp, ps, bv, fp, inn, subid]
+        [cp, ps, bv, fp, inn, sum, sum >= 60 ? "ACCEPTED" : "REJECTED", subid]
     );
 
-    let status = sum >= 60 ? "ACCEPTED" : "REJECTED";
-    const [stat] = await connection.query(`UPDATE submissions SET STATUS='${status}' WHERE ID=${subid}`);
-
     console.log(data);
-    
-    
+    res.status(200).json({ message: "Marks saved", total: sum });
 })
 
 const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
@@ -192,7 +190,7 @@ const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
     // let [data, extra];
    
         
-    const [data, extra] = await connection.query(`select * from submissions where TEAM_EMAIL='${userEmail}'`);
+    const [data, extra] = await connection.query("select * from submissions where TEAM_EMAIL = ?", [userEmail]);
     
 
     console.log(data);
@@ -204,7 +202,7 @@ const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
 const check_status_submission = AsyncHandler(async (req, res) => {
     const { teamEmail, problemId } = req.body;
     
-    const [data] = await connection.query(`select STATUS from submissions where TEAM_EMAIL='${teamEmail}' and PROBLEM_ID=${problemId} order by ID desc limit 1`);
+    const [data] = await connection.query("select STATUS from submissions where TEAM_EMAIL = ? and PROBLEM_ID = ? order by ID desc limit 1", [teamEmail, problemId]);
     
     if (data.length === 0) {
         return res.status(200).json({ status: "NO_SUBMISSION" });
