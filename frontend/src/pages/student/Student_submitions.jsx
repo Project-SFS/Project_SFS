@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import { URL } from "../../Utils";
-import samplePdf from "../../assets/sample.pdf";
-import { HiOutlineDownload, HiOutlineEye, HiOutlineExternalLink, HiX, HiShare, HiLink } from 'react-icons/hi';
+import { URL, resolveFileUrl } from "../../Utils";
+import { HiOutlineDownload, HiOutlineEye, HiOutlineExternalLink, HiX } from 'react-icons/hi';
 
 const statusColor = (s) => {
   const st = (s || "").toString().toUpperCase();
@@ -29,6 +28,19 @@ function FriendlyDate({ value }) {
   return <time dateTime={d.toISOString()}>{d.toLocaleDateString()}</time>;
 }
 
+const mapSubmission = (row = {}) => ({
+  ...row,
+  ID: row.ID ?? row.id ?? row.submission_id,
+  PROBLEM_ID: row.PROBLEM_ID ?? row.problemId ?? row.problem_id,
+  STATUS: row.STATUS ?? row.status ?? row.SUB_STATUS ?? "PENDING",
+  SUB_DATE: row.SUB_DATE ?? row.submittedAt ?? row.submitted_date,
+  SOL_TITLE: row.SOL_TITLE ?? row.title ?? row.submission_title ?? "Untitled submission",
+  SOL_DESCRIPTION: row.SOL_DESCRIPTION ?? row.description ?? "",
+  FILES: row.FILES ?? row.solution_document ?? row.SOL_LINK ?? row.sol_link ?? row.pdfLink ?? row.pdfUrl ?? row.files?.find((file) => /\.pdf$/i.test(file)),
+  teamId: row.teamId ?? row.TEAM_ID ?? row.team_id,
+  title: row.title ?? row.SOL_TITLE ?? row.submission_title ?? "Untitled submission",
+});
+
 export default function Student_submitions({ submission: propSubmission }) {
   const [submission, setSubmission] = useState(null);
   const [expanded, setExpanded] = useState(false);
@@ -36,11 +48,6 @@ export default function Student_submitions({ submission: propSubmission }) {
   const [error, setError] = useState(null);
   const [showViewer, setShowViewer] = useState(false);
   const [userEmail, setEmail] = useState('');
-  const [userSubmissions, setUserSubmissions] = useState([]);
-
-  const query = useMemo(() => new URLSearchParams(window.location.search), []);
-  const submissionId = query.get("submissionId");
-  const teamId = query.get("teamId");
 
   useEffect(() => {
     if (propSubmission) {
@@ -54,25 +61,17 @@ export default function Student_submitions({ submission: propSubmission }) {
         setError(null);
         axios.defaults.withCredentials = true;
         
-        // let api = `${URL}/submissions`;
-        // if (submissionId) api += `?submissionId=${submissionId}`;
-        // else if (teamId) api += `?teamId=${teamId}`;
-        console.log(userEmail);
-        
         const res = await axios.post(`${URL}/get_submissions_by_email`, { userEmail }, { timeout: 5000 });
-        console.log(res);
-        
         const data = res.data;
         if (Array.isArray(data)) {
           const first = data[0] ?? null;
-          setSubmission((first));
+          setSubmission(first ? mapSubmission(first) : null);
         } else if (data) {
-          setSubmission((data));
+          setSubmission(mapSubmission(data));
         } else {
           setSubmission(null);
         }
       } catch (err) {
-        // setError("Failed to fetch  details.");
         console.error(err);
       } finally {
         setLoading(false);
@@ -80,16 +79,10 @@ export default function Student_submitions({ submission: propSubmission }) {
     };
 
     fetch();
-  }, [userEmail]);
+  }, [propSubmission, userEmail]);
 
   const s = submission;
-  // Prefer explicit pdf link from submission; fall back to bundled sample PDF.
-  const rawLink = s?.pdfLink || null;
-  // Do NOT use any proxy here — use the submission link directly when available.
-  const pdfSrc = rawLink || '/sample.pdf';
-  const [previewLoaded, setPreviewLoaded] = useState(false);
-  const [previewError, setPreviewError] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const pdfSrc = resolveFileUrl(s?.FILES);
   
   // Close modal on ESC
   useEffect(() => {
@@ -101,37 +94,15 @@ export default function Student_submitions({ submission: propSubmission }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [showViewer]);
 
-  // reset preview states when pdfSrc changes
   useEffect(() => {
-    setPreviewLoaded(false);
-    setPreviewError(false);
-
-    // if iframe doesn't load within timeout, mark as error (likely blocked by X-Frame-Options or CORS)
-    const t = setTimeout(() => {
-      if (!previewLoaded) setPreviewError(true);
-    }, 3500);
-    return () => clearTimeout(t);
-  }, [pdfSrc]);
-
-  useEffect(() => {
-    axios.get(`${URL}/cookie`, { withCredentials: true }).then(res => setEmail(res.data.EMAIL)
-    )
+    axios.get(`${URL}/cookie`, { withCredentials: true })
+      .then((res) => setEmail(res.data.EMAIL))
+      .catch((err) => console.error("Failed to load current user", err));
   }, [])
-  console.log(submission);
-
-  // useEffect(() => {
-  //   if(userEmail!=undefined)
-  //     axios.post(`${URL}/get_submissions_by_email`, { userEmail }).then(res => setUserSubmissions(res.data))
-  // }, [userEmail])
-
-  console.log(userSubmissions);
-  
-  const sub = userSubmissions[0];
-  console.log(sub);
   
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[rgba(255,153,0,0.03)] to-background-light">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-[rgba(255,153,0,0.03)] to-background-light">
         <div className="text-xl font-semibold text-text-secondary">Loading submission...</div>
       </div>
     );
@@ -139,7 +110,7 @@ export default function Student_submitions({ submission: propSubmission }) {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[rgba(255,153,0,0.03)] to-background-light">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-[rgba(255,153,0,0.03)] to-background-light">
         <div className="text-xl font-semibold text-red-500">{error}</div>
       </div>
     );
@@ -147,21 +118,18 @@ export default function Student_submitions({ submission: propSubmission }) {
 
   if (!s) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[rgba(255,153,0,0.03)] to-background-light">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-[rgba(255,153,0,0.03)] to-background-light">
         <div className="text-xl font-semibold text-text-secondary">No submission found.</div>
       </div>
     );
   }
 
-  console.log(URL +"/" +submission.FILES);
-  
-  
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[rgba(255,153,0,0.03)] to-background-light px-4 py-12">
+    <div className="min-h-screen bg-linear-to-b from-[rgba(255,153,0,0.03)] to-background-light px-4 py-12">
       <div className="w-full max-w-6xl mx-auto rounded-2xl overflow-hidden bg-white shadow-lg transition-shadow hover:shadow-2xl">
         <div className="flex flex-col md:flex-row">
           {/* left accent */}
-          <div className="hidden md:block w-2 bg-gradient-to-b from-[#FF9900] to-[#D46F00]" />
+          <div className="hidden md:block w-2 bg-linear-to-b from-[#FF9900] to-[#D46F00]" />
           <div className="flex-1 p-6 md:p-8">
             <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
@@ -180,33 +148,10 @@ export default function Student_submitions({ submission: propSubmission }) {
             <main className="mt-6 grid grid-cols-1 md:grid-cols-12 gap-6">
               <section className="md:col-span-7 space-y-4">
                 <div className="rounded-lg overflow-hidden border border-border-color bg-white">
-                  <div className="w-full h-80 md:h-[520px] bg-gray-50 relative">
-                    {URL + "/" + submission.FILES ? (
+                  <div className="w-full h-80 md:h-130 bg-gray-50 relative">
+                    {pdfSrc ? (
                         <>
-                          {!previewLoaded && !previewError && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin border-gray-200"></div>
-                            </div>
-                          )}
-
-                          {previewError ? (
-                            <iframe
-                            src={URL + "/" + submission.FILES}
-                              title="Submission preview"
-                              className={`w-full h-full border-0 ${previewLoaded ? '' : 'invisible'}`}
-                              onLoad={() => setPreviewLoaded(true)}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
-                              <p className="text-sm text-text-secondary mb-3">Preview not available in this browser or blocked by CORS.</p>
-                              <a href={URL + "/" + submission.FILES} target="_blank" rel="noreferrer" className="text-action-blue underline">Open PDF in new tab</a>
-                            </div>
-                          )}
-
-                          {/* Always show fallback link below the preview */}
-                          <div className="absolute left-4 bottom-4 bg-white/80 rounded-md px-3 py-1 text-sm">
-                            <a href={pdfSrc} target="_blank" rel="noreferrer" className="text-action-blue">Open in new tab</a>
-                          </div>
+                          <iframe src={pdfSrc} title="Submission preview" className="w-full h-full border-0" />
                         </>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
@@ -230,7 +175,7 @@ export default function Student_submitions({ submission: propSubmission }) {
                   <div className="mt-4 flex flex-wrap gap-3">
                     <button
                       onClick={() => setShowViewer(true)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-[#FF9900] to-[#D46F00] text-white font-semibold shadow-md hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-[#FF9900]/40"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-linear-to-r from-[#FF9900] to-[#D46F00] text-white font-semibold shadow-md hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-[#FF9900]/40"
                       aria-label="View full PDF"
                     >
                       <HiOutlineEye className="w-5 h-5" />
@@ -238,7 +183,7 @@ export default function Student_submitions({ submission: propSubmission }) {
                     </button>
 
                     <a
-                      href={URL + "/" + submission.FILES}
+                      href={pdfSrc}
                       download
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border-color text-text-primary bg-white hover:bg-gray-50 shadow-sm"
                     >
@@ -247,7 +192,7 @@ export default function Student_submitions({ submission: propSubmission }) {
                     </a>
 
                     <button
-                      onClick={() => window.open(URL + "/" + submission.FILES, '_blank')}
+                      onClick={() => window.open(pdfSrc, '_blank', 'noopener,noreferrer')}
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm text-text-secondary bg-gray-50 border border-border-color"
                     >
                       <HiOutlineExternalLink className="w-4 h-4" />
@@ -283,11 +228,11 @@ export default function Student_submitions({ submission: propSubmission }) {
                 <div className="mt-5 border-t border-border-color pt-4">
                   <h3 className="text-sm text-text-secondary font-medium">Actions</h3>
                   <div className="mt-3 flex flex-col gap-3">
-                    <button onClick={() => setShowViewer(true)} className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-gradient-to-r from-[#FF9900] to-[#D46F00] text-white font-semibold shadow-sm">
+                    <button onClick={() => setShowViewer(true)} className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-linear-to-r from-[#FF9900] to-[#D46F00] text-white font-semibold shadow-sm">
                       <HiOutlineEye className="w-5 h-5" /> View
                     </button>
 
-                    <a href={URL + "/" + submission.FILES} download className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-border-color bg-white text-text-primary">
+                    <a href={pdfSrc} download className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-border-color bg-white text-text-primary">
                       <HiOutlineDownload className="w-5 h-5" /> Download
                     </a>
 
@@ -318,8 +263,8 @@ export default function Student_submitions({ submission: propSubmission }) {
                 <HiX className="w-5 h-5" />
               </button>
             </div>
-            {URL + "/" + submission.FILES ? (
-              <iframe src={URL + "/" + submission.FILES} title="PDF viewer" className="w-full h-full border-0" />
+            {pdfSrc ? (
+              <iframe src={pdfSrc} title="PDF viewer" className="w-full h-full border-0" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-text-tertiary">No PDF to preview</div>
             )}

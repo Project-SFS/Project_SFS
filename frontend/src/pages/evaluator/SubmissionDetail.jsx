@@ -227,8 +227,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { URL } from "../../Utils";
-import samplePdf from "../../assets/sample.pdf";
+import { URL, resolveFileUrl } from "../../Utils";
 
 /* ---------- Helper Components ---------- */
 
@@ -237,14 +236,18 @@ const InfoRow = ({ label, value, isEven }) => (
     <div className="sm:w-1/3 p-4 font-semibold text-gray-700 sm:border-r border-gray-100">
       {label}
     </div>
-    <div className="sm:w-2/3 p-4 text-gray-600 break-words">
+    <div className="sm:w-2/3 p-4 text-gray-600 wrap-break-word">
       {value || "N/A"}
     </div>
   </div>
 );
 
 const PDFViewer = ({ url }) => {
-  const file = url || samplePdf;
+  const file = url;
+
+  if (!file) {
+    return <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">No PDF is attached to this submission.</div>;
+  }
 
   return (
     <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -422,7 +425,11 @@ const SubmissionDetail = () => {
         {/* PDF */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <h2 className="text-2xl font-bold mb-4">Solution Document</h2>
-          <PDFViewer url={`${URL}/${submission.solution_document}`} />
+          <PDFViewer
+            url={resolveFileUrl(
+              submission.solution_document || submission.FILES || submission.SOL_LINK || submission.sol_link,
+            )}
+          />
         </motion.div>
 
         {/* Evaluation */}

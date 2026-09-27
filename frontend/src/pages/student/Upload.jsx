@@ -34,14 +34,13 @@ const Upload = () => {
     // }, [files])
 
     const handleFileChange = (e) => {
-        console.log(e.target.files);
-        
         const selected = Array.from(e.target.files)
-        if (selected.length) {
-            setFiles((prev) => [...prev, ...selected])
+        const pdfFiles = selected.filter((file) => file.type === 'application/pdf' || /\.pdf$/i.test(file.name))
+        if (pdfFiles.length) {
+            setFiles((prev) => [...prev, ...pdfFiles])
             setProgress(0)
-            setStatus(null)
         }
+        setStatus(pdfFiles.length === selected.length ? null : { type: 'error', msg: 'Only PDF files can be uploaded' })
         e.target.value = null
     }
     console.log();
@@ -65,11 +64,12 @@ const Upload = () => {
         e.preventDefault()
         setDragActive(false)
         const dropped = Array.from(e.dataTransfer.files)
-        if (dropped.length) {
-            setFiles((prev) => [...prev, ...dropped])
+        const pdfFiles = dropped.filter((file) => file.type === 'application/pdf' || /\.pdf$/i.test(file.name))
+        if (pdfFiles.length) {
+            setFiles((prev) => [...prev, ...pdfFiles])
             setProgress(0)
-            setStatus(null)
         }
+        setStatus(pdfFiles.length === dropped.length ? null : { type: 'error', msg: 'Only PDF files can be uploaded' })
     }
 
     const removeFile = (index) => {
@@ -112,10 +112,16 @@ const Upload = () => {
                     clearAll()
                 }
                 else {
+                    toast.dismiss(loading);
                     toast.error("Error uploading")
                 }
-        }
-        )
+            })
+            .catch((error) => {
+                toast.dismiss(loading);
+                const message = error.response?.data?.message || 'Upload failed. Please upload a valid PDF under 10 MB.';
+                setStatus({ type: 'error', msg: message });
+                toast.error(message);
+            });
     }
 
     const clearAll = () => {
@@ -200,9 +206,9 @@ const Upload = () => {
                             <div className="text-sm text-gray-600 mb-2">Drag & drop files here or click to browse</div>
                         </div>
 
-                        <div className="text-xs text-gray-400 mt-2">Supports multiple files • Max single file size as configured on backend</div>
+                        <div className="text-xs text-gray-400 mt-2">PDF files only • Maximum file size: 10 MB</div>
 
-                        <input ref={inputRef} type="file" multiple onChange={handleFileChange} className="hidden" aria-label="Upload files" />
+                        <input ref={inputRef} type="file" accept="application/pdf,.pdf" multiple onChange={handleFileChange} className="hidden" aria-label="Upload PDF files" />
 
                         <div className="mt-6 flex gap-3">
                             <button
@@ -244,7 +250,7 @@ const Upload = () => {
                         {files.length === 0 ? (
                             <div className="text-sm text-gray-400">No files selected</div>
                         ) : (
-                            <div className="space-y-3 max-h-[420px] overflow-auto pr-2">
+                            <div className="space-y-3 max-h-105 overflow-auto pr-2">
                                 {files.map((f, i) => (
                                     <div
                                         key={i}
@@ -305,7 +311,7 @@ const Upload = () => {
                     ) : (
                         <div className="flex gap-2 overflow-x-auto">
                             {files.map((f, i) => (
-                                <div key={i} className="min-w-[140px] p-2 bg-white border rounded-lg">
+                                <div key={i} className="min-w-35 p-2 bg-white border rounded-lg">
                                     <div className="text-sm font-medium truncate">{f.name}</div>
                                     <div className="text-xs text-gray-400">{(f.size / 1024).toFixed(1)} KB</div>
                                 </div>
