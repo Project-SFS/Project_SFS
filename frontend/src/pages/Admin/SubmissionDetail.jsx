@@ -6,15 +6,12 @@ import Button from '../../components/common/button';
 import Breadcrumb from '../../components/common/Breadcrumb';
 import { FiEdit, FiSave, FiArrowLeft, FiChevronLeft, FiChevronRight, FiDownload } from 'react-icons/fi';
 import axios from 'axios';
-import { URL, resolveFileUrl } from '../../Utils';
+import { URL } from '../../Utils';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Bundle the matching worker with the app instead of relying on a CDN/version match.
-pdfjs.GlobalWorkerOptions.workerSrc = new globalThis.URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+// Set up the worker for react-pdf
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 const SubmissionDetail = () => {
   const { id } = useParams();
@@ -31,7 +28,10 @@ const SubmissionDetail = () => {
   useEffect(() => {
     const fetchSubmission = async () => {
       try {
-        const response = await axios.get(`${URL}/submissions/${id}`);
+        const response = await axios.post(`${URL}/submissions/${id}`).then(res=>console.log(res.data)
+        )
+        console.log(response);
+        
         setSubmission(response.data);
         if (response.data.marks) setMarks(response.data.marks); // Assuming backend has marks
         if (response.data.comments) setComments(response.data.comments);
@@ -43,7 +43,7 @@ const SubmissionDetail = () => {
       }
     };
     fetchSubmission();
-  }, [id]);
+  });
 
   if (loading) {
     return (
@@ -80,9 +80,7 @@ const SubmissionDetail = () => {
   const rawDate = submission.SUB_DATE || submission.sub_date;
   const displayDate = rawDate ? new Date(rawDate).toLocaleDateString() : 'N/A';
 
-  const pdfUrl = resolveFileUrl(
-    submission.SOL_LINK || submission.sol_link || submission.FILES || submission.solution_document,
-  );
+  const pdfUrl = submission.SOL_LINK || submission.sol_link;
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
@@ -103,7 +101,7 @@ const SubmissionDetail = () => {
           <Breadcrumb />
           <Button
             onClick={() => navigate(-1)}
-            className="bg-[#FF9900] hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
+            className="!bg-[#FF9900] !hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
           >
             <FiArrowLeft className="w-5 h-5" />
             <span>Back</span>
