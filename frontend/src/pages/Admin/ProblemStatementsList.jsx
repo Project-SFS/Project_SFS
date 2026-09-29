@@ -40,7 +40,7 @@ const ProblemStatementsList = () => {
       ? submissions.filter(s => String(s.problemId) === String(problemId))
       : [];
 
-    return subs.filter(sub => String(sub.status).toLowerCase().includes('evaluat')).length;
+    return subs.filter(sub => ['ACCEPTED', 'REJECTED'].includes(String(sub.status).toUpperCase())).length;
   };
 
   const formatDateTime = (isoString) => {
@@ -82,7 +82,7 @@ const ProblemStatementsList = () => {
           created: p.SUB_DATE ? new Date(p.SUB_DATE).toISOString() : (p.created || new Date().toISOString()),
           deadline: p.SUB_DEADLINE || p.deadline,
           assignedEvaluators: p.assignedEvaluators || [],
-          submissionsCount: p.submissionsCount || 0,
+          submissionsCount: p.submission_count ?? p.submissionsCount ?? 0,
           evaluator: p.Evaluator_ID,
           evaluator_email : p.evaluator_email
         })).filter(p => p.id && p.id !== ''); 
@@ -106,15 +106,15 @@ const ProblemStatementsList = () => {
     const fetchSubmissions = async () => {
       try {
         const base = import.meta.env.VITE_API_URL || '';
-        const res = await fetch(`${URL}/submissions`);
+        const res = await fetch(`${URL}/submissions?limit=1000`, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         console.log(json);
         
-        const mapped = (json || []).map(s => ({
+        const mapped = (json?.submissions || []).map(s => ({
           id: s.ID ? String(s.ID) : (s.id || ''),
           problemId: s.PROBLEM_ID ?? s.PROBLEMID ?? s.problemId ?? s.problem_id ?? null,
-          teamId: s.TEAM_ID ?? s.TEAMID ?? s.teamId ?? s.team_id ?? null,
+          teamId: s.TEAM_EMAIL ?? s.TEAM_ID ?? s.teamId ?? s.team_id ?? null,
           status: String(s.STATUS ?? s.SUB_STATUS ?? s.Sub_status ?? s.sub_status ?? s.status ?? '').trim(),
           submittedDate: s.SUB_DATE ?? s.submittedDate ?? s.submitted_date ?? null,
         }));

@@ -149,6 +149,9 @@ const SpocApprovals = () => {
                 >
                   <td className="py-3 px-4 text-[#1A202C] font-medium">
                     {college.COLLEGE}
+                    <span className="ml-2 text-xs font-semibold text-[#718096] bg-gray-100 rounded px-2 py-0.5">
+                      {college.ROLE === "EVALUATOR" ? "Evaluator" : "SPOC"}
+                    </span>
                   </td>
                   <td className="py-3 px-4 text-[#718096]">{college.EMAIL}</td>
                   <td className="py-3 px-4 text-[#A0AEC0]">{college.DATE}</td>

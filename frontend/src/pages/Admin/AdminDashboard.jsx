@@ -69,7 +69,7 @@ const AdminDashboard = () => {
       const MAX_PAGES = 50;
 
       do {
-        const res = await axios.get(`${URL}/submissions?page=${page}`);
+        const res = await axios.get(`${URL}/submissions?page=${page}&limit=1000`);
         const result = res.data;
 
         if (!result?.submissions) break;
@@ -135,7 +135,7 @@ const AdminDashboard = () => {
     data.submissions.slice(-20).forEach(sub => {
       if (sub.subDate) {
         activities.push({
-          text: `New solution submitted for Problem ${sub.problemId}`,
+          text: `New solution submitted for SFS_${sub.problemId}`,
           time: timeAgo(sub.subDate),
           icon: FiUpload,
           rawDate: new Date(sub.subDate)
@@ -165,15 +165,16 @@ const AdminDashboard = () => {
 
   const totalProblems = data.problems.length;
   const totalSubmissions = data.submissions.length;
-  const pendingApprovals = data.spocs.filter(
+  // SPOCs and evaluators both wait for approval
+  const pendingApprovals = [...data.spocs, ...data.evaluators].filter(
     s => (s.STATUS || '').toUpperCase() === 'PENDING'
   ).length;
 
-  const totalEvaluators = data.evaluators.length;
+  const totalEvaluators = data.evaluators.filter(e => (e.STATUS || '').toUpperCase() === 'ACTIVE').length;
 
   const evaluatedCount = useMemo(
     () =>
-      data.submissions.filter(s => s.status === 'EVALUATED').length,
+      data.submissions.filter(s => s.status === 'ACCEPTED' || s.status === 'REJECTED').length,
     [data.submissions]
   );
 

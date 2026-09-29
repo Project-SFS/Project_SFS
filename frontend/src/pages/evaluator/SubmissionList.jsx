@@ -40,8 +40,8 @@ const SubmissionList = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("All");
   const [assignedProblems, setAssignedProblems] = useState([]);
+  const [assignedLoaded, setAssignedLoaded] = useState(false);
   const [isProblemDropdownOpen, setIsProblemDropdownOpen] = useState(false);
-  const [submittedSol, setSubmissionssol] = useState([])
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -61,95 +61,61 @@ const SubmissionList = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // 1. Fetch Assigned Problems for Dropdown
+  // 1. Fetch the problems assigned to this evaluator (once)
   useEffect(() => {
     const fetchAssignedProblems = async () => {
       try {
-        const localProblems = JSON.parse(localStorage.getItem('temp_assigned_problems') || '[]');
-        let fetchedProblems = [];
-
         const userRes = await axios.get(`${URL}/cookie`, { withCredentials: true });
-        const userData = userRes.data;
-        const userId = userData?.ID || userData?.id;
-
-        if (userId) {
-          try {
-            const res = await axios.get(`${URL}/problems/evaluator/${userId}`);
-            if (res.data.problems && Array.isArray(res.data.problems)) {
-              fetchedProblems = res.data.problems;
-            }
-          } catch (apiErr) {
-            console.warn("API fetch failed, relying on local/mock", apiErr);
-          }
-        }
-
-        // Combine Local + API
-        const combined = [...localProblems, ...fetchedProblems];
-        // Deduplicate by ID
-        const unique = combined.filter((v, i, a) => a.findIndex(t => (t.ID === v.ID)) === i);
-
-        if (unique.length > 0) {
-          setAssignedProblems(unique);
-          // If no problemId in URL, default to first (optional UX improvement)
-          if (!problemId) {
-            navigate(`?problemId=${unique[0].ID}`, { replace: true });
-          }
-        } else {
-          setAssignedProblems([]);
-        }
-
+        const userId = userRes.data?.ID || userRes.data?.id;
+        const res = userId ? await axios.get(`${URL}/problems/evaluator/${userId}`) : null;
+        setAssignedProblems(Array.isArray(res?.data?.problems) ? res.data.problems : []);
       } catch (err) {
-        // Fallback to mock data if fetch completely fails
-        console.warn("Using mock problems for dropdown", err);
-        setAssignedProblems([
-          { ID: 101, TITLE: "AI-Driven Supply Chain Optimization" },
-          { ID: 102, TITLE: "Sustainable Packaging Solutions" },
-          { ID: 103, TITLE: "IoT Based Energy Monitoring" }
-        ]);
+        console.warn("Failed to fetch assigned problems", err);
+        setAssignedProblems([]);
+      } finally {
+        setAssignedLoaded(true);
       }
     };
     fetchAssignedProblems();
-  }, [problemId, navigate]);
+  }, []);
 
-  // 2. Fetch Submissions when problemId changes
+  // 2. Fetch submissions for the selected problem, or for every assigned problem ("All Problems")
   useEffect(() => {
     const fetchSubmissions = async () => {
-      // Small artificial delay for UX consistency
+      if (!problemId && !assignedLoaded) return; // wait until we know which problems are assigned
+
+      const ids = problemId ? [problemId] : assignedProblems.map((p) => p.ID);
+      if (ids.length === 0) {
+        setSubmissions([]);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
 
       try {
-        const res = axios.post(`${URL}/submissions_by_id`, { id: problemId })
-          .then(res => setSubmissionssol(res.data)
+        const results = await Promise.all(
+          ids.map((id) =>
+            axios.post(`${URL}/submissions_by_id`, { id }).then((res) => (Array.isArray(res.data) ? res.data : []))
           )
-
-
-
-
-        if (res.data && Array.isArray(res.data)) {
-          console.log("Fetched submissions:", res.data); // Debug log
-          setSubmissions(res.data);
-        } else {
-          setSubmissions(submittedSol);
-        }
+        );
+        setSubmissions(results.flat());
       } catch (err) {
-        console.warn("Failed to fetch submissions, using mock data", err);
-        setSubmissions(submittedSol);
+        console.warn("Failed to fetch submissions", err);
+        setSubmissions([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchSubmissions();
-  }, [problemId]);
+  }, [problemId, assignedProblems, assignedLoaded]);
 
   // console.log(sub);
-  console.log(submittedSol);
 
 
   const filteredSubmissions = filterStatus === "All"
     ? submissions
-    : submissions.filter(sub => (sub.STATUS || sub.status) === filterStatus);
+    : submissions.filter(sub => String(sub.STATUS || sub.status || "").toUpperCase() === filterStatus);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -248,9 +214,9 @@ const SubmissionList = () => {
             className="bg-transparent text-sm text-gray-700 outline-none cursor-pointer pr-2"
           >
             <option value="All">All Status</option>
-            <option value="Pending">Pending</option>
-            <option value="In Review">In Review</option>
-            <option value="Evaluated">Evaluated</option>
+            <option value="PENDING">Pending</option>
+            <option value="ACCEPTED">Accepted</option>
+            <option value="REJECTED">Rejected</option>
           </select>
         </div>
       </div>
@@ -275,11 +241,9 @@ const SubmissionList = () => {
                   <th className="p-4 text-center font-semibold">Action</th>
                 </tr>
               </thead>
-              {console.log(submittedSol)
-              }
               <tbody className="bg-white divide-y divide-[#E2E8F0]">
-                {submittedSol.length > 0 ? (
-                  submittedSol.map((sub, index) => (
+                {filteredSubmissions.length > 0 ? (
+                  filteredSubmissions.map((sub, index) => (
                     <tr key={index} className="hover:bg-[#F9FAFB] border-t border-[#E2E8F0] transition-all">
                       <td className="p-4 text-[#1A202C] font-medium">{sub.SOL_TITLE || sub.title || "Untitled Solution"}</td>
                       <td className="p-4 text-center text-[#718096] text-sm">{sub.SUB_DATE || sub.submittedAt ? new Date(sub.SUB_DATE || sub.submittedAt).toLocaleDateString() : "N/A"}</td>
@@ -306,7 +270,7 @@ const SubmissionList = () => {
           {/* Mobile card list */}
           <div className="sm:hidden p-4 space-y-4">
             {filteredSubmissions.length > 0 ? (
-              submittedSol.map((sub, i) => (
+              filteredSubmissions.map((sub, i) => (
                 <div key={i} className="bg-white border border-[#E2E8F0] rounded-lg p-4 shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>

@@ -1,4 +1,6 @@
 node_modules
 dist
-.env
+# frontend/.env is used for the build (VITE_API_URL); local overrides stay out
+.env.local
+.env.*.local
 *.log

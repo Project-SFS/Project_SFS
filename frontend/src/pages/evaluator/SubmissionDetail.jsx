@@ -17,52 +17,6 @@
 //   </div>
 // );
 
-// const PDFViewer = ({ url }) => {
-//   console.log(url);
-  
-//   const file = url || samplePdf;
-
-//   return (
-//     <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-//       {/* PDF Controls */}
-//       <div className="flex justify-between items-center bg-gray-50 px-4 py-3 border-b border-gray-200">
-//         <span className="text-gray-600 font-medium">Document Preview</span>
-//         <div className="space-x-3">
-//           <a
-//             href={file}
-//             target="_blank"
-//             rel="noopener noreferrer"
-//             className="px-4 py-2 text-sm font-medium text-[#fc8f00] border border-[#fc8f00] rounded hover:bg-[#fc8f00] hover:text-white transition-colors"
-//           >
-//             View Fullscreen
-//           </a>
-//           <a
-//             href={file}
-//             download
-//             className="px-4 py-2 text-sm font-medium text-white bg-[#fc8f00] rounded hover:bg-[#e68100] transition-colors"
-//           >
-//             Download
-//           </a>
-//         </div>
-//       </div>
-
-//       {/* PDF Object */}
-//       <div className="w-full bg-gray-100">
-//         <div className="h-72 md:h-[60vh] lg:h-[80vh] w-full">
-//           <object data={file} type="application/pdf" width="100%" height="100%">
-//           <div className="flex flex-col items-center justify-center h-full text-gray-500">
-//             <p className="mb-2">This browser does not support embedded PDFs.</p>
-//             <a href={file} className="text-[#fc8f00] underline font-medium">
-//               Click here to download
-//             </a>
-//           </div>
-//           </object>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
 // const SubmissionDetail = () => {
 //   const { id } = useParams();
 //   const navigate = useNavigate();
@@ -228,7 +182,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { URL } from "../../Utils";
-import samplePdf from "../../assets/sample.pdf";
+import DeleteSubmissionButton from "../../components/DeleteSubmissionButton";
 
 /* ---------- Helper Components ---------- */
 
@@ -243,41 +197,77 @@ const InfoRow = ({ label, value, isEven }) => (
   </div>
 );
 
+// Loads the (login-protected) PDF itself so a missing or inaccessible file gets a clear message
+// instead of the browser's generic "cannot embed" fallback
 const PDFViewer = ({ url }) => {
-  const file = url || samplePdf;
+  const [state, setState] = useState({ status: url ? "loading" : "none", blobUrl: null, message: "" });
+
+  useEffect(() => {
+    if (!url) {
+      setState({ status: "none", blobUrl: null, message: "" });
+      return undefined;
+    }
+    let objectUrl = null;
+    let cancelled = false;
+    setState({ status: "loading", blobUrl: null, message: "" });
+    fetch(url, { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(res.status === 404
+            ? "The solution file could not be found on the server. Ask the team to upload it again."
+            : res.status === 401 ? "Your session has expired. Please log in again."
+            : "You do not have access to this file.");
+        }
+        const blob = await res.blob();
+        objectUrl = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+        if (!cancelled) setState({ status: "ready", blobUrl: objectUrl, message: "" });
+      })
+      .catch((err) => {
+        if (!cancelled) setState({ status: "error", blobUrl: null, message: err.message || "Could not load the PDF." });
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  const ready = state.status === "ready";
 
   return (
     <div className="w-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       <div className="flex justify-between items-center bg-gray-50 px-4 py-3 border-b border-gray-200">
         <span className="text-gray-600 font-medium">Document Preview</span>
-        <div className="space-x-3">
-          <a
-            href={file}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 text-sm font-medium text-[#fc8f00] border border-[#fc8f00] rounded hover:bg-[#fc8f00] hover:text-white transition-colors"
-          >
-            View Fullscreen
-          </a>
-          <a
-            href={file}
-            download
-            className="px-4 py-2 text-sm font-medium text-white bg-[#fc8f00] rounded hover:bg-[#e68100] transition-colors"
-          >
-            Download
-          </a>
-        </div>
+        {ready && (
+          <div className="space-x-3">
+            <a
+              href={state.blobUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 text-sm font-medium text-[#fc8f00] border border-[#fc8f00] rounded hover:bg-[#fc8f00] hover:text-white transition-colors"
+            >
+              View Fullscreen
+            </a>
+            <a
+              href={state.blobUrl}
+              download="solution.pdf"
+              className="px-4 py-2 text-sm font-medium text-white bg-[#fc8f00] rounded hover:bg-[#e68100] transition-colors"
+            >
+              Download
+            </a>
+          </div>
+        )}
       </div>
 
       <div className="w-full bg-gray-100 h-72 md:h-[60vh] lg:h-[80vh]">
-        <object data={file} type="application/pdf" width="100%" height="100%">
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <p>This browser does not support embedded PDFs.</p>
-            <a href={file} className="text-[#fc8f00] underline font-medium">
-              Download PDF
-            </a>
+        {ready ? (
+          <iframe src={state.blobUrl} title="Solution document" className="w-full h-full border-0" />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 px-6 text-center">
+            {state.status === "loading" && <p>Loading document...</p>}
+            {state.status === "none" && <p>This submission has no PDF document.</p>}
+            {state.status === "error" && <p className="text-red-600">{state.message}</p>}
           </div>
-        </object>
+        )}
       </div>
     </div>
   );
@@ -334,6 +324,7 @@ const SubmissionDetail = () => {
 
   const [totalMarks, setTotalMarks] = useState(0);
   const [saved, setSaved] = useState(false);  
+  const [saveError, setSaveError] = useState(null);
 
   /* ---------- Fetch Submission ---------- */
 
@@ -363,15 +354,15 @@ const SubmissionDetail = () => {
   const handleSave = () => {
     const submissionId = submission?.submission_id || id;
 
-    console.log({
-      submissionId,
-      evaluation: scores,
-      totalMarks,
-    });
-    axios.post(`${URL}/mark_entry`, { evaluation: scores, subid:submissionId }).then(res=>console.log(res))
-
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    axios.post(`${URL}/mark_entry`, { evaluation: scores, subid:submissionId })
+      .then(() => {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      })
+      .catch((err) => {
+        setSaveError(err.response?.data?.message || "Could not save the evaluation, please try again");
+      });
   };
 
   /* ---------- Helpers ---------- */
@@ -394,13 +385,17 @@ const SubmissionDetail = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-8">
 
-      <div className="max-w-6xl mx-auto mb-6">
+      <div className="max-w-6xl mx-auto mb-6 flex justify-between items-center">
         <button
           onClick={() => navigate(-1)}
           className="bg-[#fc8f00] text-white px-6 py-2 rounded shadow hover:bg-[#e68100]"
         >
           ← Back
         </button>
+        <DeleteSubmissionButton
+          submissionId={submission?.submission_id || id}
+          onDeleted={() => navigate("/evaluator/submissions", { replace: true })}
+        />
       </div>
 
       <div className="max-w-6xl mx-auto space-y-8">
@@ -422,7 +417,7 @@ const SubmissionDetail = () => {
         {/* PDF */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <h2 className="text-2xl font-bold mb-4">Solution Document</h2>
-          <PDFViewer url={`${URL}/${submission.solution_document}`} />
+          <PDFViewer url={submission.solution_document ? `${URL}/${submission.solution_document}` : null} />
         </motion.div>
 
         {/* Evaluation */}
@@ -466,6 +461,11 @@ const SubmissionDetail = () => {
           {saved && (
             <p className="text-green-600 text-center mt-3 font-medium">
               Evaluation saved successfully
+            </p>
+          )}
+          {saveError && (
+            <p className="text-red-600 text-center mt-3 font-medium">
+              {saveError}
             </p>
           )}
         </motion.div>

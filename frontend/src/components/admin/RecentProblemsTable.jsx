@@ -82,7 +82,7 @@ const RecentProblemsTable = ({ problems = [] }) => {
               const title = p.TITLE || p.title;
               const evaluator =
                 p.assignedEvaluators?.[0] || p.EVALUATOR_ID || "N/A";
-              const submissions = p.SUBMISSIONS ?? p.submissions ?? "-";
+              const submissions = p.submission_count ?? p.SUBMISSIONS ?? p.submissions ?? 0;
 
               return (
                 <tr key={id} className="hover:bg-gray-50">

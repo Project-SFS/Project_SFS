@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiFileText, FiUsers, FiCheckSquare, FiX } from 'react-icons/fi';
+import { FiHome, FiFileText, FiUsers, FiCheckSquare, FiX, FiUserPlus } from 'react-icons/fi';
 import yourLogo from '../../assets/image.png';
 
 const NavItem = ({ to, icon, children, isExpanded, onClick }) => (
@@ -59,6 +59,9 @@ const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }
           <NavItem to="/admin/evaluators" icon={<FiUsers size={20} />} isExpanded={isExpanded}>
             Users
           </NavItem>
+          <NavItem to="/admin/users/create" icon={<FiUserPlus size={20} />} isExpanded={isExpanded}>
+            Create User
+          </NavItem>
           <NavItem to="/admin/spoc-approvals" icon={<FiCheckSquare size={20} />} isExpanded={isExpanded}>
            SPOC Requests
           </NavItem>
@@ -86,6 +89,9 @@ const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }
           </NavItem>
           <NavItem to="/admin/evaluators" icon={<FiUsers size={20} />} isExpanded={true}>
             Users
+          </NavItem>
+          <NavItem to="/admin/users/create" icon={<FiUserPlus size={20} />} isExpanded={true}>
+            Create User
           </NavItem>
           <NavItem to="/admin/spoc-approvals" icon={<FiCheckSquare size={20} />} isExpanded={true}>
             SPOC Requests

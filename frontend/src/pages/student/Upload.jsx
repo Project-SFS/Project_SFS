@@ -21,7 +21,14 @@ const Upload = () => {
     const location = useLocation();
 
     
-    const probId = location.search.split('=')[1];
+    const probId = new URLSearchParams(location.search).get('problemId');
+    // the assigned problem this upload is for, with the team's current submission (if any)
+    const [problemInfo, setProblemInfo] = useState(undefined);
+    useEffect(() => {
+        axios.get(`${URL}/student/overview`)
+            .then(res => setProblemInfo((res.data.problems || []).find(p => String(p.PROBLEM_ID) === String(probId)) || null))
+            .catch(() => setProblemInfo(null));
+    }, [probId]);
 
 
     // useEffect(() => {
@@ -36,9 +43,10 @@ const Upload = () => {
     const handleFileChange = (e) => {
         console.log(e.target.files);
         
-        const selected = Array.from(e.target.files)
+        // one PDF per submission: the backend stores a single file
+        const selected = Array.from(e.target.files).slice(0, 1)
         if (selected.length) {
-            setFiles((prev) => [...prev, ...selected])
+            setFiles(selected)
             setProgress(0)
             setStatus(null)
         }
@@ -64,9 +72,9 @@ const Upload = () => {
     const onDrop = (e) => {
         e.preventDefault()
         setDragActive(false)
-        const dropped = Array.from(e.dataTransfer.files)
+        const dropped = Array.from(e.dataTransfer.files).filter((f) => f.type === 'application/pdf').slice(0, 1)
         if (dropped.length) {
-            setFiles((prev) => [...prev, ...dropped])
+            setFiles(dropped)
             setProgress(0)
             setStatus(null)
         }
@@ -106,9 +114,9 @@ const Upload = () => {
             }
         })
             .then(res => {
+                toast.dismiss(loading);
                 if (res.data) {
-                    toast.dismiss(loading);
-                    toast.success("Uploaded");
+                    toast.success(res.data?.replaced ? "Submission updated" : "Uploaded");
                     clearAll()
                 }
                 else {
@@ -116,6 +124,12 @@ const Upload = () => {
                 }
         }
         )
+            .catch(err => {
+                toast.dismiss(loading);
+                const msg = err.response?.data?.message || "Upload failed, please try again"
+                toast.error(msg);
+                setStatus({ type: 'error', msg })
+            })
     }
 
     const clearAll = () => {
@@ -137,6 +151,25 @@ const Upload = () => {
                     {/* Left: Dropzone + inputs */}
                     <div className="md:w-1/2 p-8 flex flex-col items-center justify-center">
                         <div className="w-full space-y-3">
+                            {problemInfo && problemInfo.ASSIGNMENT_STATUS === 'ASSIGNED' && (
+                                <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm">
+                                    <div className="text-gray-700">Submitting for <span className="font-bold text-[#fc9300]">SFS_{problemInfo.PROBLEM_ID}</span>: <span className="font-semibold">{problemInfo.TITLE}</span></div>
+                                    {problemInfo.submission?.STATUS === 'PENDING' && (
+                                        <div className="text-gray-600 mt-1">You already submitted a solution. Uploading again will replace it.</div>
+                                    )}
+                                    {problemInfo.submission && problemInfo.submission.STATUS !== 'PENDING' && (
+                                        <div className="text-red-600 mt-1">Your solution was already evaluated and can no longer be changed.</div>
+                                    )}
+                                    {problemInfo.DEADLINE_PASSED && (
+                                        <div className="text-red-600 mt-1">The deadline for this problem has passed.</div>
+                                    )}
+                                </div>
+                            )}
+                            {(problemInfo === null || (problemInfo && problemInfo.ASSIGNMENT_STATUS !== 'ASSIGNED')) && (
+                                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                    This problem statement is not assigned to your team. Request it from your SPOC under "Problem Statements" first.
+                                </div>
+                            )}
                             <label className="text-sm font-medium text-gray-700">Solution Title</label>
                             <input
                                 value={title}
@@ -200,9 +233,9 @@ const Upload = () => {
                             <div className="text-sm text-gray-600 mb-2">Drag & drop files here or click to browse</div>
                         </div>
 
-                        <div className="text-xs text-gray-400 mt-2">Supports multiple files • Max single file size as configured on backend</div>
+                        <div className="text-xs text-gray-400 mt-2">One PDF file • Max 20 MB</div>
 
-                        <input ref={inputRef} type="file" multiple onChange={handleFileChange} className="hidden" aria-label="Upload files" />
+                        <input ref={inputRef} type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" aria-label="Upload files" />
 
                         <div className="mt-6 flex gap-3">
                             <button

@@ -1,32 +1,18 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Student_submitions from "../pages/student/Student_submitions";
 import TeamDetails from "../pages/student/TeamDetails";
-import ProblemStatements from "./ProblemStatements";
-import axios from "axios"
-import { URL } from "../Utils";
+import TeamProblemStatements from "../pages/student/TeamProblemStatements";
 
 const StudentNav = () => {
   const [active, setActive] = useState("Problem Statements");
-  const [userEmail, setEmail] = useState('');
-  const [userSubmissions, setUserSubmissions] = useState([]);
-  const tabs = ["Problem Statements", "My Submission", "Team Details"];
+  const tabs = ["Problem Statements", "My Submissions", "Team Details"];
 
   const pageVariants = {
     initial: { opacity: 0, y: 16 },
     animate: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -16 },
   };
-  useEffect(() => {
-    axios.get(`${URL}/cookie`, { withCredentials: true }).then(res => setEmail(res.data.EMAIL)
-    )
-  }, [])
-  console.log(userEmail);
-
-  useEffect(() => {
-    if (userEmail != undefined)
-      axios.post(`${URL}/get_submissions_by_email`, { userEmail }).then(res => setUserSubmissions(res.data))
-  }, [userEmail])
 
   return (
     <div className="min-h-screen pt-20 bg-white/50 flex mt-4">
@@ -91,19 +77,19 @@ const StudentNav = () => {
           <AnimatePresence mode="wait">
             {active === "Problem Statements" && (
               <motion.div
-                key="problem-statements"
+                key="my-problems"
                 variants={pageVariants}
                 initial="initial"
                 animate="animate"
                 exit="exit"
                 transition={{ duration: 0.25 }}
               >
-                {/* ProblemStatements handles its own layout; header hidden here */}
-                <ProblemStatements showHeader={false} />
+                {/* all problem statements; request one from the SPOC, submit once approved */}
+                <TeamProblemStatements />
               </motion.div>
             )}
 
-            {active === "My Submission" && (
+            {active === "My Submissions" && (
               <motion.div
                 key="my-submission"
                 variants={pageVariants}
@@ -118,8 +104,8 @@ const StudentNav = () => {
                       My Submissions
                     </h2>
                     <p className="text-sm text-gray-600">
-                      Review the solutions you have submitted for various
-                      problem statements.
+                      Every solution your team submitted, with its status and
+                      the evaluator's marks.
                     </p>
                   </div>
                   <Student_submitions />

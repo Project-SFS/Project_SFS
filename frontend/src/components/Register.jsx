@@ -43,27 +43,22 @@ const Register = () => {
   const [errors, setErrors] = useState({});
   const [otpSent, setOtpSent] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState("");
   const [email, setemail] = useState("")
-  const [opt, setopt] = useState("")
   const [isPasswordValid, setIsPasswordValid] = useState(false);
 
 
 
+  // the server checks the code; the browser never sees the real OTP
   const handleVerifyOtp = () => {
-
-
-    // const lodaing = toast.loading("Sending OTP")
-    console.log(generatedOtp, "ffg", form.otp, opt)
-    if (opt == form.otp) {
-      setEmailVerified(true);
-      setOtpSent(false);
-      // toast.dismiss(lodaing)
-      toast.success("verified successfully!")
-      // alert("Email verified successfully!");
-    } else {
-      setErrors({ otp: "Invalid OTP. Please try again." });
-    }
+    axios.post(`${URL}/verify_otp`, { email, otp: form.otp })
+      .then(() => {
+        setEmailVerified(true);
+        setOtpSent(false);
+        toast.success("verified successfully!")
+      })
+      .catch((err) => {
+        setErrors({ otp: err.response?.data?.message || "Invalid OTP. Please try again." });
+      });
   }
 
   const handleemail = (e) => {
@@ -111,22 +106,18 @@ const Register = () => {
 
         console.log(email)
         if (email) {
-          axios.post(`${URL}/verify_email/${email}`)
-            .then(res => {
-              if (res.status == 200) {
-            
-                toast.dismiss(lodaing)
-                toast.success("OTP Sent")
-                setGeneratedOtp(res.data), console.log(res), setopt(res.data)
-                setOtpSent(true);
-
-              }
+          axios.post(`${URL}/verify_email/${encodeURIComponent(email.trim())}`)
+            .then(() => {
+              toast.dismiss(lodaing)
+              toast.success("OTP Sent")
+              setOtpSent(true);
+            })
+            .catch((err) => {
+              toast.dismiss(lodaing)
+              toast.error(err.response?.data?.message || "Could not send OTP")
             });
 
         }
-    
-
-        setOtpSent(true);
         // alert(`OTP sent to ${email}`); // For demo only
       }
       else {
@@ -185,13 +176,16 @@ const Register = () => {
         console.log(res);
         
          if (res.status === 200) {
-           toast.success("Registered!", { style: { backgroundColor: "green" } });
+           toast.success("Registered! An admin will approve your account.", { style: { backgroundColor: "green" } });
            setTimeout(() => {
              navigate("/login");
            }, 2000);
          } else {
            toast.error("Error creating", { style: { backgroundColor: "red" } });
          }
+      })
+      .catch((err) => {
+        toast.error(err.response?.data?.message || "Error creating", { style: { backgroundColor: "red" } });
       })
 
 

@@ -3,6 +3,7 @@
 import axios from "axios";
 
 const URL = import.meta.env.VITE_API_URL
+axios.defaults.withCredentials = true
 const auth = async () => {
 
     try {

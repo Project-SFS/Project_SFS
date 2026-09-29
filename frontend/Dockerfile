@@ -6,12 +6,13 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-# Vite bakes the API URL into the bundle at build time; the browser calls it directly
-ARG VITE_API_URL=http://localhost:8000
-ENV VITE_API_URL=$VITE_API_URL
+# Vite bakes the backend address into the bundle; it comes from .env.production (VITE_API_URL)
 RUN npm run build
 
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 9021
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:9021/ || exit 1

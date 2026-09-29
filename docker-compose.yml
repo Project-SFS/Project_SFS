@@ -1,57 +1,49 @@
-# Full stack: MySQL + backend (Express) + frontend (Vite build served by nginx)
+# Solve For Sakthi - production stack: backend (Express) + frontend (nginx)
+# The SQL Server database is external; its connection details come from .env
+#
+#   cp backend/.env.example backend/.env      # database, mail, secrets, CORS_ORIGINS
+#   cp frontend/.env.example frontend/.env    # VITE_API_URL (backend link), /api by default
 #   docker compose up -d --build
-# Host ports can be changed without editing this file, e.g.
-#   BACKEND_PORT=8010 FRONTEND_PORT=8081 docker compose up -d --build
+#
+#   Frontend: http://<server>:9021   (API is proxied at /api)
+#   Backend:  http://<server>:9022   (direct access, e.g. for monitoring)
+
+name: solve-for-sakthi
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 services:
-  mysql:
-    image: mysql:8.0
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root@1234}
-      MYSQL_DATABASE: Sakthi_auto
-    ports:
-      - "${MYSQL_PORT:-3308}:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-
   backend:
     build: ./backend
     restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-    # mail password, JWT secret, admin credentials, ...
+    # database, mail, secrets and CORS_ORIGINS live in backend/.env
     env_file: ./backend/.env
     environment:
-      PORT: 8000
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_NAME: Sakthi_auto
-      DB_USER: root
-      DB_PASSWORD: ${DB_PASSWORD:-root@1234}
-      CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-8080}
+      NODE_ENV: production
+      PORT: 9022
+    # lets DB_HOST=host.docker.internal reach a SQL Server running on the Docker host itself
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "9022:9022"
     volumes:
       - uploads:/app/uploads
+    logging: *logging
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        VITE_API_URL: http://localhost:${BACKEND_PORT:-8000}
+    # the backend link (VITE_API_URL) comes from frontend/.env
+    build: ./frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      - "9021:9021"
+    logging: *logging
 
 volumes:
-  mysql-data:
   uploads:

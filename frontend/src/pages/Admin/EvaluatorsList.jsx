@@ -16,6 +16,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import { URL } from "../../Utils";
+import { Link } from "react-router-dom";
 
 const Popup = ({ children, visible, onClose }) => (
   <div
@@ -68,7 +69,8 @@ const EvaluatorList = () => {
         const mapped = problemsData.map(p => ({
           id: p.ID ? String(p.ID) : (p.id ? String(p.id) : ''),
           title: p.TITLE || p.title || 'Untitled',
-          submissionCount: p.submissionsCount || 0
+          evaluatorId: p.Evaluator_ID != null ? String(p.Evaluator_ID) : null,
+          submissionCount: p.submission_count ?? 0
         }));
         setAvailableProblemStatements(mapped);
       } catch (err) {
@@ -249,21 +251,15 @@ const EvaluatorList = () => {
   // Stats Calculations using useMemo for efficiency
   const totalEvaluators = evaluators.length;
   const totalSpocs = spocs.length;
-  const uniqueProblemStatements = useMemo(() => {
-    const problemMap = new Map();
-    evaluators.forEach((ev) => {
-      if (ev.problemStatements && Array.isArray(ev.problemStatements)) {
-        ev.problemStatements.forEach(ps => {
-          problemMap.set(ps.id, {
-            id: ps.id,
-            title: ps.title,
-          });
-        });
-      }
-    });
-    return Array.from(problemMap.values());
-  }, [evaluators]);
-  const totalProblemStatements = uniqueProblemStatements.length;
+  // each evaluator's problem statements come from the problems' Evaluator_ID
+  useEffect(() => {
+    setEvaluators(prev => prev.map(ev => ({
+      ...ev,
+      problemStatements: availableProblemStatements.filter(p => p.evaluatorId === ev.id),
+    })));
+  }, [availableProblemStatements, evaluators.length]);
+  const uniqueProblemStatements = availableProblemStatements;
+  const totalProblemStatements = availableProblemStatements.length;
 
 
 
@@ -302,12 +298,12 @@ const EvaluatorList = () => {
             </button>
           </div>
         </div>
-        {/* <button
-          onClick={() => setShowCreatePopup(true)}
+        <Link
+          to="/admin/users/create"
           className="flex items-center gap-2 bg-[#FF9900] hover:bg-[#E68500] text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all mt-4 sm:mt-0"
         >
-          <FiPlus /> Create New Evaluator
-        </button> */}
+          <FiPlus /> Create User
+        </Link>
       </div>
 
       {/* Stats Summary */}

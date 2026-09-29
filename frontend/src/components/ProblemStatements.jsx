@@ -38,7 +38,7 @@ const Modal = ({ open, onClose, title, children }) => {
   );
 };
 
-const ProblemStatements = ({ showHeader = true }) => {
+const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
   const [problems, setProblems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState(null);
@@ -103,15 +103,21 @@ const ProblemStatements = ({ showHeader = true }) => {
     >
 
       {/* MAIN CONTAINER WITH 2rem SIDE GAP */}
-      <div className="max-w-7xl mx-auto px-8 pb-12">
-             <Header />
-
-          <p className="font-semibold tracking-[0.2em] uppercase text-gray-500 mb-2 mt-28 text-center">
-            Solve for Sakthi
-          </p>
-          <h1 className="text-4xl font-extrabold text-gray-900 text-center">
-            Problem Statements
-          </h1>
+      <div className={`max-w-7xl mx-auto pb-12 ${showHeader ? "px-8" : ""}`}>
+          {/* embedded in a portal (showHeader=false) the portal already has the site header */}
+          {showHeader ? (
+            <>
+              <Header />
+              <p className="font-semibold tracking-[0.2em] uppercase text-gray-500 mb-2 mt-28 text-center">
+                Solve for Sakthi
+              </p>
+              <h1 className="text-4xl font-extrabold text-gray-900 text-center">
+                Problem Statements
+              </h1>
+            </>
+          ) : (
+            <h1 className="text-3xl font-bold text-gray-800">Problem Statements</h1>
+          )}
           <p className="  text-sm sm:text-base text-gray-600  text-center  my-8">
             Browse through the latest problem statements and pick the one that
             aligns with your skills and interests.
@@ -304,12 +310,14 @@ const ProblemStatements = ({ showHeader = true }) => {
                   </div>
                 )}
                 <div className="flex justify-end gap-3 mt-4">
-                  <button
-                    onClick={handleSubmit}
-                    className="rounded px-3 py-1 text-sm font-medium bg-[#0f62fe] text-white hover:bg-[#0053d8]"
-                  >
-                    Submit
-                  </button>
+                  {allowSubmit && (
+                    <button
+                      onClick={handleSubmit}
+                      className="rounded px-3 py-1 text-sm font-medium bg-[#0f62fe] text-white hover:bg-[#0053d8]"
+                    >
+                      Submit
+                    </button>
+                  )}
                   <button
                     onClick={closeModal}
                     className="rounded px-3 py-1 text-sm font-medium bg-gray-700 text-white hover:bg-gray-800"

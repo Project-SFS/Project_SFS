@@ -25,7 +25,6 @@ import Upload from "./pages/student/Upload";
 
 // SPOC Imports
 import SpocDashboard from "./pages/spoc/SpocDashboard";
-import SPOCProfile from "./pages/spoc/SPOCProfile";
 // import Team_Members from "./pages/spoc/Team_Members.jsx";
 import TeamList from "./pages/spoc/TeamList.jsx";
 
@@ -44,6 +43,7 @@ import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
 import SpocApprovals from "./pages/Admin/SpocApprovals.jsx";
 import EvaluatorsList from "./pages/Admin/EvaluatorsList.jsx";
 import EvaluatorManage from "./pages/Admin/EvaluatorManage.jsx";
+import CreateUser from "./pages/Admin/CreateUser.jsx";
 import ProblemStatementsList from "./pages/Admin/ProblemStatementsList.jsx";
 import ProblemStatementCreate from "./pages/Admin/ProblemStatementCreate.jsx";
 import ProblemStatementEdit from "./pages/Admin/ProblemStatementEdit.jsx";
@@ -167,14 +167,6 @@ function App() {
           }
         />
         <Route
-          path="/spoc/profile"
-          element={
-            <ProtectedRoute allowedRoles={["SPOC"]}>
-              <SPOCProfile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/spoc/team"
           element={
             <ProtectedRoute allowedRoles={["SPOC"]}>
@@ -228,7 +220,8 @@ function App() {
           <Route path="problems/create" element={<ProblemStatementCreate />} />
           <Route path="problems/edit/:id" element={<ProblemStatementEdit />} />
           <Route path="evaluators" element={<EvaluatorsList />} />
-          <Route path="evaluators/create" element={<EvaluatorManage />} />
+          <Route path="evaluators/create" element={<Navigate to="/admin/users/create" replace />} />
+          <Route path="users/create" element={<CreateUser />} />
           <Route path="evaluators/manage/:id" element={<EvaluatorManage />} />
         </Route>
 

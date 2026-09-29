@@ -2,16 +2,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import Button from '../../components/common/button';
 import Breadcrumb from '../../components/common/Breadcrumb';
 import { FiEdit, FiSave, FiArrowLeft, FiChevronLeft, FiChevronRight, FiDownload } from 'react-icons/fi';
 import axios from 'axios';
 import { URL } from '../../Utils';
+import DeleteSubmissionButton from '../../components/DeleteSubmissionButton';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set up the worker for react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// bundled with the app (no CDN), so the preview also works on networks without internet access
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 const SubmissionDetail = () => {
   const { id } = useParams();
@@ -28,8 +31,7 @@ const SubmissionDetail = () => {
   useEffect(() => {
     const fetchSubmission = async () => {
       try {
-        const response = await axios.post(`${URL}/submissions/${id}`).then(res=>console.log(res.data)
-        )
+        const response = await axios.get(`${URL}/submissions/${id}`)
         console.log(response);
         
         setSubmission(response.data);
@@ -68,19 +70,23 @@ const SubmissionDetail = () => {
 
   // Map backend fields to UI if needed, or use directly
   // Backend columns: ID, SOL_TITLE, SOL_DESCRIPTION, SOL_LINK, SUB_DATE, STATUS (or SUB_STATUS), teamName, spocId, problemTitle
-  const submissionId = submission.ID || submission.id;
-  const solTitle = submission.SOL_TITLE || submission.sol_title || 'N/A';
-  const problemTitle = submission.problemTitle || submission.PROBLEM_TITLE || 'N/A';
-  const solDescription = submission.SOL_DESCRIPTION || submission.sol_description || 'N/A';
-  const teamName = submission.teamName || submission.TEAM_NAME || submission.TEAM_ID || 'N/A';
-  const spocId = submission.spocId || submission.SPOC_ID || 'N/A';
-  const rawStatus = submission.STATUS || submission.status || submission.SUB_STATUS || submission.sub_status;
+  // GET /submissions/:id returns aliased columns (submission_title, team_name, solution_document, ...)
+  const submissionId = submission.submission_id || submission.ID || submission.id;
+  const solTitle = submission.submission_title || submission.SOL_TITLE || submission.sol_title || 'N/A';
+  const problemTitle = submission.problem_title || submission.problemTitle || submission.PROBLEM_TITLE || 'N/A';
+  const solDescription = submission.description || submission.SOL_DESCRIPTION || submission.sol_description || 'N/A';
+  const teamName = submission.team_name || submission.teamName || submission.TEAM_NAME || submission.TEAM_ID || 'N/A';
+  const spocId = submission.spoc_id || submission.spocId || submission.SPOC_ID || 'N/A';
+  const rawStatus = submission.status || submission.STATUS || submission.SUB_STATUS || submission.sub_status;
   const displayStatus = rawStatus ? rawStatus.toUpperCase() : 'PENDING';
 
-  const rawDate = submission.SUB_DATE || submission.sub_date;
+  const rawDate = submission.submitted_date || submission.SUB_DATE || submission.sub_date;
   const displayDate = rawDate ? new Date(rawDate).toLocaleDateString() : 'N/A';
 
-  const pdfUrl = submission.SOL_LINK || submission.sol_link;
+  // the uploaded PDF; fall back to the solution link if there is no file
+  const pdfUrl = submission.solution_document
+    ? `${URL}/${submission.solution_document}`
+    : (submission.sol_link || submission.SOL_LINK);
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
@@ -99,6 +105,12 @@ const SubmissionDetail = () => {
       <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-sm p-10 border border-[#E2E8F0]">
         <div className="flex justify-between items-center mb-6">
           <Breadcrumb />
+          <div className="flex items-center gap-3">
+          <DeleteSubmissionButton
+            submissionId={submissionId}
+            className="rounded-xl"
+            onDeleted={() => navigate(-1)}
+          />
           <Button
             onClick={() => navigate(-1)}
             className="!bg-[#FF9900] !hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
@@ -106,6 +118,7 @@ const SubmissionDetail = () => {
             <FiArrowLeft className="w-5 h-5" />
             <span>Back</span>
           </Button>
+          </div>
         </div>
 
         {/* Submission Information Table */}

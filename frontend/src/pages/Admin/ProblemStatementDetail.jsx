@@ -62,6 +62,7 @@ const [solutionData, setSolutionData] = useState(null);
             title: p.TITLE || p.title || 'Untitled',
             description: p.DESCRIPTION || p.description || '',
             category: p.CATEGORY || p.category || 'N/A',
+            assignedTeams: p.assigned_team_count ?? null,
             youtube: p.Reference || p.youtube || p.youtube_link || '',
             dataset: p.Reference || p.dataset || '',
             created: p.SUB_DATE
@@ -151,14 +152,15 @@ const [solutionData, setSolutionData] = useState(null);
 
     const matchesFilter =
       (!filterOptions.evaluated && !filterOptions.submitted) ||
-      (filterOptions.evaluated && status === 'EVALUATED') ||
-      (filterOptions.submitted && status === 'SUBMITTED');
+      (filterOptions.evaluated && (status === 'ACCEPTED' || status === 'REJECTED')) ||
+      (filterOptions.submitted && status === 'PENDING');
 
     return matchesSearch && matchesFilter;
   });
 
-  const teamsEnrolled = new Set(
-    submissions.map(s => s.team_name).filter(Boolean)
+  // teams the problem is assigned to (falls back to distinct submitting teams)
+  const teamsEnrolled = problem?.assignedTeams ?? new Set(
+    submissions.map(s => s.team_name).filter(name => name && name !== 'N/A')
   ).size;
 
   const totalSubmissions = submissions.length;
@@ -273,7 +275,7 @@ const [solutionData, setSolutionData] = useState(null);
           <Breadcrumb />
           <div className="flex gap-4">
             <Button
-              onClick={confirmDelete}
+              onClick={() => setShowDeleteModal(true)}
               className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
             >
               <FiTrash2 className="w-5 h-5" />
@@ -457,7 +459,7 @@ const [solutionData, setSolutionData] = useState(null);
                       onChange={(e) => setFilterOptions({ ...filterOptions, submitted: e.target.checked })}
                       className="w-4 h-4 text-[#FF9900] border-[#E2E8F0] rounded focus:ring-[#FF9900]/20"
                     />
-                    <span className="text-[#1A202C]">Submitted</span>
+                    <span className="text-[#1A202C]">Awaiting evaluation</span>
                   </label>
                 </div>
               </div>
@@ -509,9 +511,11 @@ const [solutionData, setSolutionData] = useState(null);
                   </td>
                   <td className="p-4">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${sub.status === 'EVALUATED'
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${sub.status === 'ACCEPTED'
                         ? 'bg-green-100 text-green-800'
-                        : sub.status === 'PENDING'
+                        : sub.status === 'REJECTED'
+                          ? 'bg-red-100 text-red-800'
+                          : sub.status === 'PENDING'
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-gray-100 text-gray-800'
                         }`}
@@ -539,7 +543,7 @@ const [solutionData, setSolutionData] = useState(null);
               <div className="p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Problem Statement</h3>
                 <p className="text-gray-600 mb-6">
-                  Are you sure you want to delete this problem statement? This action cannot be undone.
+                  Are you sure you want to delete this problem statement? All of its submissions and uploaded files will be deleted too. This action cannot be undone.
                 </p>
                 <div className="flex justify-end gap-3">
                   <button

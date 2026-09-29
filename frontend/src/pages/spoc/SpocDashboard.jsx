@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaUsers, FaClipboardList, FaUser } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaTasks } from 'react-icons/fa';
 import { AiOutlineTeam } from "react-icons/ai";
 import { RiTeamFill } from "react-icons/ri";
 import ProblemStatements from "../../components/ProblemStatements";
-import SPOCProfile from './SPOCProfile';
 import TeamList from './TeamList';
+import TeamProgress from './TeamProgress';
 import axios from 'axios';
 import { URL } from '../../Utils';
 import { useNavigate } from 'react-router-dom';
@@ -17,7 +17,7 @@ const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: FaUsers },
     { id: 'problems', label: 'Problems', icon: FaClipboardList },
     { id: 'teamdetails', label: 'Team Details', icon: RiTeamFill },
-    { id: 'profile', label: 'Profile', icon: FaUser },
+    { id: 'progress', label: 'Team Progress', icon: FaTasks },
 ];
 
 const NavItem = ({ item, activeView, onClick }) => {
@@ -264,9 +264,9 @@ const SpocDashboard = () => {
                                                         </motion.div>
                                                     </>
                                                 )}
-                    {activeView === 'problems' && <ProblemStatements />}
+                    {activeView === 'problems' && <ProblemStatements showHeader={false} allowSubmit={false} />}
                     {activeView === 'teamdetails' && <TeamList data={data} />}
-                    {activeView === 'profile' && <SPOCProfile />}
+                    {activeView === 'progress' && <TeamProgress />}
                 </main>
             </div>
             {/* <Footer /> */}
