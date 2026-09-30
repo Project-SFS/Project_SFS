@@ -70,8 +70,9 @@ const createAccount = ({ host, port, user, pass, connectIp }) => {
     }
 }
 
-// Main account: SMTP_HOST, SMTP_PORT, SMTP_USER, MAIL_PASS (+ SMTP_CONNECT_IP for mail.abtlimited.com)
-const mainAccount = createAccount({
+// The one mail account, from backend/.env: SMTP_HOST, SMTP_PORT, SMTP_USER, MAIL_PASS
+// (+ SMTP_CONNECT_IP for mail.abtlimited.com). Every mail, OTPs included, is sent through it.
+const account = createAccount({
     host: env("SMTP_HOST") || "mail.abtlimited.com",
     port: env("SMTP_PORT"),
     user: env("SMTP_USER") || "donotreply@sakthiauto.in",
@@ -91,49 +92,26 @@ const htmlToText = (html) => String(html)
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .split("\n").map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n")
 
-// Optional second account: OTP_SMTP_HOST, OTP_SMTP_PORT, OTP_SMTP_USER, OTP_MAIL_PASS.
-// OTP mails always use it; other mails use it when the main account fails.
-// Without it everything goes through the main account.
-const otpAccount = createAccount({
-    host: env("OTP_SMTP_HOST") || "smtp.gmail.com",
-    port: env("OTP_SMTP_PORT"),
-    user: env("OTP_SMTP_USER"),
-    pass: env("OTP_MAIL_PASS"),
-})
+if (!account) console.error("No mail account set: fill SMTP_HOST, SMTP_USER and MAIL_PASS in backend/.env")
 
-if (!mainAccount && !otpAccount) console.error("No mail account set: fill SMTP_USER and MAIL_PASS in backend/.env")
-
-// Log in to each account once at startup, so a wrong password or blocked port shows up in the logs
-// right away instead of on the first mail (the app keeps running either way)
-if (process.env.NODE_ENV !== "test") {
-    for (const [name, account] of [["main", mainAccount], ["OTP", otpAccount]]) {
-        account?.transporter.verify()
-            .then(() => console.log(`Mail account ready (${name}): ${account.label}`))
-            .catch((err) => console.error(`Mail account NOT working (${name}): ${account.label} - ${err.message}`))
-    }
+// Log in once at startup, so a wrong password or blocked port shows up in the logs right away
+// instead of on the first mail (the app keeps running either way)
+if (account && process.env.NODE_ENV !== "test") {
+    account.transporter.verify()
+        .then(() => console.log(`Mail account ready: ${account.label}`))
+        .catch((err) => console.error(`Mail account NOT working: ${account.label} - ${err.message}`))
 }
 
 // The sender address must be the authenticated mailbox, so callers only choose the display name
-const send = (account, { fromName = "Solve For Sakthi", ...message }) =>
-    account.transporter.sendMail({
+const sendMail = async ({ fromName = "Solve For Sakthi", ...message }) => {
+    if (!account) throw new Error("No mail account set in backend/.env")
+    return account.transporter.sendMail({
         from: `"${fromName}" <${account.user}>`,
         ...(message.html && !message.text ? { text: htmlToText(message.html) } : {}),
         ...message,
     })
-
-const sendMail = async (message) => {
-    if (!mainAccount) return send(otpAccount, message)
-    try {
-        return await send(mainAccount, message)
-    } catch (err) {
-        if (!otpAccount) throw err
-        console.error(`Main mail account failed (${err.message}), sending to ${message.to} through ${otpAccount.user}`)
-        return send(otpAccount, message)
-    }
 }
 
-const sendOtpMail = (message) => (otpAccount ? send(otpAccount, message) : sendMail(message))
+const transporter = account?.transporter
 
-const transporter = (mainAccount || otpAccount)?.transporter
-
-export { transporter, sendMail, sendOtpMail }
+export { transporter, sendMail }
