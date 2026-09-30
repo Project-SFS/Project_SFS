@@ -146,7 +146,6 @@ const EvaluatorList = () => {
     GetAllEvaluators()
   }, []) */
 
-  console.log(evaluators);
 
 
   // State for popups

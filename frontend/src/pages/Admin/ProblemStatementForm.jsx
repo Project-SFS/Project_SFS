@@ -24,14 +24,12 @@ const ProblemStatementForm = () => {
   const [selectedEvaluators, setSelectedEvaluators] = useState();
   const [evaluatorSearch, setEvaluatorSearch] = useState("");
   const [reference,setReference]=useState("");
-  console.log(evaluators);
   
 
   // Role Logic
   const [isEvaluator, setIsEvaluator] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
 
-  console.log(currentUserId);
   
   useEffect(() => {
     const fetchUserAndEvaluators = async () => {
@@ -65,20 +63,15 @@ const ProblemStatementForm = () => {
     (ev.ID && String(ev.ID).toLowerCase().includes(evaluatorSearch.toLowerCase()))
   );
 
-  console.log(evaluatorSearch);
   
 
   const toggleEvaluator = (id) => {
     setSelectedEvaluators(id);
   };
-  console.log(deadline.split('T')[0]);
-  console.log(selectedEvaluators)
 
 
-  console.log("2025-12-30T18:30:00.000Z".split('T')[0]);
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(title, description, deadline, category, reference, currentUserId);
     
     
     try {
@@ -93,14 +86,12 @@ const ProblemStatementForm = () => {
       {withCredentials:true}
     );
 
-      console.log(response.data);
 
       const problem = toast.success("Problem Statement Added Successfully", {
         position: "top-center",
       });
 
-      axios.post(`${URL}/send_mail_to_spoc`, { Problem : title }).then(res => console.log(res)
-      )
+      axios.post(`${URL}/send_mail_to_spoc`, { Problem : title }).catch(() => {})
 
       // Clear form and navigate back
       setTitle("");
@@ -117,7 +108,6 @@ const ProblemStatementForm = () => {
       toast.dismiss(problem)
 
     } catch (error) {
-      console.log( error);
       toast.error("Failed to Add Problem Statement", { position: "top-center" });
     }
 

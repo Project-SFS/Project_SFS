@@ -21,7 +21,6 @@ const ProblemStatementsList = () => {
   const [submissions, setSubmissions] = useState([]);
   const [sortOrder, setSortOrder] = useState('newest');
   const [statusFilter, setStatusFilter] = useState('all');
-  console.log(problems);
   
   const handleProblemClick = (problem) => {
     // Navigates to the details page using the ID (e.g., /admin/problems/7/details)
@@ -59,7 +58,6 @@ const ProblemStatementsList = () => {
         const res = await fetch(`${URL}/get_problems`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
          json = await res.json();
-        console.log("Fetched Problems:", json);
 
         let problemsData = [];
         if (Array.isArray(json)) {
@@ -71,7 +69,6 @@ const ProblemStatementsList = () => {
         }
 
         json = json.problems
-        console.log(problemsData);
         
         
 
@@ -99,7 +96,6 @@ const ProblemStatementsList = () => {
     fetchProblems();
   }, []);
 
-  console.log("prob " + problems);
 
 
   useEffect(() => {
@@ -109,7 +105,6 @@ const ProblemStatementsList = () => {
         const res = await fetch(`${URL}/submissions?limit=1000`, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        console.log(json);
         
         const mapped = (json?.submissions || []).map(s => ({
           id: s.ID ? String(s.ID) : (s.id || ''),
@@ -134,7 +129,6 @@ const ProblemStatementsList = () => {
     ? new Set(submissions.map(s => String(s.teamId))).size
     : 0;
   
-  // console.log("data" + proble);
   
   const filteredData = dataSource
     .filter(problem => {
@@ -281,7 +275,6 @@ const ProblemStatementsList = () => {
               </tr>
             ) : filteredData.length > 0 ? (
                 filteredData.map((problem) => {
-                console.log(problem);
                 
                 const evaluator = getEvaluatorForProblem(problem);
                 return (
@@ -303,8 +296,6 @@ const ProblemStatementsList = () => {
                       >
                         {problem.title}
                       </span>
-                      {console.log(problem)
-                      }
                     </td>
                     <td className="p-4 text-center text-[#1A202C]">
                       {problem.evaluator || 'N/A'}

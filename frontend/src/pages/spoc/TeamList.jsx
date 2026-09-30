@@ -49,28 +49,21 @@
         
 //     }
 
-//     // console.log(teamFormData.members[0].email);
     
-//     // console.log(mentorName,mentorEmail);
     
 
 //     // Fetch all teams
 
-//     // console.log(spoc_id);
 
 //     function allteams() {
-//         // console.log(spoc_id);
 
 //         axios
 //             .post(`${URL}/fetch_teams/${spoc_id}`)
 //             .then((res) => {
-//                 console.log(res);
                 
-//                 setFullTeam(res.data), console.log(res), setfetched(true);
 //             })
 //             .catch((err) => console.error("Error fetching teams:", err));
 //     }
-//     // console.log(FullTeam);
 //     // Navigate to selected team
 //     function SelectedTeam(team) {
 //         navigate(`/spoc/team_details`, { state: { id: team.ID } });
@@ -91,17 +84,12 @@
 //                 i === index ? { ...member, [field]: value } : member
 //             ),
 //         }));
-//         // console.log(teamFormData);
 
 //     };
-//     // console.log(spoc_data);
     
 
 //     const handleEditMembers = (e) => {
-//         // console.log(e);
-//         // console.log(FullTeam[e]);
 //         axios.post(`${URL}/fetch_team_members`, { id: e.ID }).then(res => {
-//             // console.log(res.data);/
 //             setteam_id(e.ID)
             
 //             setfetch_team_members(res.data)
@@ -123,16 +111,13 @@
 //         setfetched_s(false)
 //     }
 
-//     // console.log(new Date().toString().split(" ").slice(0,4).join(" "));
 
 
 //     const handleCreateTeam = (e) => {
 //         e.preventDefault();
-//         // console.log(e.target[20]);
         
 //         if (e.target[20].innerText == "Update team") {
 //             let load = toast.loading("Updating team...")
-//             // console.log(teamFormData);
 //             axios.post(`${URL}/update_team`, { team: teamFormData, id: team_id, mentorEmail:mentorEmail, mentorName:mentorName })
 //                 .then(res => {
 //                     if (res.data == "Updated") {
@@ -156,7 +141,6 @@
 //             axios
 //             .post(`${URL}/add_members/${spoc_id}`, { Teamdata: teamFormData, mentorEmail: mentorEmail, mentorName:mentorName })
 //             .then( (res) => {
-//                 console.log(res);
 //                 axios.post(`${URL}/register`, { email: teamFormData.members[0].email, password: spoc_data.COLLEGE_CODE+res.data, role: 'STUDENT', college: spoc_data.COLLEGE, college_code: res.data, name: teamFormData.members[0].name, date: new Date().toString().split(" ").slice(0, 4).join(" ") })
                 
 //                 if (res.status === 200) {
@@ -179,7 +163,6 @@
 //                         setShowCreateTeamModal(false);
 
                        
-//                         console.log("Hello");
                         
 //                         setTeamFormData({
 //                             teamName: "",
@@ -213,12 +196,10 @@
 
 //     const deleteteam = (team) => {
 //         if (window.confirm("Confirm delete ?")) {
-//             // console.log("hee");
 //             const del = toast.loading("Deleting team")
 
 //             axios.post(`${URL}/delete_team`, { id: team.ID })
 //                 .then(res => {
-//                     // console.log(res);
 //                     allteams();
 //                     toast.dismiss(del)
 //                     toast.success("Team deleted")
@@ -705,7 +686,6 @@ function TeamList() {
             date: new Date().toString().split(" ").slice(0, 4).join(" "),
           });
 
-          // console.log();
           
 
           if (res.status === 200) {

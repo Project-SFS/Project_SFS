@@ -23,7 +23,6 @@
 //   const [submission, setSubmission] = useState(null);
 //   const [loading, setLoading] = useState(true);
 //   const [error, setError] = useState(null);
-//   console.log(id);
   
 
 //   // Evaluation State
@@ -35,7 +34,6 @@
 //     const fetchSubmission = async () => {
 //       try {
 //         const res = await axios.get(`${URL}/submissions/${id}`);
-//         console.log(res.data.solution_document);
         
 //         setSubmission(res.data);
 //       } catch (err) {
@@ -50,7 +48,6 @@
 
 //   const handleSave = () => {
 //     const submissionId = submission?.ID || id;
-//     console.log({ submissionId, marks, feedback });
 //     setSaved(true);
 //     setTimeout(() => setSaved(false), 2000);
 //   };
@@ -113,7 +110,6 @@
 //         >
 //           <h2 className="text-2xl font-bold text-[#4a4a4a] mb-4">Solution Document</h2>
 //           <div className="w-full">
-//             {console.log(`${URL}/` +submission.solution_document)
 //             }
 //             <PDFViewer url={`${URL}/`+submission.solution_document} />
 //             </div>
@@ -284,7 +280,6 @@ const SubmissionDetail = () => {
   const [error, setError] = useState(null);
   // const [submissiondata,  setSubmissiondata]
 
-  console.log(submission);
   
   /* ---------- Evaluation State (UPDATED) ---------- */
 

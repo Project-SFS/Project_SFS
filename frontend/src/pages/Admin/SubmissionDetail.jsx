@@ -32,7 +32,6 @@ const SubmissionDetail = () => {
     const fetchSubmission = async () => {
       try {
         const response = await axios.get(`${URL}/submissions/${id}`)
-        console.log(response);
         
         setSubmission(response.data);
         if (response.data.marks) setMarks(response.data.marks); // Assuming backend has marks

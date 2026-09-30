@@ -11,19 +11,14 @@
 //     const [spoc_id, setspoc_id] = useState()
 //     const location = useLocation()
 //     const ID = location.state.id
-//     // console.log(params)
 //     const [FullTeam, setFullTeam] = useState([]);
     
-//     // console.log(params.id);
 //     axios.defaults.withCredentials = true
 //     axios.get(`${URL}/cookie`).then(res => setspoc_id(res.data.ID));
-//     console.log(ID);
     
     
-//     axios.post(`${URL}/fetch_team_members`, { id: ID }).then(res => { setFullTeam(res.data.result); console.log(res);
 //     })
 
-//     // console.log(FullTeam)
 //   return (
 //       <div className='min-h-screen min-w-screen border mt-20'>
 //           <div className='flex text-center items-center  justify-between h-10'> <h2 className="text-xl  font-semibold text-gray-800   ml-2">

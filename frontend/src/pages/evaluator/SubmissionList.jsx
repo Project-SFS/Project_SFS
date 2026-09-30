@@ -110,7 +110,6 @@ const SubmissionList = () => {
     fetchSubmissions();
   }, [problemId, assignedProblems, assignedLoaded]);
 
-  // console.log(sub);
 
 
   const filteredSubmissions = filterStatus === "All"

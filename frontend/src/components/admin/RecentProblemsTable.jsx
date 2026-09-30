@@ -31,7 +31,6 @@ const RecentProblemsTable = ({ problems = [] }) => {
     .slice(0, 5);
 
   const handleClick = (id) => {
-    console.log("Problem clicked:", id);
     // navigate(`/problem/${id}`);
   };
 
