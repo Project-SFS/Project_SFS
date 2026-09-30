@@ -29,7 +29,7 @@ if (!to) {
 }
 try {
     const info = await transporter.sendMail({
-        from: process.env.MAIL_FROM, to,
+        from: process.env.SMTP_USER || "donotreply@sakthiauto.in", to,
         subject: "Solve For Sakthi - server mail check " + new Date().toISOString().slice(11, 19),
         text: "Test mail sent from the backend container on the server.",
     })
