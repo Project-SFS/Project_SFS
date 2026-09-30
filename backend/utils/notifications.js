@@ -74,7 +74,7 @@ const layout = ({ heading, intro, rows = [], outro = "", linkPath, linkLabel }) 
 const deliver = (label, message) => {
     if (!message.to) return
     sendMail({ fromName: "Solve For Sakthi", ...message })
-        .then((info) => console.log(`Mail sent (${label}):`, info.messageId))
+        .then((info) => console.log(`Mail sent (${label}) to ${message.to}:`, info.response, info.messageId))
         .catch((err) => console.error(`Mail failed (${label}):`, err.message))
 }
 

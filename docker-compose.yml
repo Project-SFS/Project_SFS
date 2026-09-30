@@ -28,6 +28,9 @@ services:
     # lets DB_HOST=host.docker.internal reach a SQL Server running on the Docker host itself
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      # always reach the mail server at its public address: on some networks the server's own DNS
+      # points this name at an internal relay that accepts mail but never delivers it
+      - "mail.abtlimited.com:118.91.233.65"
     ports:
       - "9022:9022"
     volumes:
