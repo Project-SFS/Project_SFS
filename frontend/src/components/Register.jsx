@@ -1,5 +1,5 @@
 import axios from "axios";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {URL} from "../Utils";
 import toast, {Toaster} from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -44,6 +44,14 @@ const Register = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [email, setemail] = useState("")
+  // seconds until "Resend OTP" is allowed again (the server accepts one OTP per email every 30s)
+  const [resendIn, setResendIn] = useState(0)
+
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const timer = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
   const [isPasswordValid, setIsPasswordValid] = useState(false);
 
 
@@ -63,8 +71,14 @@ const Register = () => {
 
   const handleemail = (e) => {
     e.preventDefault()
-    console.log(e.target.value);
     setemail(e.target.value)
+    // a different email needs its own OTP: go back to the "Verify Email" step
+    if (otpSent) {
+      setOtpSent(false);
+      setResendIn(0);
+      setForm((prev) => ({ ...prev, otp: "" }));
+      setErrors((prev) => ({ ...prev, otp: undefined }));
+    }
 
   }
   const onChange = (e) => {
@@ -111,6 +125,7 @@ const Register = () => {
               toast.dismiss(lodaing)
               toast.success("OTP Sent")
               setOtpSent(true);
+              setResendIn(30);
             })
             .catch((err) => {
               toast.dismiss(lodaing)
@@ -280,6 +295,17 @@ const Register = () => {
                 >
                   Verify OTP
                 </button>
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={resendIn > 0}
+                  className="mt-2 w-full text-sm font-semibold text-orange-600 hover:underline disabled:text-gray-400 disabled:no-underline"
+                >
+                  {resendIn > 0 ? `Resend OTP in ${resendIn}s` : "Didn't get it? Resend OTP"}
+                </button>
+                <p className="mt-1 text-xs text-gray-500 text-center">
+                  Check your Spam folder too. To use a different email, just change it above.
+                </p>
               </div>
             )}
 
