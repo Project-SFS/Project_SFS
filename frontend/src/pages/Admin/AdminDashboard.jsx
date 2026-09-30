@@ -190,10 +190,10 @@ const AdminDashboard = () => {
           <StatCard title="Total Problems" value={totalProblems} icon={FiClipboard} />
           <StatCard title="Total Submissions" value={totalSubmissions} icon={FiUpload} />
           <StatCard
-            title="SPOC Pending"
+            title="Pending Approvals"
             value={pendingApprovals}
             icon={FiCheckSquare}
-            to="/admin/spoc-approvals"
+            to="/admin/approvals"
           />
           <StatCard
             title="Total Evaluators"
@@ -219,8 +219,8 @@ const AdminDashboard = () => {
             Quick Links
           </h2>
           <div className="space-y-3">
-            <Link to="/admin/spoc-approvals" className="flex justify-between text-orange-400">
-              Review SPOC Requests <FiArrowRight />
+            <Link to="/admin/approvals" className="flex justify-between text-orange-400">
+              Review Approval Requests <FiArrowRight />
             </Link>
             <Link to="/admin/problem-statements/create" className="flex justify-between text-orange-400">
               Create Problem Statement <FiArrowRight />

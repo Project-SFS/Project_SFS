@@ -28,7 +28,7 @@ const PendingApprovalsList = () => {
           <ActivityListItem key={spoc.id} user={spoc.name} action="Requested SPOC ID" time="2h ago" />
         ))}
         <div className="pt-4 text-center">
-          <a href="/admin/spoc-approvals" className="text-sm font-medium text-action-blue hover:underline">
+          <a href="/admin/approvals" className="text-sm font-medium text-action-blue hover:underline">
             View All Approvals
           </a>
         </div>

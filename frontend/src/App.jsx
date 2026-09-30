@@ -40,7 +40,7 @@ import EvaluatorProfile from "./pages/evaluator/EvaluatorProfile.jsx";
 // Admin
 import AdminLayout from "./components/admin/AdminLayout.jsx";
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
-import SpocApprovals from "./pages/Admin/SpocApprovals.jsx";
+import Approvals from "./pages/Admin/Approvals.jsx";
 import EvaluatorsList from "./pages/Admin/EvaluatorsList.jsx";
 import EvaluatorManage from "./pages/Admin/EvaluatorManage.jsx";
 import CreateUser from "./pages/Admin/CreateUser.jsx";
@@ -211,7 +211,8 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="spoc-approvals" element={<SpocApprovals />} />
+          <Route path="approvals" element={<Approvals />} />
+          <Route path="spoc-approvals" element={<Navigate to="/admin/approvals" replace />} />
           <Route path="problems/:id/details" element={<ProblemStatementDetail />} />
           <Route path="submissions/:id/details" element={<SubmissionDetail2 />} />
 

@@ -62,8 +62,8 @@ const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }
           <NavItem to="/admin/users/create" icon={<FiUserPlus size={20} />} isExpanded={isExpanded}>
             Create User
           </NavItem>
-          <NavItem to="/admin/spoc-approvals" icon={<FiCheckSquare size={20} />} isExpanded={isExpanded}>
-           SPOC Requests
+          <NavItem to="/admin/approvals" icon={<FiCheckSquare size={20} />} isExpanded={isExpanded}>
+            Approvals
           </NavItem>
         </nav>
       </aside>
@@ -93,8 +93,8 @@ const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }
           <NavItem to="/admin/users/create" icon={<FiUserPlus size={20} />} isExpanded={true}>
             Create User
           </NavItem>
-          <NavItem to="/admin/spoc-approvals" icon={<FiCheckSquare size={20} />} isExpanded={true}>
-            SPOC Requests
+          <NavItem to="/admin/approvals" icon={<FiCheckSquare size={20} />} isExpanded={true}>
+            Approvals
           </NavItem>
         </nav>
       </aside>
