@@ -89,4 +89,31 @@ const sendMail = ({ fromName = "Solve For Sakthi", ...message }) =>
         ...message,
     })
 
-export { transporter, sendMail }
+// Optional separate account used only for OTP mails (e.g. Gmail over TLS on 465), set with
+// OTP_SMTP_HOST / OTP_SMTP_PORT / OTP_SMTP_USER / OTP_MAIL_PASS. Without them OTPs use the main account.
+const otpUser = process.env.OTP_SMTP_USER?.trim()
+const otpPort = Number(process.env.OTP_SMTP_PORT) || 465
+const otpTransporter = otpUser && process.env.OTP_MAIL_PASS
+    ? nodemailer.createTransport({
+        host: process.env.OTP_SMTP_HOST || "smtp.gmail.com",
+        port: otpPort,
+        secure: otpPort === 465,
+        auth: { user: otpUser, pass: process.env.OTP_MAIL_PASS.replace(/\s+/g, "") },
+        logger: smtpLogger,
+        debug: true,
+        connectionTimeout: 20000,
+        greetingTimeout: 20000,
+        socketTimeout: 60000,
+    })
+    : null
+
+const sendOtpMail = ({ fromName = "Solve For Sakthi", ...message }) =>
+    otpTransporter
+        ? otpTransporter.sendMail({
+            from: `"${fromName}" <${otpUser}>`,
+            ...(message.html && !message.text ? { text: htmlToText(message.html) } : {}),
+            ...message,
+        })
+        : sendMail({ fromName, ...message })
+
+export { transporter, sendMail, sendOtpMail }

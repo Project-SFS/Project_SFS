@@ -1,5 +1,5 @@
 import crypto from "crypto"
-import { sendMail } from "../utils/mailer.js"
+import { sendOtpMail } from "../utils/mailer.js"
 import { layout } from "../utils/notifications.js"
 
 // email -> { hash, expiresAt, attempts, sentAt } for codes that were sent
@@ -31,7 +31,7 @@ const Verify_OTP = async (req, res) => {
     pendingOtps.set(email, { hash: hash(otp), expiresAt: Date.now() + OTP_TTL_MS, attempts: 0, sentAt: Date.now() })
 
     try {
-        const info = await sendMail({
+        const info = await sendOtpMail({
             to: email,
             // the code in the subject makes every OTP mail unique (no Gmail threading) and readable at a glance
             subject: `${otp} is your Solve For Sakthi verification code`,
