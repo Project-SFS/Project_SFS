@@ -12,6 +12,38 @@ const user = process.env.SMTP_USER || "donotreply@sakthiauto.in"
 // the certificate for smtpHost.
 const connectIp = process.env.SMTP_CONNECT_IP?.trim()
 
+// One log line per mail: which server it really connected to, its greeting, the address the mail
+// server sees us as, and its final reply, e.g.
+//   SMTP 118.91.233.65:587 | 220 mail.abtlimited.com | seen as 10.10.5.254 | 250 OK
+// (the real server greets "220 mail.abtlimited.com"; anything else is a relay on the way).
+// Only these fields are kept from nodemailer's protocol log - never the login or the message.
+const smtpTrace = new Map()
+const smtpLogger = {
+    level: () => {},
+    trace: () => {}, warn: () => {}, fatal: () => {}, info: (meta, message) => {
+        if (meta?.tnx !== "network") return
+        if (meta.remoteAddress) smtpTrace.set(meta.sid, { to: `${meta.remoteAddress}:${meta.remotePort}` })
+        // printed when the connection closes (a send ends with "Connection closed", not QUIT)
+        const trace = smtpTrace.get(meta.sid)
+        if (trace && /closed/i.test(String(message))) {
+            if (trace.last) console.log(`SMTP ${trace.to} | ${trace.greeting || "?"} | seen as ${trace.seenAs || "?"} | ${trace.last}`)
+            smtpTrace.delete(meta.sid)
+        }
+    },
+    error: (meta, message) => console.error("SMTP error:", String(message)),
+    debug: (meta, message) => {
+        const trace = meta?.sid && smtpTrace.get(meta.sid)
+        if (!trace) return
+        const text = String(message)
+        if (meta.tnx === "server") {
+            if (!trace.greeting && text.startsWith("220")) trace.greeting = text.split("\n")[0].trim()
+            const seenAs = /Hello \[([^\]]+)\]/.exec(text)?.[1]
+            if (seenAs) trace.seenAs = seenAs
+            if (/^250 /.test(text)) trace.last = text.trim()
+        }
+    },
+}
+
 // Settings: SMTP_HOST, SMTP_PORT, SMTP_USER, MAIL_PASS (+ SMTP_CONNECT_IP from docker-compose.yml).
 // Port 587 = STARTTLS (secure: false); port 465 = TLS from the start.
 const transporter = nodemailer.createTransport({
@@ -26,6 +58,8 @@ const transporter = nodemailer.createTransport({
     tls: {
         servername: smtpHost,
     },
+    logger: smtpLogger,
+    debug: true,
 })
 
 // mails are sent from the authenticated mailbox itself
