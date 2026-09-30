@@ -8,7 +8,7 @@ const smtpHost = process.env.SMTP_HOST || "mail.abtlimited.com"
 const user = process.env.SMTP_USER || "donotreply@sakthiauto.in"
 // Nodemailer resolves the host with its own DNS query (dns.resolve4), which ignores /etc/hosts and
 // Docker extra_hosts. On the server that query returns an internal relay that answers "250 OK" but
-// never delivers. SMTP_CONNECT_IP (set in docker-compose.yml) pins the real server; TLS still checks
+// never delivers. SMTP_CONNECT_IP (in backend/.env) pins the real server; TLS still checks
 // the certificate for smtpHost.
 const connectIp = process.env.SMTP_CONNECT_IP?.trim()
 
@@ -44,7 +44,7 @@ const smtpLogger = {
     },
 }
 
-// Settings: SMTP_HOST, SMTP_PORT, SMTP_USER, MAIL_PASS (+ SMTP_CONNECT_IP from docker-compose.yml).
+// Settings: SMTP_HOST, SMTP_PORT, SMTP_USER, MAIL_PASS (+ optional SMTP_CONNECT_IP).
 // Port 587 = STARTTLS (secure: false); port 465 = TLS from the start.
 const transporter = nodemailer.createTransport({
     host: connectIp || smtpHost,
@@ -81,16 +81,9 @@ const htmlToText = (html) => String(html)
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .split("\n").map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean).join("\n")
 
-// The sender address must be the authenticated mailbox, so callers only choose the display name
-const sendMail = ({ fromName = "Solve For Sakthi", ...message }) =>
-    transporter.sendMail({
-        from: `"${fromName}" <${fromAddress}>`,
-        ...(message.html && !message.text ? { text: htmlToText(message.html) } : {}),
-        ...message,
-    })
-
-// Optional separate account used only for OTP mails (e.g. Gmail over TLS on 465), set with
-// OTP_SMTP_HOST / OTP_SMTP_PORT / OTP_SMTP_USER / OTP_MAIL_PASS. Without them OTPs use the main account.
+// Optional second account (e.g. Gmail over TLS on 465), set with OTP_SMTP_HOST / OTP_SMTP_PORT /
+// OTP_SMTP_USER / OTP_MAIL_PASS. OTP mails always use it; other mails use it when the main account fails.
+// Without it everything goes through the main account.
 const otpUser = process.env.OTP_SMTP_USER?.trim()
 const otpPort = Number(process.env.OTP_SMTP_PORT) || 465
 const otpTransporter = otpUser && process.env.OTP_MAIL_PASS
@@ -107,13 +100,25 @@ const otpTransporter = otpUser && process.env.OTP_MAIL_PASS
     })
     : null
 
-const sendOtpMail = ({ fromName = "Solve For Sakthi", ...message }) =>
-    otpTransporter
-        ? otpTransporter.sendMail({
-            from: `"${fromName}" <${otpUser}>`,
-            ...(message.html && !message.text ? { text: htmlToText(message.html) } : {}),
-            ...message,
-        })
-        : sendMail({ fromName, ...message })
+// The sender address must be the authenticated mailbox, so callers only choose the display name
+const send = (via, sender, { fromName = "Solve For Sakthi", ...message }) =>
+    via.sendMail({
+        from: `"${fromName}" <${sender}>`,
+        ...(message.html && !message.text ? { text: htmlToText(message.html) } : {}),
+        ...message,
+    })
+
+const sendMail = async (message) => {
+    try {
+        return await send(transporter, fromAddress, message)
+    } catch (err) {
+        if (!otpTransporter) throw err
+        console.error(`Main mail account failed (${err.message}), sending to ${message.to} through ${otpUser}`)
+        return send(otpTransporter, otpUser, message)
+    }
+}
+
+const sendOtpMail = (message) =>
+    otpTransporter ? send(otpTransporter, otpUser, message) : sendMail(message)
 
 export { transporter, sendMail, sendOtpMail }

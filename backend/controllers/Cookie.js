@@ -1,19 +1,12 @@
 import AsyncHandler from "../utils/AsyncHandler.js";
-import jwt from "jsonwebtoken";
+import { sessionUser } from "../middleware/auth.js";
 
 const Get_cookies = AsyncHandler(async (req, res) => {
-    const cok = req.cookies || {};
-    const token = cok.login_creditionals;
-    if (!token) {
-        return res.status(401).json({ error: "No token provided" });
-    }
-
-    try {
-        const data = jwt.verify(token, process.env.JWT_SCERET);
-        return res.json(data);
-    } catch (err) {
+    const user = await sessionUser(req);
+    if (!user) {
         return res.status(401).json({ error: "Invalid or expired token" });
     }
+    return res.json(user);
 });
 
 export { Get_cookies };

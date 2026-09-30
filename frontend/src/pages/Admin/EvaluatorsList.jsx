@@ -194,13 +194,22 @@ const EvaluatorList = () => {
     showToast("Evaluator created successfully!", "success");
   };
 
-  const handleDelete = (id) => {
-    if (activeView === 'evaluators') {
-      setEvaluators(evaluators.filter((ev) => ev.id !== id));
-      showToast("Evaluator deleted successfully!", "success");
-    } else {
-      setSpocs(spocs.filter((spoc) => spoc.id !== id));
-      showToast("SPOC deleted successfully!", "success");
+  const handleDelete = async (id) => {
+    const isEvaluator = activeView === 'evaluators';
+    const label = isEvaluator ? "evaluator" : "SPOC";
+    if (!window.confirm(`Delete this ${label}? This cannot be undone.`)) return;
+    try {
+      await axios.post(`${URL}/admin/delete_user`, { id }, { withCredentials: true });
+      if (isEvaluator) {
+        setEvaluators(evaluators.filter((ev) => ev.id !== id));
+        // their problems are now unassigned
+        setAvailableProblemStatements((prev) => prev.map((p) => (p.evaluatorId === id ? { ...p, evaluatorId: null } : p)));
+      } else {
+        setSpocs(spocs.filter((spoc) => spoc.id !== id));
+      }
+      showToast(`${isEvaluator ? "Evaluator" : "SPOC"} deleted successfully!`, "success");
+    } catch (err) {
+      showToast(err.response?.data?.message || `Could not delete the ${label}`, "error");
     }
   };
 

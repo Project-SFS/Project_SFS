@@ -277,3 +277,46 @@ const Admin_create_user = AsyncHandler(async (req, res) => {
 });
 
 export { Admin_create_user }
+
+// Platform admin deletes an ADMIN, SPOC or EVALUATOR account. Nothing is left pointing at a missing user:
+//  - EVALUATOR: their problems stay, just without an evaluator (an admin can assign a new one)
+//  - SPOC: only once they have no teams, so no team, login or submission is orphaned
+//  - ADMIN: never yourself, and never the last admin
+const Admin_delete_user = AsyncHandler(async (req, res) => {
+    const id = parseInt(req.body.id, 10);
+    if (Number.isNaN(id)) {
+        return res.status(400).json({ message: "Invalid user id" });
+    }
+    if (id === Number(req.user.ID)) {
+        return res.status(400).json({ message: "You cannot delete your own account" });
+    }
+    const [users] = await connection.query("SELECT ID, ROLE, EMAIL FROM SolveForSakthi_Users WHERE ID = ?", [id]);
+    const user = users[0];
+    if (!user) {
+        return res.status(404).json({ message: "User not found" });
+    }
+    const role = String(user.ROLE).toUpperCase();
+    if (!CREATABLE_ROLES.includes(role)) {
+        return res.status(400).json({ message: "Team logins are removed by deleting the team" });
+    }
+    if (role === "ADMIN") {
+        const [admins] = await connection.query("SELECT COUNT(*) AS total FROM SolveForSakthi_Users WHERE ROLE = 'ADMIN'");
+        if (Number(admins[0].total) <= 1) {
+            return res.status(400).json({ message: "The last admin cannot be deleted" });
+        }
+    }
+    if (role === "SPOC") {
+        const [teams] = await connection.query("SELECT COUNT(*) AS total FROM SolveForSakthi_Team_List WHERE SPOC_ID = ?", [id]);
+        const total = Number(teams[0].total);
+        if (total > 0) {
+            return res.status(409).json({ message: `This SPOC still has ${total} team(s). Delete their teams first.` });
+        }
+    }
+    if (role === "EVALUATOR") {
+        await connection.query("UPDATE SolveForSakthi_Problems SET Evaluator_ID = NULL WHERE Evaluator_ID = ?", [id]);
+    }
+    await connection.query("DELETE FROM SolveForSakthi_Users WHERE ID = ?", [id]);
+    res.json({ message: `${role === "SPOC" ? "SPOC" : role.charAt(0) + role.slice(1).toLowerCase()} deleted` });
+});
+
+export { Admin_delete_user }
