@@ -60,6 +60,10 @@ const transporter = nodemailer.createTransport({
     },
     logger: smtpLogger,
     debug: true,
+    // fail with a clear error instead of hanging silently when the network drops the connection
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 60000,
 })
 
 // mails are sent from the authenticated mailbox itself

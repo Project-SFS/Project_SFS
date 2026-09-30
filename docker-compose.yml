@@ -49,5 +49,14 @@ services:
       - "9021:9021"
     logging: *logging
 
+# Smaller packets on the containers' network. Cloud / VPN networks often carry less than Docker's
+# default 1500 bytes; then small packets (connect, login) work but full-size ones (the TLS-encrypted
+# mail body) are silently dropped and sending stalls. 1400 fits through those links.
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "1400"
+
 volumes:
   uploads:
