@@ -5,7 +5,8 @@ import dns from "dns/promises"
 import net from "net"
 import { transporter } from "../utils/mailer.js"
 
-const host = process.env.SMTP_HOST || "mail.abtlimited.com"
+const smtpHost = process.env.SMTP_HOST || "mail.abtlimited.com"
+const host = process.env.SMTP_CONNECT_IP || smtpHost
 const port = Number(process.env.SMTP_PORT) || 587
 const to = process.argv[2]
 
@@ -17,8 +18,9 @@ const greeting = () => new Promise((resolve) => {
     socket.on("error", (e) => resolve("ERROR - " + e.message))
 })
 
-console.log(`SMTP_HOST ${host}:${port}`)
-console.log("resolves to :", (await dns.lookup(host).catch((e) => ({ address: "ERROR " + e.message }))).address, "(expected 118.91.233.65)")
+console.log(`SMTP_HOST ${smtpHost}:${port}  connecting to: ${host}`)
+// dns.resolve4 is what nodemailer uses when no SMTP_CONNECT_IP is set (it ignores /etc/hosts)
+console.log("DNS answer  :", (await dns.resolve4(smtpHost).catch((e) => ["ERROR " + e.message])).join(", "), "(real server: 118.91.233.65)")
 console.log("greeting    :", await greeting(), "(expected: 220 mail.abtlimited.com)")
 
 if (!to) {

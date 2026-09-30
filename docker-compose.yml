@@ -25,12 +25,13 @@ services:
     environment:
       NODE_ENV: production
       PORT: 9022
+      # always reach the mail server at its public address: the server's own DNS points
+      # mail.abtlimited.com at an internal relay that accepts mail but never delivers it.
+      # (extra_hosts does not work here - nodemailer does its own DNS query and ignores /etc/hosts)
+      SMTP_CONNECT_IP: "118.91.233.65"
     # lets DB_HOST=host.docker.internal reach a SQL Server running on the Docker host itself
     extra_hosts:
       - "host.docker.internal:host-gateway"
-      # always reach the mail server at its public address: on some networks the server's own DNS
-      # points this name at an internal relay that accepts mail but never delivers it
-      - "mail.abtlimited.com:118.91.233.65"
     ports:
       - "9022:9022"
     volumes:

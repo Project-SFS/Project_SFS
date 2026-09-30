@@ -4,9 +4,15 @@ import dotenv from "dotenv"
 dotenv.config()
 
 const port = Number(process.env.SMTP_PORT) || 587
+const smtpHost = process.env.SMTP_HOST || "mail.abtlimited.com"
+// Nodemailer resolves the host with its own DNS query (dns.resolve4), which ignores /etc/hosts and
+// Docker extra_hosts. On the server that query returns an internal relay that answers "250 OK" but
+// never delivers. SMTP_CONNECT_IP pins the real server; TLS still checks the certificate for smtpHost.
+const connectIp = process.env.SMTP_CONNECT_IP?.trim()
 
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "mail.abtlimited.com",
+    host: connectIp || smtpHost,
+    servername: smtpHost,
     port,
     // 465 = implicit TLS; 587 = plain connection upgraded with STARTTLS
     secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === "true" : port === 465,
@@ -15,6 +21,7 @@ const transporter = nodemailer.createTransport({
         pass: process.env.MAIL_PASS,
     },
     tls: {
+        servername: smtpHost,
         rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== "false",
     },
 })
