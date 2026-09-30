@@ -33,14 +33,15 @@ const Verify_OTP = async (req, res) => {
     try {
         const info = await sendMail({
             to: email,
-            subject: "Your Solve For Sakthi verification code",
+            // the code in the subject makes every OTP mail unique (no Gmail threading) and readable at a glance
+            subject: `${otp} is your Solve For Sakthi verification code`,
             html: layout({
                 heading: "Verify your email",
                 intro: `Use this code to verify your email address for Solve For Sakthi:<br><span style="display:inline-block;margin-top:12px;font-size:28px;font-weight:bold;letter-spacing:6px;color:#fc9300;">${otp}</span>`,
                 outro: "The code is valid for 10 minutes. If you did not request it, you can ignore this email.",
             }),
         });
-        console.log("Message sent:", info.messageId);
+        console.log(`Mail sent (otp) to ${email}:`, info.response, info.messageId);
     } catch (err) {
         pendingOtps.delete(email)
         console.error("OTP mail failed:", err.message)
