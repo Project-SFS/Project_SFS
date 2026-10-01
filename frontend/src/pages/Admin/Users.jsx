@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Link, useSearchParams } from "react-router-dom";
-import { FiPlus, FiSearch, FiTrash2, FiUsers, FiX, FiUserCheck, FiKey } from "react-icons/fi";
+import { FiPlus, FiSearch, FiTrash2, FiUsers, FiX, FiUserCheck, FiKey, FiShield } from "react-icons/fi";
+import { useAdmin, PERMISSION_LABELS, PERMISSION_HINTS } from "../../components/admin/adminAccess";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { URL } from "../../Utils";
 import Pagination, { usePagination } from "../../components/common/Pagination";
@@ -34,6 +35,27 @@ const Users = () => {
   const [details, setDetails] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [passwordFor, setPasswordFor] = useState(null);
+  const { isSuper } = useAdmin();
+  // main admin: editing another admin's permissions
+  const [permsFor, setPermsFor] = useState(null);
+  const [permsDraft, setPermsDraft] = useState([]);
+  const [savingPerms, setSavingPerms] = useState(false);
+  const permsOf = (u) => String(u.ADMIN_PERMISSIONS || "").split(",").filter(Boolean);
+  const openPerms = (u) => { setPermsFor(u); setPermsDraft(permsOf(u)); };
+  const savePerms = async () => {
+    setSavingPerms(true);
+    try {
+      const res = await axios.post(`${URL}/admin/set_permissions`, { userId: permsFor.ID, permissions: permsDraft }, { withCredentials: true });
+      const saved = (res.data.permissions || []).join(",");
+      setUsers((prev) => prev.map((x) => (x.ID === permsFor.ID ? { ...x, ADMIN_PERMISSIONS: saved } : x)));
+      showToast(`Permissions saved for ${permsFor.EMAIL}`, "success");
+      setPermsFor(null);
+    } catch (err) {
+      showToast(err.response?.data?.message || "Could not save the permissions", "error");
+    } finally {
+      setSavingPerms(false);
+    }
+  };
 
   const savePassword = async (password, emailUser) => {
     const res = await axios.post(`${URL}/admin/set_password`, { userId: passwordFor.ID, password, emailUser }, { withCredentials: true });
@@ -166,6 +188,14 @@ const Users = () => {
         </div>
       </div>
 
+      {activeTab === "ADMIN" && (
+        <p className="mb-4 text-sm text-[#4A5568] bg-white border border-[#E2E8F0] rounded-xl px-4 py-3">
+          {isSuper
+            ? "You are the main admin: create admins under Create User and choose what each one may do with the shield icon. Your own account cannot be deleted."
+            : "Only the main admin can add admins, change their permissions or delete them."}
+        </p>
+      )}
+
       {activeTab === "EVALUATOR" && (
         <p className="mb-4 text-sm text-[#C05621] bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
           The evaluator role has been removed: admins now evaluate all submissions. These old accounts can no longer log in and can be deleted.
@@ -181,13 +211,14 @@ const Users = () => {
               <th className="text-left py-3 px-5 font-semibold">Name</th>
               <th className="text-left py-3 px-5 font-semibold">Email</th>
               {activeTab === "SPOC" && <th className="text-left py-3 px-5 font-semibold">College</th>}
+              {activeTab === "ADMIN" && <th className="text-left py-3 px-5 font-semibold">Permissions</th>}
               <th className="text-left py-3 px-5 font-semibold">Status</th>
               <th className="text-center py-3 px-5 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6" className="py-6 text-center text-[#A0AEC0] italic">Loading users...</td></tr>
+              <tr><td colSpan="7" className="py-6 text-center text-[#A0AEC0] italic">Loading users...</td></tr>
             ) : pageItems.length > 0 ? (
               pageItems.map((u) => (
                 <tr key={u.ID} className="border-t border-[#E2E8F0] hover:bg-gray-50 transition-all">
@@ -200,11 +231,33 @@ const Users = () => {
                   </td>
                   <td className="py-4 px-5 text-[#718096]">{u.EMAIL}</td>
                   {activeTab === "SPOC" && <td className="py-4 px-5 text-[#718096]">{u.COLLEGE || "-"}</td>}
+                  {activeTab === "ADMIN" && (
+                    <td className="py-4 px-5">
+                      {u.IS_SUPER_ADMIN ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-[#494949] text-white"><FiShield /> Main admin · everything</span>
+                      ) : permsOf(u).length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {permsOf(u).map((p) => <span key={p} className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-[#C05621] border border-orange-200">{PERMISSION_LABELS[p] || p}</span>)}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-[#A0AEC0]">View only</span>
+                      )}
+                    </td>
+                  )}
                   <td className="py-4 px-5">
                     <span className={`text-xs font-semibold rounded-full px-2 py-1 ${statusStyle(u.STATUS)}`}>{u.STATUS || "-"}</span>
                   </td>
                   <td className="py-4 px-5 text-center space-x-4 whitespace-nowrap">
-                    {u.ROLE !== "EVALUATOR" && (
+                    {u.ROLE === "ADMIN" && isSuper && !u.IS_SUPER_ADMIN && (
+                      <button
+                        onClick={() => openPerms(u)}
+                        className="text-gray-500 hover:text-[#FF9900] transition-all"
+                        title="Edit permissions"
+                      >
+                        <FiShield size={18} />
+                      </button>
+                    )}
+                    {u.ROLE !== "EVALUATOR" && (u.ROLE !== "ADMIN" || isSuper || u.ID === currentUserId) && (
                       <button
                         onClick={() => setPasswordFor(u)}
                         className="text-gray-500 hover:text-[#FF9900] transition-all"
@@ -213,7 +266,7 @@ const Users = () => {
                         <FiKey size={18} />
                       </button>
                     )}
-                    {u.ID !== currentUserId && (
+                    {u.ID !== currentUserId && !u.IS_SUPER_ADMIN && (u.ROLE !== "ADMIN" || isSuper) && (
                       <button
                         onClick={() => setToDelete(u)}
                         className="text-gray-500 hover:text-red-600 transition-all"
@@ -226,7 +279,7 @@ const Users = () => {
                 </tr>
               ))
             ) : (
-              <tr><td colSpan="6" className="py-6 text-center text-[#A0AEC0] italic">No users found.</td></tr>
+              <tr><td colSpan="7" className="py-6 text-center text-[#A0AEC0] italic">No users found.</td></tr>
             )}
           </tbody>
         </table>
@@ -288,6 +341,38 @@ const Users = () => {
                 className="px-4 py-1.5 rounded-xl text-sm text-white bg-red-500 hover:bg-red-600 transition-all disabled:opacity-50"
               >
                 {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {permsFor && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold text-[#1A202C] flex items-center gap-2"><FiShield className="text-[#FF9900]" /> Admin permissions</h2>
+            <p className="text-sm text-[#718096] mt-1 break-all">{permsFor.NAME} · {permsFor.EMAIL}</p>
+            <p className="text-xs text-[#A0AEC0] mt-3">Every admin can see the dashboard, problem statements, submissions and exports. These permissions allow the rest:</p>
+            <div className="mt-3 space-y-2">
+              {Object.keys(PERMISSION_LABELS).map((p) => (
+                <label key={p} className="flex items-start gap-3 p-3 rounded-xl border border-[#E2E8F0] hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={permsDraft.includes(p)}
+                    onChange={(e) => setPermsDraft((prev) => (e.target.checked ? [...prev, p] : prev.filter((x) => x !== p)))}
+                    className="mt-1 w-4 h-4 accent-[#FF9900]"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-[#1A202C]">{PERMISSION_LABELS[p]}</span>
+                    <span className="block text-xs text-[#718096]">{PERMISSION_HINTS[p]}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setPermsFor(null)} disabled={savingPerms} className="px-4 py-2 rounded-xl bg-gray-100 text-sm">Cancel</button>
+              <button onClick={savePerms} disabled={savingPerms} className="px-4 py-2 rounded-xl bg-[#FF9900] text-white text-sm font-medium hover:bg-[#e68900] disabled:opacity-50">
+                {savingPerms ? "Saving…" : "Save permissions"}
               </button>
             </div>
           </div>

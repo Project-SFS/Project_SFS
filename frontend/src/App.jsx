@@ -27,6 +27,7 @@ import Upload from "./pages/student/Upload";
 import SpocDashboard from "./pages/spoc/SpocDashboard";
 // import Team_Members from "./pages/spoc/Team_Members.jsx";
 import TeamList from "./pages/spoc/TeamList.jsx";
+import SpocProfile from "./pages/spoc/SpocProfile.jsx";
 
 // Admin
 import AdminLayout from "./components/admin/AdminLayout.jsx";
@@ -37,6 +38,8 @@ import CreateUser from "./pages/Admin/CreateUser.jsx";
 import ProblemStatementsList from "./pages/Admin/ProblemStatementsList.jsx";
 import ProblemStatementCreate from "./pages/Admin/ProblemStatementCreate.jsx";
 import ProblemImport from "./pages/Admin/ProblemImport.jsx";
+import Exports from "./pages/Admin/Exports.jsx";
+import { RequirePermission } from "./components/admin/adminAccess.jsx";
 import ProblemStatementEdit from "./pages/Admin/ProblemStatementEdit.jsx";
 import ProblemStatementDetail from "./pages/Admin/ProblemStatementDetail.jsx";
 import SubmissionDetail from "./pages/Admin/SubmissionDetail.jsx";
@@ -163,6 +166,14 @@ function App() {
           }
         />
         <Route
+          path="/spoc/profile"
+          element={
+            <ProtectedRoute allowedRoles={["SPOC"]}>
+              <SpocProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/spoc/team_details"
           element={
             <ProtectedRoute allowedRoles={["SPOC"]}>
@@ -185,18 +196,19 @@ function App() {
         >
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="approvals" element={<Approvals />} />
+          <Route path="approvals" element={<RequirePermission permission="USERS"><Approvals /></RequirePermission>} />
+          <Route path="exports" element={<Exports />} />
           <Route path="spoc-approvals" element={<Navigate to="/admin/approvals" replace />} />
           <Route path="problems/:id/details" element={<ProblemStatementDetail />} />
           <Route path="submissions/:id/details" element={<SubmissionDetail />} />
 
           {/* Problem Statement Management (CRUD) */}
           <Route path="problems" element={<ProblemStatementsList />} />
-          <Route path="problems/create" element={<ProblemStatementCreate />} />
-          <Route path="problems/import" element={<ProblemImport />} />
-          <Route path="problems/edit/:id" element={<ProblemStatementEdit />} />
-          <Route path="users" element={<Users />} />
-          <Route path="users/create" element={<CreateUser />} />
+          <Route path="problems/create" element={<RequirePermission permission="PROBLEMS"><ProblemStatementCreate /></RequirePermission>} />
+          <Route path="problems/import" element={<RequirePermission permission="PROBLEMS"><ProblemImport /></RequirePermission>} />
+          <Route path="problems/edit/:id" element={<RequirePermission permission="PROBLEMS"><ProblemStatementEdit /></RequirePermission>} />
+          <Route path="users" element={<RequirePermission permission="USERS"><Users /></RequirePermission>} />
+          <Route path="users/create" element={<RequirePermission permission="USERS"><CreateUser /></RequirePermission>} />
           <Route path="evaluators/*" element={<Navigate to="/admin/users" replace />} />
         </Route>
 

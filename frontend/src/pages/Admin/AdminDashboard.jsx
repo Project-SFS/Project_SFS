@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fi';
 import axios from 'axios';
 import { URL } from '../../Utils';
+import { useAdmin } from '../../components/admin/adminAccess';
 
 import StatCard from '../../components/admin/StatCard';
 import SubmissionsChart from '../../components/admin/SubmissionsChart';
@@ -38,6 +39,7 @@ const timeAgo = (dateParam) => {
 
 
 const AdminDashboard = () => {
+  const { can } = useAdmin();
   const [data, setData] = useState({
     problems: [],
     submissions: [],
@@ -192,7 +194,7 @@ const AdminDashboard = () => {
             title="Pending Approvals"
             value={pendingApprovals}
             icon={FiCheckSquare}
-            to="/admin/approvals"
+            to={can("USERS") ? "/admin/approvals" : undefined}
           />
           <StatCard
             title="Awaiting Review"
@@ -218,14 +220,23 @@ const AdminDashboard = () => {
             Quick Links
           </h2>
           <div className="space-y-3">
-            <Link to="/admin/approvals" className="flex justify-between text-orange-400">
-              Review Approval Requests <FiArrowRight />
-            </Link>
-            <Link to="/admin/problem-statements/create" className="flex justify-between text-orange-400">
-              Create Problem Statement <FiArrowRight />
-            </Link>
-            <Link to="/admin/users" className="flex justify-between text-orange-400">
-              Manage Users <FiArrowRight />
+            {can('USERS') && (
+              <Link to="/admin/approvals" className="flex justify-between text-orange-400">
+                Review Approval Requests <FiArrowRight />
+              </Link>
+            )}
+            {can('PROBLEMS') && (
+              <Link to="/admin/problems/create" className="flex justify-between text-orange-400">
+                Create Problem Statement <FiArrowRight />
+              </Link>
+            )}
+            {can('USERS') && (
+              <Link to="/admin/users" className="flex justify-between text-orange-400">
+                Manage Users <FiArrowRight />
+              </Link>
+            )}
+            <Link to="/admin/exports" className="flex justify-between text-orange-400">
+              Export to Excel <FiArrowRight />
             </Link>
           </div>
         </div>

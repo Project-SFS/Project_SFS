@@ -7,8 +7,9 @@ import cookie from "cookie-parser"
 import jwt from "jsonwebtoken"
 import { isEmailVerified, consumeVerifiedEmail } from "./Verify_OTP.js"
 import crypto from "crypto"
-import { notifyAccountCreated, notifyPasswordChanged } from "../utils/notifications.js"
+import { notifyAccountCreated, notifyPasswordChanged, notifyOwnPasswordChanged } from "../utils/notifications.js"
 import { passwordError } from "../utils/password.js"
+import { ALL_PERMISSIONS, serializePermissions, PERMISSIONS } from "../utils/permissions.js"
 
 const signup = AsyncHandler(async (req, res) => {
     const { email, password, role, college, college_code, name, date } = req.body;
@@ -250,6 +251,10 @@ const Admin_create_user = AsyncHandler(async (req, res) => {
     if (!CREATABLE_ROLES.includes(role)) {
         return res.status(400).json({ message: "Role must be ADMIN or SPOC" });
     }
+    if (role === "ADMIN" && !req.user.IS_SUPER_ADMIN) {
+        return res.status(403).json({ message: "Only the main admin can create admin accounts" });
+    }
+    const permissions = role === "ADMIN" ? serializePermissions(req.body.permissions) : null;
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim()) || !name || !String(name).trim()) {
         return res.status(400).json({ message: "Name and a valid email are required" });
     }
@@ -276,8 +281,8 @@ const Admin_create_user = AsyncHandler(async (req, res) => {
     }
 
     const [result] = await connection.query(
-        "INSERT INTO SolveForSakthi_Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, PHONE, DATE, STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')",
-        [normalizedEmail, hashSync(password, 10), role, college || null, college_code, String(name).trim(), phone || null, new Date().toString().split(" ").slice(1, 4).join(" ")]
+        "INSERT INTO SolveForSakthi_Users (EMAIL, PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, PHONE, DATE, STATUS, ADMIN_PERMISSIONS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)",
+        [normalizedEmail, hashSync(password, 10), role, college || null, college_code, String(name).trim(), phone || null, new Date().toString().split(" ").slice(1, 4).join(" "), permissions]
     );
     notifyAccountCreated({ email: normalizedEmail, name: String(name).trim(), role, password });
     res.status(201).json({ message: `${role} account created`, id: result.insertId });
@@ -298,10 +303,16 @@ const Admin_delete_user = AsyncHandler(async (req, res) => {
     if (id === Number(req.user.ID)) {
         return res.status(400).json({ message: "You cannot delete your own account" });
     }
-    const [users] = await connection.query("SELECT ID, ROLE, EMAIL FROM SolveForSakthi_Users WHERE ID = ?", [id]);
+    const [users] = await connection.query("SELECT ID, ROLE, EMAIL, IS_SUPER_ADMIN FROM SolveForSakthi_Users WHERE ID = ?", [id]);
     const user = users[0];
     if (!user) {
         return res.status(404).json({ message: "User not found" });
+    }
+    if (user.IS_SUPER_ADMIN) {
+        return res.status(400).json({ message: "The main admin account cannot be deleted" });
+    }
+    if (String(user.ROLE).toUpperCase() === "ADMIN" && !req.user.IS_SUPER_ADMIN) {
+        return res.status(403).json({ message: "Only the main admin can delete admin accounts" });
     }
     const role = String(user.ROLE).toUpperCase();
     if (![...CREATABLE_ROLES, "EVALUATOR"].includes(role)) {
@@ -346,9 +357,13 @@ const Admin_set_password = AsyncHandler(async (req, res) => {
     if (Number.isNaN(userId)) return res.status(400).json({ message: "Invalid user id" });
     const weak = passwordError(password);
     if (weak) return res.status(400).json({ message: weak });
-    const [users] = await connection.query("SELECT ID, EMAIL, NAME, ROLE FROM SolveForSakthi_Users WHERE ID = ?", [userId]);
+    const [users] = await connection.query("SELECT ID, EMAIL, NAME, ROLE, IS_SUPER_ADMIN FROM SolveForSakthi_Users WHERE ID = ?", [userId]);
     if (!users[0]) return res.status(404).json({ message: "User not found" });
-    await setPassword(users[0], password, { emailUser: Boolean(emailUser), changedBy: "a platform admin" });
+    if (users[0].ROLE === "ADMIN" && users[0].ID !== req.user.ID && !req.user.IS_SUPER_ADMIN) {
+        return res.status(403).json({ message: "Only the main admin can change another admin's password" });
+    }
+    const { IS_SUPER_ADMIN, ...target } = users[0];
+    await setPassword(target, password, { emailUser: Boolean(emailUser), changedBy: "a platform admin" });
     res.json({ message: "Password changed", self: users[0].ID === req.user.ID });
 });
 
@@ -365,6 +380,9 @@ const Set_team_password = AsyncHandler(async (req, res) => {
     if (req.user.ROLE !== "ADMIN" && team.SPOC_ID !== req.user.ID) {
         return res.status(403).json({ message: "You can only change passwords of your own teams" });
     }
+    if (req.user.ROLE === "ADMIN" && !req.user.IS_SUPER_ADMIN && !req.user.PERMISSIONS?.includes("USERS")) {
+        return res.status(403).json({ message: `You need the "${PERMISSIONS.USERS}" permission for this` });
+    }
     if (team.GRADUATED_AT) return res.status(400).json({ message: "This team has graduated and its login is closed" });
     const [users] = await connection.query("SELECT ID, EMAIL, NAME, ROLE FROM SolveForSakthi_Users WHERE EMAIL = ? AND ROLE = 'STUDENT'", [team.LEAD_EMAIL]);
     if (!users[0]) return res.status(404).json({ message: "This team has no login yet" });
@@ -373,3 +391,98 @@ const Set_team_password = AsyncHandler(async (req, res) => {
 });
 
 export { Admin_set_password, Set_team_password }
+
+// Logs the user in with a fresh token (their current row), e.g. after they edited their profile or
+// changed their own password, so the header shows the new name and this session stays signed in
+const reissueLogin = async (req, res, userId) => {
+    const [rows] = await connection.query("SELECT * FROM SolveForSakthi_Users WHERE ID = ?", [userId]);
+    const { PASSWORD, ...safe } = rows[0];
+    const token = jwt.sign(safe, process.env.JWT_SCERET, { expiresIn: "4h" });
+    res.cookie("login_creditionals", token, { ...loginCookieOptions(req), maxAge: 4 * 60 * 60 * 1000 });
+    return safe;
+};
+
+// The logged-in user's own profile; for a SPOC also how many teams / submissions they have
+const Get_profile = AsyncHandler(async (req, res) => {
+    const [rows] = await connection.query(
+        "SELECT ID, EMAIL, NAME, PHONE, ROLE, COLLEGE, COLLEGE_CODE, STATUS, DATE, PASSWORD_CHANGED_AT FROM SolveForSakthi_Users WHERE ID = ?",
+        [req.user.ID]
+    );
+    const user = rows[0];
+    if (!user) return res.status(404).json({ message: "User not found" });
+    let stats = null;
+    if (user.ROLE === "SPOC") {
+        const [counts] = await connection.query(`
+            SELECT
+              (SELECT COUNT(*) FROM SolveForSakthi_Team_List WHERE SPOC_ID = ? AND GRADUATED_AT IS NULL) AS ACTIVE_TEAMS,
+              (SELECT COUNT(*) FROM SolveForSakthi_Team_List WHERE SPOC_ID = ? AND GRADUATED_AT IS NOT NULL) AS GRADUATED_TEAMS,
+              (SELECT COUNT(*) FROM SolveForSakthi_Submissions s JOIN SolveForSakthi_Team_List t ON t.LEAD_EMAIL = s.TEAM_EMAIL WHERE t.SPOC_ID = ?) AS SUBMISSIONS,
+              (SELECT COUNT(*) FROM SolveForSakthi_Submissions s JOIN SolveForSakthi_Team_List t ON t.LEAD_EMAIL = s.TEAM_EMAIL WHERE t.SPOC_ID = ? AND s.STATUS IN ('APPROVED', 'ACCEPTED')) AS APPROVED`,
+            [user.ID, user.ID, user.ID, user.ID]);
+        stats = counts[0];
+    }
+    res.json({ ...user, stats });
+});
+
+// The user edits their own details. The email (their login) and the college code stay as they are.
+const Update_profile = AsyncHandler(async (req, res) => {
+    const name = String(req.body.name ?? "").trim();
+    const phone = String(req.body.phone ?? "").trim();
+    const college = String(req.body.college ?? "").trim();
+    if (!name) return res.status(400).json({ message: "Your name is required" });
+    if (name.length > 256) return res.status(400).json({ message: "The name is too long" });
+    if (phone && !/^[0-9+\-\s()]{6,20}$/.test(phone)) return res.status(400).json({ message: "Enter a valid phone number (6-20 digits)" });
+    if (req.user.ROLE === "SPOC" && !college) return res.status(400).json({ message: "The college name is required" });
+    if (college.length > 100) return res.status(400).json({ message: "The college name can be at most 100 characters" });
+
+    const fields = ["NAME = ?", "PHONE = ?"];
+    const params = [name, phone || null];
+    if (req.user.ROLE === "SPOC" || req.user.ROLE === "ADMIN") {
+        fields.push("COLLEGE = ?");
+        params.push(college || null);
+    }
+    await connection.query(`UPDATE SolveForSakthi_Users SET ${fields.join(", ")} WHERE ID = ?`, [...params, req.user.ID]);
+    const user = await reissueLogin(req, res, req.user.ID);
+    res.json({ message: "Profile updated", user });
+});
+
+// The user changes their own password: the current one must be right; other sessions are logged out,
+// this one stays signed in, and a security notice (without the password) is emailed
+const Change_own_password = AsyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    const [rows] = await connection.query("SELECT ID, EMAIL, NAME, PASSWORD FROM SolveForSakthi_Users WHERE ID = ?", [req.user.ID]);
+    const user = rows[0];
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!currentPassword || !(await compare(String(currentPassword), user.PASSWORD))) {
+        return res.status(400).json({ message: "Your current password is not correct" });
+    }
+    const weak = passwordError(newPassword);
+    if (weak) return res.status(400).json({ message: weak });
+    if (await compare(String(newPassword), user.PASSWORD)) {
+        return res.status(400).json({ message: "Choose a password different from your current one" });
+    }
+    await connection.query("UPDATE SolveForSakthi_Users SET PASSWORD = ?, PASSWORD_CHANGED_AT = SYSUTCDATETIME() WHERE ID = ?", [hashSync(String(newPassword), 10), user.ID]);
+    await reissueLogin(req, res, user.ID);
+    notifyOwnPasswordChanged({ email: user.EMAIL, name: user.NAME });
+    res.json({ message: "Password changed" });
+});
+
+export { Get_profile, Update_profile, Change_own_password }
+
+// Main admin: set which permissions another admin has
+const Admin_set_permissions = AsyncHandler(async (req, res) => {
+    const userId = parseInt(req.body.userId, 10);
+    if (Number.isNaN(userId)) return res.status(400).json({ message: "Invalid user id" });
+    const [users] = await connection.query("SELECT ID, ROLE, IS_SUPER_ADMIN FROM SolveForSakthi_Users WHERE ID = ?", [userId]);
+    const user = users[0];
+    if (!user || user.ROLE !== "ADMIN") return res.status(404).json({ message: "Admin not found" });
+    if (user.IS_SUPER_ADMIN) return res.status(400).json({ message: "The main admin always has every permission" });
+    const permissions = serializePermissions(req.body.permissions);
+    await connection.query("UPDATE SolveForSakthi_Users SET ADMIN_PERMISSIONS = ? WHERE ID = ?", [permissions, userId]);
+    res.json({ message: "Permissions saved", permissions: permissions ? permissions.split(",") : [] });
+});
+
+// The permission names, for the admin screens
+const Admin_permission_list = (req, res) => res.json(ALL_PERMISSIONS.map((key) => ({ key, label: PERMISSIONS[key] })));
+
+export { Admin_set_permissions, Admin_permission_list }

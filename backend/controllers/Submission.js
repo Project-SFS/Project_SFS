@@ -312,6 +312,8 @@ const Delete_submission = AsyncHandler(async (req, res) => {
         if (submission.STATUS !== "PENDING") return res.status(400).json({ message: "A reviewed submission can no longer be withdrawn" });
     } else if (role !== "ADMIN") {
         return res.status(403).json({ message: "You cannot delete submissions" });
+    } else if (!req.user.IS_SUPER_ADMIN && !req.user.PERMISSIONS?.includes("EVALUATE")) {
+        return res.status(403).json({ message: 'You need the "Evaluate submissions" permission to delete submissions' });
     }
 
     // load the mail details before the row is gone

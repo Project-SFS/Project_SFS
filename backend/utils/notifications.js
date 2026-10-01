@@ -436,4 +436,18 @@ const notifyDeadlineReminder = ({ teamName, leadEmail, problemId, title, deadlin
     })
 })
 
-export { notifyDeadlineChanged, notifyDeadlineReminder, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected, notifySubmission, notifyReviewed }
+// The user changed their own password: a security notice (the password itself is never emailed here)
+const notifyOwnPasswordChanged = ({ email, name }) => background("own password changed", async () => {
+    deliver("own password changed", {
+        to: email,
+        subject: "Your Solve For Sakthi password was changed",
+        html: layout({
+            heading: "Your password was changed",
+            intro: `Hello ${escapeHtml(name || "")}, the password of your Solve For Sakthi account was just changed from your profile. Other devices that were logged in have been logged out.`,
+            outro: "If you did not make this change, contact the platform admin straight away.",
+            linkPath: "/login", linkLabel: "Log in",
+        }),
+    })
+})
+
+export { notifyOwnPasswordChanged, notifyDeadlineChanged, notifyDeadlineReminder, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected, notifySubmission, notifyReviewed }

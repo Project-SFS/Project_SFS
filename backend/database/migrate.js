@@ -45,10 +45,21 @@ const migrate = async () => {
         if (!password) throw new Error("ADMIN_PASSWORD must be set to create the first admin user")
         // COLLEGE_CODE is UNIQUE and SQL Server allows only one NULL there, so give the admin its own code
         await connection.query(
-            "INSERT INTO SolveForSakthi_Users (EMAIL, PASSWORD, ROLE, NAME, STATUS, COLLEGE_CODE, DATE) VALUES (?, ?, 'ADMIN', 'Admin', 'ACTIVE', 'ADMIN', ?)",
+            "INSERT INTO SolveForSakthi_Users (EMAIL, PASSWORD, ROLE, NAME, STATUS, COLLEGE_CODE, DATE, IS_SUPER_ADMIN, ADMIN_PERMISSIONS) VALUES (?, ?, 'ADMIN', 'Admin', 'ACTIVE', 'ADMIN', ?, 1, 'PROBLEMS,EVALUATE,USERS')",
             [email, hashSync(password, 10), new Date().toISOString().split("T")[0]]
         )
         console.log(`Default admin created: ${email}`)
+    }
+
+    // exactly one main admin: the ADMIN_EMAIL account, or else the oldest admin
+    const [supers] = await connection.query("SELECT TOP 1 ID FROM SolveForSakthi_Users WHERE ROLE = 'ADMIN' AND IS_SUPER_ADMIN = 1")
+    if (supers.length === 0) {
+        const [byEmail] = await connection.query("SELECT TOP 1 ID FROM SolveForSakthi_Users WHERE ROLE = 'ADMIN' AND EMAIL = ?", [email])
+        const [oldest] = byEmail.length ? [byEmail] : await connection.query("SELECT TOP 1 ID FROM SolveForSakthi_Users WHERE ROLE = 'ADMIN' ORDER BY ID")
+        if (oldest[0]) {
+            await connection.query("UPDATE SolveForSakthi_Users SET IS_SUPER_ADMIN = 1, ADMIN_PERMISSIONS = 'PROBLEMS,EVALUATE,USERS' WHERE ID = ?", [oldest[0].ID])
+            console.log(`Main admin set: user ${oldest[0].ID}`)
+        }
     }
 
     console.log("Database migration complete")

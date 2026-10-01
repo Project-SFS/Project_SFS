@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
+import axios from 'axios';
+import { URL } from '../../Utils';
+import { AdminContext } from './adminAccess';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 
@@ -8,8 +11,16 @@ const AdminLayout = () => {
   const [isMobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   // State for the desktop hover-expandable menu
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  // the logged-in admin with their permissions, shared with every admin page
+  const [access, setAccess] = useState({ user: null, loading: true });
+  useEffect(() => {
+    axios.get(`${URL}/cookie`, { withCredentials: true })
+      .then((res) => setAccess({ user: res.data, loading: false }))
+      .catch(() => setAccess({ user: null, loading: false }));
+  }, []);
 
   return (
+    <AdminContext.Provider value={access}>
     <div className="min-h-screen bg-gray-100">
       <AdminSidebar
         isMobileOpen={isMobileSidebarOpen}
@@ -39,6 +50,7 @@ const AdminLayout = () => {
         />
       )}
     </div>
+    </AdminContext.Provider>
   );
 };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Pagination, { usePagination } from "../../components/common/Pagination";
 import { motion } from 'framer-motion';
-import { FaUsers, FaClipboardList, FaTasks } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaTasks, FaUserCircle } from 'react-icons/fa';
 import { AiOutlineTeam } from "react-icons/ai";
 import { RiTeamFill } from "react-icons/ri";
 import ProblemStatements from "../../components/ProblemStatements";
@@ -68,6 +68,7 @@ const SpocDashboard = () => {
                     return;
                 }
 
+                setSpoc_data(res.data);
                 const ID = res.data?.ID;
                 if (!ID) {
                     toast.error('Invalid session data');
@@ -106,12 +107,9 @@ const SpocDashboard = () => {
         visible: { opacity: 1, x: 0, transition: { duration: 0.5, delay: 0.2 } }
     };
 
-    const getCollegeName = () => {
-        axios.get(`${URL}/cookie`).then(res => { setSpoc_data(res.data) });
-        // try to infer college from first team if present
-        
-        return spoc_data?.COLLEGE || spoc_data?.college || 'KIOT';
-    };
+    // the SPOC's own data is loaded once with the teams above; this only reads it (calling the API here,
+    // during render, re-rendered the page in an endless loop of /cookie requests)
+    const getCollegeName = () => spoc_data?.COLLEGE || spoc_data?.college || '';
 
     const getTeamName = (team, fallbackIndex) =>
         team?.NAME || team?.name || `Team ${fallbackIndex}`;
@@ -137,6 +135,7 @@ const SpocDashboard = () => {
                             {navItems.map(item => (
                                 <NavItem key={item.id} item={item} activeView={activeView} onClick={setActiveView} />
                             ))}
+                            <NavItem item={{ id: 'profile', label: 'My Profile', icon: FaUserCircle }} activeView={activeView} onClick={() => navigate('/spoc/profile')} />
                         </ul>
                     </nav>
 

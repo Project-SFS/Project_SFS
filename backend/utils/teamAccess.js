@@ -1,4 +1,5 @@
 import connection from "../database/db.js"
+import { hasPermission } from "./permissions.js"
 
 // Who may see or change a team:
 //   ADMIN      - every team (view + manage)
@@ -23,7 +24,8 @@ const canViewTeam = (req, team) => {
 }
 
 // graduated teams are read-only for everyone (records kept for the admin)
-const canManageTeam = (req, team) => !team.GRADUATED_AT && (role(req) === "ADMIN" || (role(req) === "SPOC" && team.SPOC_ID === req.user.ID))
+// an admin needs the "Manage users" permission to change teams
+const canManageTeam = (req, team) => !team.GRADUATED_AT && ((role(req) === "ADMIN" && hasPermission(req.user, "USERS")) || (role(req) === "SPOC" && team.SPOC_ID === req.user.ID))
 
 // Loads a team and answers 404/403 itself when it is missing or off-limits; returns the team or null
 const loadTeamFor = async (req, res, teamId, { manage = false } = {}) => {

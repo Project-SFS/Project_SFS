@@ -5,9 +5,10 @@ import toast, { Toaster } from "react-hot-toast";
 import { FiShield, FiBriefcase, FiUserPlus } from "react-icons/fi";
 import { URL } from "../../Utils";
 import PasswordFields, { passwordsReady } from "../../components/PasswordFields";
+import { useAdmin, PERMISSION_LABELS, PERMISSION_HINTS } from "../../components/admin/adminAccess";
 
 const ROLES = [
-  { value: "ADMIN", label: "Platform Admin", icon: FiShield, hint: "Full access, same as the main admin: approvals, problem statements, evaluating submissions, users." },
+  { value: "ADMIN", label: "Platform Admin", icon: FiShield, hint: "Another admin. Choose below what they may do; every admin can see the dashboard, problem statements, submissions and exports." },
   { value: "SPOC", label: "SPOC", icon: FiBriefcase, hint: "College coordinator: creates teams and assigns problem statements to them." },
 ];
 
@@ -18,6 +19,10 @@ const EMPTY = { name: "", email: "", phone: "", college: "", college_code: "", p
 export default function CreateUser() {
   const navigate = useNavigate();
   const [role, setRole] = useState("SPOC");
+  // only the main admin creates admins, and chooses their permissions
+  const { isSuper } = useAdmin();
+  const roles = ROLES.filter((r) => r.value !== "ADMIN" || isSuper);
+  const [permissions, setPermissions] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState(null);
@@ -36,7 +41,7 @@ export default function CreateUser() {
     }
     setBusy(true);
     try {
-      await axios.post(`${URL}/admin/create_user`, { ...form, password: passwordMode === "set" ? form.password : "", role });
+      await axios.post(`${URL}/admin/create_user`, { ...form, password: passwordMode === "set" ? form.password : "", role, permissions: role === "ADMIN" ? permissions : undefined });
       setCreated({ role, email: form.email.trim().toLowerCase(), name: form.name.trim() });
       toast.success("Account created. Login details were emailed to the user.");
       setForm(EMPTY);
@@ -78,7 +83,7 @@ export default function CreateUser() {
         <div>
           <span className={label}>Role</span>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {ROLES.map(({ value, label: text, icon: Icon }) => (
+            {roles.map(({ value, label: text, icon: Icon }) => (
               <button
                 type="button"
                 key={value}
@@ -94,7 +99,31 @@ export default function CreateUser() {
             ))}
           </div>
           <p className="text-xs text-[#718096] mt-2">{roleInfo?.hint}</p>
+          {!isSuper && <p className="text-xs text-[#A0AEC0] mt-1">Only the main admin can create admin accounts.</p>}
         </div>
+
+        {role === "ADMIN" && (
+          <div>
+            <span className={label}>Permissions</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {Object.keys(PERMISSION_LABELS).map((p) => (
+                <label key={p} className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors ${permissions.includes(p) ? "border-[#FF9900] bg-[#FFF7EC]" : "border-[#E2E8F0] hover:bg-gray-50"}`}>
+                  <input
+                    type="checkbox"
+                    checked={permissions.includes(p)}
+                    onChange={(e) => setPermissions((prev) => (e.target.checked ? [...prev, p] : prev.filter((x) => x !== p)))}
+                    className="mt-0.5 w-4 h-4 accent-[#FF9900]"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-[#1A202C]">{PERMISSION_LABELS[p]}</span>
+                    <span className="block text-xs text-[#718096]">{PERMISSION_HINTS[p]}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {permissions.length === 0 && <p className="text-xs text-[#C05621] mt-2">With no permission ticked, this admin can only view.</p>}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>

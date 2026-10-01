@@ -6,6 +6,7 @@ import { URL } from '../../Utils';
 import Button from '../../components/common/button';
 import Breadcrumb from '../../components/common/Breadcrumb';
 import DeleteSubmissionButton from '../../components/DeleteSubmissionButton';
+import { useAdmin, PERMISSION_LABELS } from '../../components/admin/adminAccess';
 import { StatusBadge, normalizeStatus, statusMeta, EVAL_CRITERIA, EVAL_TOTAL_MAX, MarksBreakdown } from '../../submissionStatus';
 
 // The three review decisions. Every decision, its marks and comment are emailed to the team lead and,
@@ -125,6 +126,8 @@ const formatDate = (date) =>
   date ? new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
 const SubmissionDetail = () => {
+  const { can } = useAdmin();
+  const canEvaluate = can('EVALUATE');
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -221,11 +224,13 @@ const SubmissionDetail = () => {
         <div className="flex justify-between items-center">
           <Breadcrumb problemId={submission.problem_id} />
           <div className="flex items-center gap-3">
+            {canEvaluate && (
             <DeleteSubmissionButton
               submissionId={submission.submission_id || id}
               className="rounded-xl"
               onDeleted={() => navigate(-1)}
             />
+            )}
             <Button
               onClick={() => navigate(-1)}
               className="!bg-[#FF9900] !hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
@@ -294,7 +299,12 @@ const SubmissionDetail = () => {
           <PDFViewer url={submission.solution_document ? `${URL}/${submission.solution_document}` : null} />
         </div>
 
-        {/* Review */}
+        {/* Review (needs the Evaluate submissions permission) */}
+        {!canEvaluate ? (
+          <div className="bg-white rounded-2xl shadow-sm p-6 border border-[#E2E8F0] text-sm text-[#718096]">
+            Reviewing needs the <b className="text-[#1A202C]">{PERMISSION_LABELS.EVALUATE}</b> permission. You can see the submission and its review history; ask the main admin if you should evaluate.
+          </div>
+        ) : (<>
         <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-[#E2E8F0]">
           <h2 className="text-xl font-semibold mb-1 text-[#1A202C]">Review</h2>
           <p className="text-sm text-[#718096] mb-6">
@@ -405,6 +415,8 @@ const SubmissionDetail = () => {
             <p className={`mt-4 font-medium ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{message.text}</p>
           )}
         </div>
+
+        </>)}
 
         {/* Review history */}
         <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-[#E2E8F0]">

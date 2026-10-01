@@ -76,6 +76,11 @@ const Get_spoc_progress = AsyncHandler(async (req, res) => {
 
 // Loads a team and checks the caller may manage it (its own SPOC, or an admin)
 const loadOwnedTeam = async (req, res, teamId) => {
+    // an admin assigning or rejecting problems for a team needs "Manage users"
+    if (isAdmin(req) && !req.user.IS_SUPER_ADMIN && !req.user.PERMISSIONS?.includes("USERS")) {
+        res.status(403).json({ message: 'You need the "Manage users" permission for this' });
+        return null;
+    }
     const [rows] = await connection.query("SELECT ID, SPOC_ID, LEAD_EMAIL, GRADUATED_AT FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
     const team = rows[0];
     if (!team) {

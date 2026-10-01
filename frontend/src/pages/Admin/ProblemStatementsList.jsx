@@ -5,7 +5,10 @@
 // src/pages/admin/ProblemStatementsList.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiSearch, FiFilter, FiUsers, FiFileText, FiPlus, FiUpload } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiUsers, FiFileText, FiPlus, FiUpload, FiArchive } from 'react-icons/fi';
+import toast, { Toaster } from 'react-hot-toast';
+import { useAdmin } from '../../components/admin/adminAccess';
+import { downloadFile } from '../../downloadFile';
 import Breadcrumb from '../../components/common/Breadcrumb';
 import Button from '../../components/common/button';
 import Pagination, { usePagination } from '../../components/common/Pagination';
@@ -13,6 +16,22 @@ import { URL } from '../../Utils';
 
 const ProblemStatementsList = () => {
   const navigate = useNavigate();
+  const { can } = useAdmin();
+  const [zipping, setZipping] = useState(false);
+
+  // one Excel report per problem statement, zipped (filters and columns: Exports page)
+  const downloadReports = async () => {
+    setZipping(true);
+    const busy = toast.loading("Preparing one report per problem statement…");
+    try {
+      const name = await downloadFile(`${URL}/admin/export/problem-reports`, { includeEmptyProblems: true }, "problem_reports.zip");
+      toast.success(`Downloaded ${name}`, { id: busy });
+    } catch (err) {
+      toast.error(err.message, { id: busy });
+    } finally {
+      setZipping(false);
+    }
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -138,6 +157,7 @@ const ProblemStatementsList = () => {
 
   return (
     <div className="min-h-screen bg-[#F7F8FC] px-6 py-8 transition-all duration-300">
+      <Toaster position="top-right" />
       <div className="mb-6">
         <Breadcrumb />
       </div>
@@ -155,6 +175,16 @@ const ProblemStatementsList = () => {
 
         <div className="flex flex-wrap gap-3">
           <button
+            onClick={downloadReports}
+            disabled={zipping}
+            title="A ZIP with one Excel report per problem statement and every team's submission in it"
+            className="flex items-center gap-2 bg-white border border-gray-300 text-[#1A202C] hover:bg-gray-50 px-5 py-2.5 rounded-xl shadow-sm transition-all disabled:opacity-60"
+          >
+            <FiArchive className="text-lg text-[#FF9900]" />
+            {zipping ? "Preparing…" : "Download reports (ZIP)"}
+          </button>
+          {can('PROBLEMS') && (<>
+          <button
             onClick={() => navigate('/admin/problems/import')}
             className="flex items-center gap-2 bg-white border border-[#FF9900] text-[#FF9900] hover:bg-[#FF9900] hover:text-white px-5 py-2.5 rounded-xl shadow-sm transition-all"
           >
@@ -168,6 +198,7 @@ const ProblemStatementsList = () => {
             <FiPlus className="text-lg" />
             Create Problem Statement
           </button>
+          </>)}
         </div>
       </div>
 

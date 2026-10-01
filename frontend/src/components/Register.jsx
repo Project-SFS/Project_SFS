@@ -1,10 +1,10 @@
 import axios from "axios";
+import AuthLayout from "./AuthLayout";
 import React, { useState, useEffect } from "react";
 import {URL} from "../Utils";
-import toast, {Toaster} from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useNavigate, Link } from "react-router-dom";
 import PasswordFields, { passwordsReady, passwordIsValid } from "./PasswordFields";
-import Header from "./Header";
 
 const RoleSelect = ({ value, onChange, error }) => (
   <div className="mb-4">
@@ -198,213 +198,206 @@ const Register = () => {
   };
 
   return (
-    // starts below the fixed header and grows with the form, so nothing is hidden or cut off
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex justify-center items-start px-4 pt-28 pb-12">
-      <Header />
-      <Toaster position="top-right" />
-      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden md:flex">
-        <div className="hidden md:flex md:w-2/5 bg-gradient-to-br from-orange-400 to-orange-600 items-center justify-center p-10 relative">
-          <div className="absolute inset-0 bg-[#494949] bg-opacity-20"></div>
-          <div className="text-white text-center relative z-10">
-            <h2 className="text-4xl font-bold mb-4">Join Us</h2>
-            <p className="text-lg opacity-90">Create your account to get started with SFS Portal</p>
-            <div className="mt-8">
-              <svg className="w-24 h-24 mx-auto text-white opacity-80" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+    <AuthLayout
+      title="Create your SPOC account"
+      subtitle="For college coordinators. Verify your email, then add your details; an admin approves new SPOC accounts."
+    >
+      {/* two steps: verify the email address, then the account details */}
+      <ol className="flex items-center gap-3 mb-6 text-sm">
+        {[["1", "Verify email", true], ["2", "Your details", emailVerified]].map(([n, label, active], i) => (
+          <li key={n} className="flex items-center gap-3">
+            {i > 0 && <span className={`h-px w-8 ${active ? "bg-[#fc9300]" : "bg-gray-200"}`} />}
+            <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${active ? "bg-[#fc9300] text-white" : "bg-gray-100 text-gray-500"}`}>
+              {i === 0 && emailVerified ? "✓" : n}
+            </span>
+            <span className={active ? "font-semibold text-gray-900" : "text-gray-500"}>{label}</span>
+          </li>
+        ))}
+      </ol>
+      <form onSubmit={onSubmit} className="space-y-5" aria-label="Register form">
+        {/* Email Field */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
               </svg>
             </div>
+            <input
+              type="email"
+              value={email}
+              onChange={handleemail}
+              required
+              placeholder="Enter Your Email"
+              disabled={emailVerified}
+              className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-[#fc9300] transition`}
+              aria-invalid={!!errors.email}
+            />
           </div>
+          {errors.email && (
+            <div className="mt-2 text-sm text-red-600" role="alert">
+              {errors.email}
+            </div>
+          )}
         </div>
-        <div className="w-full md:w-3/5 p-6 sm:p-10">
-          <div className="text-center mb-6">
-            <h3 className="text-3xl font-bold text-gray-800 mb-2">Sign Up</h3>
-            <p className="text-gray-600">Create your account to access the SFS Portal</p>
+
+        {/* Verify Email Button */}
+        {!otpSent && !emailVerified && (
+          <div>
+            <button
+              type="button"
+              onClick={handleSendOtp}
+              className="w-full bg-[#fc9300] text-white py-3 rounded-xl font-semibold hover:bg-[#e68400] focus:outline-none focus:ring-2 focus:ring-orange-300 focus:ring-offset-2 transition"
+            >
+              Verify Email
+            </button>
           </div>
-          <form onSubmit={onSubmit} className="space-y-5" aria-label="Register form">
-            {/* Email Field */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                  </svg>
-                </div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={handleemail}
-                  required
-                  placeholder="Enter Your Email"
-                  disabled={emailVerified}
-                  className={`w-full pl-10 pr-4 py-3 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                  aria-invalid={!!errors.email}
-                />
+        )}
+
+        {/* OTP Field */}
+        {otpSent && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">OTP</label>
+            <input
+              name="otp"
+              type="text"
+              value={form.otp}
+              onChange={onChange}
+              placeholder="Enter OTP"
+              className={`w-full px-4 py-3 border ${errors.otp ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-[#fc9300] transition`}
+              aria-invalid={!!errors.otp}
+            />
+            {errors.otp && (
+              <div className="mt-2 text-sm text-red-600" role="alert">
+                {errors.otp}
               </div>
-              {errors.email && (
+            )}
+            <button
+              type="button"
+              onClick={handleVerifyOtp}
+              className="mt-3 w-full bg-[#fc9300] text-white py-3 rounded-xl font-semibold hover:bg-[#e68400] focus:outline-none focus:ring-2 focus:ring-orange-300 focus:ring-offset-2 transition"
+            >
+              Verify OTP
+            </button>
+            <button
+              type="button"
+              onClick={handleSendOtp}
+              disabled={resendIn > 0}
+              className="mt-2 w-full text-sm font-semibold text-orange-600 hover:underline disabled:text-gray-400 disabled:no-underline"
+            >
+              {resendIn > 0 ? `Resend OTP in ${resendIn}s` : "Didn't get it? Resend OTP"}
+            </button>
+            <p className="mt-1 text-xs text-gray-500 text-center">
+              Check your Spam folder too. To use a different email, just change it above.
+            </p>
+          </div>
+        )}
+
+        {/* Remaining fields only after verification */}
+        {emailVerified && (
+          <>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+              <div className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-700">
+                SPOC (college coordinator)
+              </div>
+              {errors.role && (
                 <div className="mt-2 text-sm text-red-600" role="alert">
-                  {errors.email}
+                  {errors.role}
                 </div>
               )}
             </div>
 
-            {/* Verify Email Button */}
-            {!otpSent && !emailVerified && (
-              <div>
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-200 transform hover:scale-105"
-                >
-                  Verify Email
-                </button>
-              </div>
-            )}
-
-            {/* OTP Field */}
-            {otpSent && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">OTP</label>
-                <input
-                  name="otp"
-                  type="text"
-                  value={form.otp}
-                  onChange={onChange}
-                  placeholder="Enter OTP"
-                  className={`w-full px-4 py-3 border ${errors.otp ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                  aria-invalid={!!errors.otp}
-                />
-                {errors.otp && (
-                  <div className="mt-2 text-sm text-red-600" role="alert">
-                    {errors.otp}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={handleVerifyOtp}
-                  className="mt-3 w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-200 transform hover:scale-105"
-                >
-                  Verify OTP
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={resendIn > 0}
-                  className="mt-2 w-full text-sm font-semibold text-orange-600 hover:underline disabled:text-gray-400 disabled:no-underline"
-                >
-                  {resendIn > 0 ? `Resend OTP in ${resendIn}s` : "Didn't get it? Resend OTP"}
-                </button>
-                <p className="mt-1 text-xs text-gray-500 text-center">
-                  Check your Spam folder too. To use a different email, just change it above.
-                </p>
-              </div>
-            )}
-
-            {/* Remaining fields only after verification */}
-            {emailVerified && (
-              <>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
-                  <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
-                    SPOC (college coordinator)
-                  </div>
-                  {errors.role && (
-                    <div className="mt-2 text-sm text-red-600" role="alert">
-                      {errors.role}
-                    </div>
-                  )}
+            <div>
+              <PasswordFields
+                password={form.password}
+                confirm={form.confirmPassword}
+                onPasswordChange={setPasswordField("password")}
+                onConfirmChange={setPasswordField("confirmPassword")}
+                inputClassName={`w-full px-4 py-3 border ${errors.password ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-[#fc9300] transition`}
+              />
+              {errors.password && (
+                <div className="mt-2 text-sm text-red-600" role="alert">
+                  {errors.password}
                 </div>
+              )}
+            </div>
 
+            {(form.role === "spoc") && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
                 <div>
-                  <PasswordFields
-                    password={form.password}
-                    confirm={form.confirmPassword}
-                    onPasswordChange={setPasswordField("password")}
-                    onConfirmChange={setPasswordField("confirmPassword")}
-                    inputClassName={`w-full px-4 py-3 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">SPOC Name</label>
+                  <input
+                    name="name"
+                    type="text"
+                    value={form.name}
+                    onChange={onChange}
+                    placeholder="Enter SPOC Name"
+                    className={`w-full px-4 py-3 border ${errors.name ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-[#fc9300] transition`}
+                    aria-invalid={!!errors.name}
                   />
-                  {errors.password && (
+                  {errors.name && (
                     <div className="mt-2 text-sm text-red-600" role="alert">
-                      {errors.password}
+                      {errors.name}
                     </div>
                   )}
                 </div>
-
-                {(form.role === "spoc") && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">SPOC Name</label>
-                      <input
-                        name="name"
-                        type="text"
-                        value={form.name}
-                        onChange={onChange}
-                        placeholder="Enter SPOC Name"
-                        className={`w-full px-4 py-3 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                        aria-invalid={!!errors.name}
-                      />
-                      {errors.name && (
-                        <div className="mt-2 text-sm text-red-600" role="alert">
-                          {errors.name}
-                        </div>
-                      )}
+                <div className="sm:col-span-2 sm:order-last">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">College</label>
+                  <input
+                    name="college"
+                    type="text"
+                    value={form.college}
+                    onChange={onChange}
+                    placeholder="Enter College Name"
+                    className={`w-full px-4 py-3 border ${errors.college ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-[#fc9300] transition`}
+                    aria-invalid={!!errors.college}
+                  />
+                  {errors.college && (
+                    <div className="mt-2 text-sm text-red-600" role="alert">
+                      {errors.college}
                     </div>
-                    <div className="sm:col-span-2 sm:order-last">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">College</label>
-                      <input
-                        name="college"
-                        type="text"
-                        value={form.college}
-                        onChange={onChange}
-                        placeholder="Enter College Name"
-                        className={`w-full px-4 py-3 border ${errors.college ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                        aria-invalid={!!errors.college}
-                      />
-                      {errors.college && (
-                        <div className="mt-2 text-sm text-red-600" role="alert">
-                          {errors.college}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">College ID</label>
-                      <input
-                        name="collegeid"
-                        type="text"
-                        value={form.collegeid}
-                        onChange={onChange}
-                        placeholder="Enter College ID"
-                        className={`w-full px-4 py-3 border ${errors.collegeid ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                        aria-invalid={!!errors.collegeid}
-                      />
-                      {errors.collegeid && (
-                        <div className="mt-2 text-sm text-red-600" role="alert">
-                          {errors.collegeid}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-
-                <div>
-                  <button
-                    type="submit"
-                    disabled={!isPasswordValid}
-                    className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-                  >
-                    Sign Up
-                  </button>
+                  )}
                 </div>
-              </>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">College ID</label>
+                  <input
+                    name="collegeid"
+                    type="text"
+                    value={form.collegeid}
+                    onChange={onChange}
+                    placeholder="Enter College ID"
+                    className={`w-full px-4 py-3 border ${errors.collegeid ? 'border-red-500' : 'border-gray-200'} rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-[#fc9300] transition`}
+                    aria-invalid={!!errors.collegeid}
+                  />
+                  {errors.collegeid && (
+                    <div className="mt-2 text-sm text-red-600" role="alert">
+                      {errors.collegeid}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
-          </form>
-          <div className="mt-6 text-center">
-            <p className="text-gray-600">Already have an account? <a href="/login" className="text-orange-600 hover:text-orange-800 font-medium transition duration-200">Sign In</a></p>
-          </div>
-        </div>
-      </div>
-    </div>
+
+
+            <div>
+              <button
+                type="submit"
+                disabled={!isPasswordValid}
+                className="w-full bg-[#fc9300] text-white py-3 rounded-xl font-semibold hover:bg-[#e68400] focus:outline-none focus:ring-2 focus:ring-orange-300 focus:ring-offset-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sign Up
+              </button>
+            </div>
+          </>
+        )}
+      </form>
+      <p className="mt-6 text-center text-gray-600">
+        Already have an account?{" "}
+        <Link to="/login" className="text-[#fc9300] hover:text-[#c76f00] font-semibold">Sign in</Link>
+      </p>
+    </AuthLayout>
   );
 };
 

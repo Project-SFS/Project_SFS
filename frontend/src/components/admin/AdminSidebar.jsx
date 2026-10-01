@@ -1,11 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiFileText, FiUsers, FiCheckSquare, FiX, FiUserPlus } from 'react-icons/fi';
+import { FiHome, FiFileText, FiUsers, FiCheckSquare, FiX, FiUserPlus, FiDownload } from 'react-icons/fi';
+import { useAdmin } from './adminAccess';
 import yourLogo from '../../assets/image.png';
 
 const NavItem = ({ to, icon, children, isExpanded, onClick }) => (
   <NavLink
     to={to}
+    end={to === "/admin/users"}
     onClick={onClick}
     className={({ isActive }) =>
       `flex items-center h-12 text-gray-200 transition-colors duration-200 
@@ -27,7 +29,19 @@ const NavItem = ({ to, icon, children, isExpanded, onClick }) => (
   </NavLink>
 );
 
+// sidebar entries; "permission" hides an entry from admins without it
+const NAV = [
+  { to: "/admin/dashboard", label: "Dashboard", icon: FiHome },
+  { to: "/admin/problems", label: "Problem Statements", icon: FiFileText },
+  { to: "/admin/users", label: "Users", icon: FiUsers, permission: "USERS" },
+  { to: "/admin/users/create", label: "Create User", icon: FiUserPlus, permission: "USERS" },
+  { to: "/admin/approvals", label: "Approvals", icon: FiCheckSquare, permission: "USERS" },
+  { to: "/admin/exports", label: "Exports", icon: FiDownload },
+];
+
 const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }) => {
+  const { can } = useAdmin();
+  const items = NAV.filter((item) => !item.permission || can(item.permission));
   const closeMobileSidebar = () => setMobileOpen(false);
 
   return (
@@ -50,21 +64,11 @@ const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }
         </div>
 
         <nav className="flex-grow mt-6">
-          <NavItem to="/admin/dashboard" icon={<FiHome size={20} />} isExpanded={isExpanded}>
-            Dashboard
-          </NavItem>
-          <NavItem to="/admin/problems" icon={<FiFileText size={20} />} isExpanded={isExpanded}>
-            Problem Statements
-          </NavItem>
-          <NavItem to="/admin/users" icon={<FiUsers size={20} />} isExpanded={isExpanded}>
-            Users
-          </NavItem>
-          <NavItem to="/admin/users/create" icon={<FiUserPlus size={20} />} isExpanded={isExpanded}>
-            Create User
-          </NavItem>
-          <NavItem to="/admin/approvals" icon={<FiCheckSquare size={20} />} isExpanded={isExpanded}>
-            Approvals
-          </NavItem>
+          {items.map(({ to, label, icon: Icon }) => (
+            <NavItem key={to} to={to} icon={<Icon size={20} />} isExpanded={isExpanded}>
+              {label}
+            </NavItem>
+          ))}
         </nav>
       </aside>
 
@@ -81,21 +85,11 @@ const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }
           </button>
         </div>
         <nav className="flex-grow mt-6" onClick={closeMobileSidebar}>
-          <NavItem to="/admin/dashboard" icon={<FiHome size={20} />} isExpanded={true}>
-            Dashboard
-          </NavItem>
-          <NavItem to="/admin/problems" icon={<FiFileText size={20} />} isExpanded={true}>
-            Problem Statements
-          </NavItem>
-          <NavItem to="/admin/users" icon={<FiUsers size={20} />} isExpanded={true}>
-            Users
-          </NavItem>
-          <NavItem to="/admin/users/create" icon={<FiUserPlus size={20} />} isExpanded={true}>
-            Create User
-          </NavItem>
-          <NavItem to="/admin/approvals" icon={<FiCheckSquare size={20} />} isExpanded={true}>
-            Approvals
-          </NavItem>
+          {items.map(({ to, label, icon: Icon }) => (
+            <NavItem key={to} to={to} icon={<Icon size={20} />} isExpanded={true}>
+              {label}
+            </NavItem>
+          ))}
         </nav>
       </aside>
     </>

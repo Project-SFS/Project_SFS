@@ -16,8 +16,10 @@ import {
 import { URL } from '../../Utils';
 import { StatusBadge, normalizeStatus } from '../../submissionStatus';
 import Pagination, { usePagination } from '../../components/common/Pagination';
+import { useAdmin } from '../../components/admin/adminAccess';
 
 const ProblemStatementDetail = () => {
+  const { can } = useAdmin();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -204,6 +206,7 @@ const ProblemStatementDetail = () => {
         <div className="flex justify-between items-center mb-6">
           <Breadcrumb />
           <div className="flex gap-4">
+            {can('PROBLEMS') && (<>
             <Button
               onClick={() => navigate(`/admin/problems/edit/${id}`)}
               className="!bg-white border border-[#FF9900] !text-[#FF9900] hover:!bg-[#FF9900] hover:!text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm transition-all duration-200"
@@ -218,6 +221,7 @@ const ProblemStatementDetail = () => {
               <FiTrash2 className="w-5 h-5" />
               <span>Delete</span>
             </Button>
+            </>)}
             <Button
               onClick={() => navigate(-1)}
               className="!bg-[#FF9900] !hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
@@ -381,7 +385,7 @@ const ProblemStatementDetail = () => {
                       onClick={() => navigate(`/admin/submissions/${sub.id}/details`)}
                       className="bg-[#FF9900] text-white font-bold px-4 py-2 rounded-xl shadow hover:bg-[#e68900]"
                     >
-                      {sub.status === 'PENDING' ? 'Review' : 'View / Re-review'}
+                      {!can('EVALUATE') ? 'View' : sub.status === 'PENDING' ? 'Review' : 'View / Re-review'}
                     </button>
 
                   </td>

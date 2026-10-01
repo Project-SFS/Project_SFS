@@ -163,6 +163,17 @@ const Header = () => {
                           );
                         })()}
 
+                        {userRole === 'SPOC' && (
+                          <Link
+                            to="/spoc/profile"
+                            className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                            onClick={() => setIsProfileDropdownOpen(false)}
+                          >
+                            <HiUser className="mr-3 h-5 w-5 text-gray-400" />
+                            My Profile
+                          </Link>
+                        )}
+
                         <button
                           onClick={handleLogout}
                           className="flex w-full items-center px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -223,7 +234,7 @@ const Header = () => {
                 to={
                   userRole === 'STUDENT' ? '/student' :
                     userRole === 'SPOC' ? '/spoc' :
-                      userRole === 'ADMIN' ? '/admin' : '/profile'
+                      userRole === 'ADMIN' ? '/admin' : '/'
                 }
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center mt-2 px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-black/20 hover:text-orange-400"

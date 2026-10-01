@@ -11,33 +11,96 @@ const FAQ = () => {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  const faqData = [
-    {
-      question: "What is Solve for Sakthi?",
-      answer:
-        "Solve for Sakthi is an innovative initiative connecting students with real-world manufacturing challenges. It empowers them to collaborate, innovate, and solve problems using technology and creativity.",
-    },
-    {
-      question: "Who can participate?",
-      answer:
-        "Any student passionate about innovation and problem-solving can participate. Teams are encouraged to include members from diverse disciplines.",
-    },
-    {
-      question: "How do I register?",
-      answer:
-        "Visit our official registration page and complete the form with required details. Once registered, you can access problem statements and join a team.",
-    },
-    {
-      question: "What types of problems are available?",
-      answer:
-        "Challenges include supply chain optimization, manufacturing process improvements, and sustainable industry practices, provided directly by industry partners.",
-    },
-    {
-      question: "How are submissions evaluated?",
-      answer:
-        "Expert evaluators assess submissions based on innovation, feasibility, impact, and technical excellence. Constructive feedback is shared with all teams.",
-    }
-  ];
+  
+const faqData = [
+  {
+    question: "What is Solve for Sakthi?",
+    answer:
+      "Solve for Sakthi is an innovative initiative connecting students and faculty with real-world industrial challenges. It empowers participants to collaborate, innovate, and develop practical solutions using technology and creativity.",
+  },
+  {
+    question: "Who can participate in Solve for Sakthi?",
+    answer:
+      "Students and faculty from participating institutions can take part, individually or as teams, based on the challenge requirements.",
+  },
+  {
+    question: "What kind of challenges are offered?",
+    answer:
+      "Challenges are drawn from real-time industrial needs across manufacturing, quality, automation, digitalisation, sustainability, safety, productivity, and related areas.",
+  },
+  {
+    question: "Can participants choose their preferred challenge?",
+    answer:
+      "Yes. Participants can explore the available challenges and select one aligned with their interests, knowledge, and capabilities.",
+  },
+  {
+    question: "How do I register?",
+    answer:
+      "Visit the official Solve for Sakthi registration page and complete the required details. Once registered, you can access available challenges and participate according to the challenge requirements.",
+  },
+  {
+    question: "Will industry experts support the teams?",
+    answer:
+      "Yes. Selected teams will receive guidance and feedback from Sakthi Auto experts during the solution-development process.",
+  },
+  {
+    question: "What is expected from participants?",
+    answer:
+      "Participants are expected to understand the problem, develop a practical solution, and clearly present their approach, implementation, and outcomes.",
+  },
+  {
+    question: "How will solutions be evaluated?",
+    answer:
+      "Solutions may be assessed based on relevance, feasibility, innovation, practicality, scalability, and potential industrial impact.",
+  },
+  {
+    question: "What happens to promising solutions?",
+    answer:
+      "High-potential solutions may be considered for further validation, pilot testing, refinement, or implementation.",
+  },
+  {
+    question: "Will participants receive recognition?",
+    answer:
+      "Suitable recognition may be provided for meaningful contributions and high-impact solutions.",
+  },
+  {
+    question: "Can multidisciplinary teams participate?",
+    answer:
+      "Yes. Cross-disciplinary teams are encouraged where different skills and perspectives can strengthen the solution.",
+  },
+  {
+    question: "How much time is given to solve a challenge?",
+    answer:
+      "The timeline will depend on the nature and complexity of each challenge. Specific timelines will be communicated for each challenge.",
+  },
+  {
+    question: "Will participants get access to industry data or plant insights?",
+    answer:
+      "Relevant information may be shared based on the challenge requirements and applicable confidentiality considerations.",
+  },
+  {
+    question: "Who owns the solution or intellectual property developed?",
+    answer:
+      "IP ownership and usage terms, where applicable, will be communicated clearly for each challenge before participation.",
+  },
+  {
+    question: "Can a solution be taken forward beyond the competition stage?",
+    answer:
+      "Yes. Promising solutions may progress into validation, prototyping, pilot implementation, or further collaboration.",
+  },
+  {
+    question: "Can faculty members act as mentors or collaborators?",
+    answer:
+      "Yes. Faculty participation can strengthen problem definition, technical depth, and solution development.",
+  },
+  {
+    question: "How are challenge updates communicated?",
+    answer:
+      "Important updates, timelines, mentor interactions, and submission requirements will be shared through the Solve for Sakthi platform.",
+  },
+];
+
+
 
   return (
     <div className="min-h-screen bg-white text-gray-900 py-20 px-6">

@@ -246,3 +246,17 @@ CREATE TABLE SolveForSakthi_Deadline_Reminders (
     CONSTRAINT UQ_SolveForSakthi_Deadline_Reminders UNIQUE (TEAM_ID, PROBLEM_ID, DEADLINE)
 )
 GO
+
+-- Admin permissions. The main admin (IS_SUPER_ADMIN = 1, the first admin) has everything, cannot be deleted
+-- and is the only one who manages other admins. Other admins get any of: PROBLEMS, EVALUATE, USERS.
+IF COL_LENGTH(N'dbo.SolveForSakthi_Users', N'IS_SUPER_ADMIN') IS NULL
+    ALTER TABLE SolveForSakthi_Users ADD IS_SUPER_ADMIN BIT NOT NULL CONSTRAINT DF_SolveForSakthi_Users_IS_SUPER_ADMIN DEFAULT 0
+GO
+
+IF COL_LENGTH(N'dbo.SolveForSakthi_Users', N'ADMIN_PERMISSIONS') IS NULL
+    ALTER TABLE SolveForSakthi_Users ADD ADMIN_PERMISSIONS VARCHAR(200) NULL
+GO
+
+-- admins from before permissions existed keep full access
+UPDATE SolveForSakthi_Users SET ADMIN_PERMISSIONS = 'PROBLEMS,EVALUATE,USERS' WHERE ROLE = 'ADMIN' AND ADMIN_PERMISSIONS IS NULL
+GO
