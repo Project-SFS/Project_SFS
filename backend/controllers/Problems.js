@@ -1,17 +1,13 @@
 import fs from "fs";
 import connection from "../database/db.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
-import { notifyEvaluatorAssigned } from "../utils/notifications.js";
 
 const Get_problems = AsyncHandler(async (req, res) => {
     const [problems] = await connection.query(`
         SELECT 
             p.*,
-            u.EMAIL AS evaluator_email,
             (SELECT COUNT(*) FROM SolveForSakthi_Submissions s WHERE s.PROBLEM_ID = p.ID) AS submission_count, (SELECT COUNT(*) FROM SolveForSakthi_Team_Problems tp WHERE tp.PROBLEM_ID = p.ID AND tp.STATUS = 'ASSIGNED') AS assigned_team_count, (SELECT COUNT(*) FROM SolveForSakthi_Submissions s WHERE s.PROBLEM_ID = p.ID AND s.STATUS IN ('ACCEPTED', 'REJECTED')) AS evaluated_count
         FROM SolveForSakthi_Problems p
-        LEFT JOIN SolveForSakthi_Users u 
-            ON p.Evaluator_ID = u.ID
     `);
 
     res.status(200).json({ problems });
@@ -32,24 +28,18 @@ const Get_problem_by_id = AsyncHandler(async (req, res) => {
 })
 
 const Post_problem = AsyncHandler(async (req, res) => {
-    const { title, description, sub_date,category ,reference, evaluators } = req.body;
+    const { title, description, sub_date, category, reference } = req.body;
     if (!title || !sub_date) {
         return res.status(400).json({ message: 'Title and deadline are required' });
     }
 
     const dept = "CSE"; 
-    const query = `INSERT INTO SolveForSakthi_Problems (TITLE, DESCRIPTION,SUB_DEADLINE, CATEGORY,DEPT,Reference, Evaluator_ID)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)`; 
-
-    // evaluators may arrive as an id, an array of ids, or nothing; an evaluator creating a problem owns it
-    let evaluatorId = Array.isArray(evaluators) ? evaluators[0] : evaluators;
-    if (evaluatorId == null && req.user?.ROLE === "EVALUATOR") evaluatorId = req.user.ID;
-    evaluatorId = evaluatorId != null && evaluatorId !== "" && Number.isInteger(Number(evaluatorId)) ? Number(evaluatorId) : null;
-
-    const params = [title, description, sub_date, category, dept, reference ?? null, evaluatorId];
+    // admins evaluate every problem's submissions, so a problem has no separate evaluator
+    const query = `INSERT INTO SolveForSakthi_Problems (TITLE, DESCRIPTION,SUB_DEADLINE, CATEGORY,DEPT,Reference)
+                   VALUES (?, ?, ?, ?, ?, ?)`; 
+    const params = [title, description, sub_date, category, dept, reference ?? null];
 
     const [result] = await connection.execute(query, params);
-    if (evaluatorId) notifyEvaluatorAssigned(result.insertId);
 
     res.status(201).json({ result, ...req.body });
 })
@@ -78,17 +68,4 @@ const Delete_problem = AsyncHandler(async (req, res) => {
 })
 
 
-const Get_assigned_problems = AsyncHandler(async (req, res) => {
-    const { evaluatorId } = req.params;
-
-    if (!evaluatorId) {
-        return res.status(400).json({ message: 'Evaluator ID is required' });
-    }
-
-    const query = `SELECT p.*, (SELECT COUNT(*) FROM SolveForSakthi_Submissions s WHERE s.PROBLEM_ID = p.ID) AS submission_count, (SELECT COUNT(*) FROM SolveForSakthi_Team_Problems tp WHERE tp.PROBLEM_ID = p.ID AND tp.STATUS = 'ASSIGNED') AS assigned_team_count, (SELECT COUNT(*) FROM SolveForSakthi_Submissions s WHERE s.PROBLEM_ID = p.ID AND s.STATUS IN ('ACCEPTED', 'REJECTED')) AS evaluated_count FROM SolveForSakthi_Problems p WHERE p.Evaluator_ID = ?`;
-
-    const [problems] = await connection.query(query, [evaluatorId]);
-    res.status(200).json({ problems });
-});
-
-export { Get_problems, Get_problem_by_id, Post_problem, Delete_problem, Get_assigned_problems }
+export { Get_problems, Get_problem_by_id, Post_problem, Delete_problem }

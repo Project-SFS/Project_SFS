@@ -4,19 +4,12 @@ import { FiSearch } from "react-icons/fi";
 import axios from "axios";
 import { URL } from "../../Utils";
 
-// SPOCs and evaluators who signed up themselves wait here until an admin approves or rejects them
-const TABS = [
-  { key: "ALL", label: "All" },
-  { key: "SPOC", label: "SPOC" },
-  { key: "EVALUATOR", label: "Evaluator" },
-];
-
-const roleLabel = (role) => (role === "EVALUATOR" ? "Evaluator" : "SPOC");
+// SPOCs who signed up themselves wait here until an admin approves or rejects them
+const roleLabel = () => "SPOC";
 
 const Approvals = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState(null); // { user, action: "approve" | "reject" }
   const [submitting, setSubmitting] = useState(false);
@@ -57,11 +50,8 @@ const Approvals = () => {
     }
   };
 
-  const countFor = (key) => (key === "ALL" ? requests.length : requests.filter((r) => r.ROLE === key).length);
-
   const query = searchQuery.trim().toLowerCase();
   const filteredData = requests
-    .filter((r) => activeTab === "ALL" || r.ROLE === activeTab)
     .filter((r) =>
       [r.NAME, r.EMAIL, r.COLLEGE, r.COLLEGE_CODE].some((v) => String(v || "").toLowerCase().includes(query))
     );
@@ -74,48 +64,26 @@ const Approvals = () => {
           Approvals
         </h1>
         <p className="text-[#718096] text-sm">
-          Review and manage SPOC and evaluator sign-up requests.
+          Review and manage SPOC sign-up requests.
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        {TABS.map((tab) => (
-          <div key={tab.key} className="bg-white shadow-sm rounded-2xl p-5 border border-[#E2E8F0]">
-            <h2 className="text-sm font-medium text-[#718096] mb-2">
-              {tab.key === "ALL" ? "Total Pending" : `${tab.label} Pending`}
-            </h2>
-            <p className="text-3xl font-bold text-[#FF9900]">{countFor(tab.key)}</p>
-          </div>
-        ))}
+      {/* Summary Card */}
+      <div className="bg-white shadow-sm rounded-2xl p-5 border border-[#E2E8F0] mb-8">
+        <h2 className="text-sm font-medium text-[#718096] mb-2">Pending SPOC Requests</h2>
+        <p className="text-3xl font-bold text-[#FF9900]">{requests.length}</p>
       </div>
 
-      {/* Tabs + Search */}
-      <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-        <div className="flex gap-2">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeTab === tab.key
-                ? "bg-[#FF9900] text-white shadow-sm"
-                : "bg-white text-[#718096] border border-[#E2E8F0] hover:bg-gray-50"
-                }`}
-            >
-              {tab.label} ({countFor(tab.key)})
-            </button>
-          ))}
-        </div>
-        <div className="relative w-full md:w-1/2">
-          <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
-          <input
-            type="text"
-            placeholder="Search by name, email or college..."
-            className="w-full pl-11 pr-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base shadow-sm focus:ring-2 focus:ring-[#FF9900] focus:outline-none transition-all placeholder-gray-400"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+      {/* Search */}
+      <div className="mb-6 relative w-full md:w-1/2">
+        <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+        <input
+          type="text"
+          placeholder="Search by name, email or college..."
+          className="w-full pl-11 pr-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-base shadow-sm focus:ring-2 focus:ring-[#FF9900] focus:outline-none transition-all placeholder-gray-400"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
       {/* Table */}
@@ -124,7 +92,6 @@ const Approvals = () => {
           <thead className="bg-[#F7F8FC] text-[#718096]">
             <tr>
               <th className="text-left py-3 px-4 font-medium">Name</th>
-              <th className="text-left py-3 px-4 font-medium">Role</th>
               <th className="text-left py-3 px-4 font-medium">College</th>
               <th className="text-left py-3 px-4 font-medium">Email</th>
               <th className="text-left py-3 px-4 font-medium">Date Requested</th>
@@ -134,25 +101,15 @@ const Approvals = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" className="py-5 text-center text-[#A0AEC0] italic">Loading requests...</td>
+                <td colSpan="5" className="py-5 text-center text-[#A0AEC0] italic">Loading requests...</td>
               </tr>
             ) : filteredData.length > 0 ? (
               filteredData.map((user) => (
                 <tr key={user.ID} className="hover:bg-gray-50 border-t border-[#E2E8F0] transition-all">
                   <td className="py-3 px-4 text-[#1A202C] font-medium">{user.NAME || "-"}</td>
-                  <td className="py-3 px-4">
-                    <span
-                      className={`text-xs font-semibold rounded px-2 py-0.5 ${user.ROLE === "EVALUATOR"
-                        ? "bg-blue-50 text-blue-700"
-                        : "bg-orange-50 text-[#C05621]"
-                        }`}
-                    >
-                      {roleLabel(user.ROLE)}
-                    </span>
-                  </td>
                   <td className="py-3 px-4 text-[#718096]">
                     {user.COLLEGE || "-"}
-                    {user.ROLE === "SPOC" && user.COLLEGE_CODE && (
+                    {user.COLLEGE_CODE && (
                       <span className="block text-xs text-[#A0AEC0]">{user.COLLEGE_CODE}</span>
                     )}
                   </td>
@@ -176,7 +133,7 @@ const Approvals = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="py-5 text-center text-[#A0AEC0] italic">
+                <td colSpan="5" className="py-5 text-center text-[#A0AEC0] italic">
                   {requests.length === 0 ? "No pending requests." : "No matching results found."}
                 </td>
               </tr>

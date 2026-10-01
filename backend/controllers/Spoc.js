@@ -2,13 +2,13 @@ import connection from "../database/db.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import { notifyAccountDecision } from "../utils/notifications.js";
 
-// Pending SPOC and evaluator sign-ups, shown on the admin Approvals page
+// Pending SPOC sign-ups, shown on the admin Approvals page
 const Spoc_approve = AsyncHandler(async (req, res) => {
-    const [data,error] = await connection.query("SELECT * FROM SolveForSakthi_Users WHERE STATUS='PENDING' AND ROLE IN ('SPOC', 'EVALUATOR')");
+    const [data,error] = await connection.query("SELECT * FROM SolveForSakthi_Users WHERE STATUS='PENDING' AND ROLE = 'SPOC'");
     res.status(200).json(data.map(({ PASSWORD, ...rest }) => rest))
 })
 
-// Approves or rejects one pending SPOC / evaluator. `id` is the user row (or just its ID).
+// Approves or rejects one pending SPOC. `id` is the user row (or just its ID).
 const handleSpocApprove = AsyncHandler(async (req, res) => {
     const { id, approve } = req.body;
     const userId = parseInt(id?.ID ?? id, 10);
@@ -17,7 +17,7 @@ const handleSpocApprove = AsyncHandler(async (req, res) => {
     }
 
     const [data] = await connection.query(
-        `UPDATE SolveForSakthi_Users SET STATUS = ? WHERE ID = ? AND STATUS = 'PENDING' AND ROLE IN ('SPOC', 'EVALUATOR')`,
+        `UPDATE SolveForSakthi_Users SET STATUS = ? WHERE ID = ? AND STATUS = 'PENDING' AND ROLE = 'SPOC'`,
         [approve ? "ACTIVE" : "REJECTED", userId]
     )
     if (data.affectedRows === 0) {

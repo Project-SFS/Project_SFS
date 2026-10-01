@@ -1,54 +1,163 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Document, Page, pdfjs } from 'react-pdf';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import Button from '../../components/common/button';
-import Breadcrumb from '../../components/common/Breadcrumb';
-import { FiEdit, FiSave, FiArrowLeft, FiChevronLeft, FiChevronRight, FiDownload } from 'react-icons/fi';
+import { FiArrowLeft } from 'react-icons/fi';
 import axios from 'axios';
 import { URL } from '../../Utils';
+import Button from '../../components/common/button';
+import Breadcrumb from '../../components/common/Breadcrumb';
 import DeleteSubmissionButton from '../../components/DeleteSubmissionButton';
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
 
-// Set up the worker for react-pdf
-// bundled with the app (no CDN), so the preview also works on networks without internet access
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+// Scoring rubric; the order matches the marks the backend stores (CP, PS, BV, FP, IN)
+const CRITERIA = [
+  { key: 'cp_mark', title: 'Client Problem Understanding & Context', max: 20 },
+  { key: 'ps_mark', title: 'Proposed Solution Strategy', max: 40 },
+  { key: 'bv_mark', title: 'Business Value & Impact', max: 20 },
+  { key: 'fp_mark', title: 'Feasibility & Practical Implementation', max: 10 },
+  { key: 'in_mark', title: 'Innovation', max: 10 },
+];
+const PASS_MARK = 60;
+
+// Loads the (login-protected) PDF itself so a missing or inaccessible file gets a clear message
+// instead of the browser's generic "cannot embed" fallback
+const PDFViewer = ({ url }) => {
+  const [state, setState] = useState({ status: url ? 'loading' : 'none', blobUrl: null, message: '' });
+
+  useEffect(() => {
+    if (!url) {
+      setState({ status: 'none', blobUrl: null, message: '' });
+      return undefined;
+    }
+    let objectUrl = null;
+    let cancelled = false;
+    setState({ status: 'loading', blobUrl: null, message: '' });
+    fetch(url, { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(res.status === 404
+            ? 'The solution file could not be found on the server. Ask the team to upload it again.'
+            : res.status === 401 ? 'Your session has expired. Please log in again.'
+            : 'You do not have access to this file.');
+        }
+        const blob = await res.blob();
+        objectUrl = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        if (!cancelled) setState({ status: 'ready', blobUrl: objectUrl, message: '' });
+      })
+      .catch((err) => {
+        if (!cancelled) setState({ status: 'error', blobUrl: null, message: err.message || 'Could not load the PDF.' });
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  const ready = state.status === 'ready';
+
+  return (
+    <div className="w-full bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="flex justify-between items-center bg-[#F7F8FC] px-4 py-3 border-b border-[#E2E8F0]">
+        <span className="text-[#1A202C] font-medium">Document Preview</span>
+        {ready && (
+          <div className="space-x-3">
+            <a
+              href={state.blobUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 text-sm font-medium text-[#FF9900] border border-[#FF9900] rounded-xl hover:bg-[#FF9900] hover:text-white transition-colors"
+            >
+              View Fullscreen
+            </a>
+            <a
+              href={state.blobUrl}
+              download="solution.pdf"
+              className="px-4 py-2 text-sm font-medium text-white bg-[#FF9900] rounded-xl hover:bg-[#e68900] transition-colors"
+            >
+              Download
+            </a>
+          </div>
+        )}
+      </div>
+
+      <div className="w-full bg-gray-100 h-72 md:h-[60vh] lg:h-[80vh]">
+        {ready ? (
+          <iframe src={state.blobUrl} title="Solution document" className="w-full h-full border-0" />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 px-6 text-center">
+            {state.status === 'loading' && <p>Loading document...</p>}
+            {state.status === 'none' && <p>This submission has no PDF document.</p>}
+            {state.status === 'error' && <p className="text-red-600">{state.message}</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const InfoRow = ({ label, children }) => (
+  <tr className="border-b border-[#E2E8F0]">
+    <td className="p-4 font-medium bg-[#FF9900]/5 w-1/3 text-[#1A202C]">{label}</td>
+    <td className="p-4 text-[#1A202C] break-words">{children || 'N/A'}</td>
+  </tr>
+);
+
+const statusStyle = (status) =>
+  status === 'ACCEPTED' ? 'bg-green-100 text-green-800'
+    : status === 'REJECTED' ? 'bg-red-100 text-red-800'
+    : 'bg-yellow-100 text-yellow-800';
 
 const SubmissionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [marks, setMarks] = useState('');
-  const [comments, setComments] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
+  const [scores, setScores] = useState(CRITERIA.map(() => 0));
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState(null); // { type: 'success' | 'error', text }
 
   useEffect(() => {
-    const fetchSubmission = async () => {
-      try {
-        const response = await axios.get(`${URL}/submissions/${id}`)
-        
-        setSubmission(response.data);
-        if (response.data.marks) setMarks(response.data.marks); // Assuming backend has marks
-        if (response.data.comments) setComments(response.data.comments);
-      } catch (err) {
-        console.error("Error fetching submission:", err);
-        setError("Failed to load  details.");
-      } finally {
-        setLoading(false);
-      }
+    let mounted = true;
+    setLoading(true);
+    axios.get(`${URL}/submissions/${id}`, { withCredentials: true })
+      .then((res) => {
+        if (!mounted) return;
+        setSubmission(res.data);
+        setScores(CRITERIA.map((c) => Number(res.data?.[c.key]) || 0));
+      })
+      .catch((err) => {
+        if (mounted) setError(err.response?.status === 404 ? 'Submission not found.' : 'Failed to load submission details.');
+      })
+      .finally(() => mounted && setLoading(false));
+    return () => {
+      mounted = false;
     };
-    fetchSubmission();
-  });
+  }, [id]);
+
+  const total = scores.reduce((sum, value) => sum + Number(value || 0), 0);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMessage(null);
+    try {
+      const evaluation = CRITERIA.map((c, i) => ({ title: c.title, value: Number(scores[i]) || 0, max: c.max }));
+      const res = await axios.post(`${URL}/mark_entry`, { evaluation, subid: submission.submission_id || id }, { withCredentials: true });
+      const status = res.data.total >= PASS_MARK ? 'ACCEPTED' : 'REJECTED';
+      setSubmission((prev) => ({ ...prev, status, total_mark: res.data.total }));
+      setSaveMessage({ type: 'success', text: `Evaluation saved: ${res.data.total}/100 (${status}). The team and their SPOC have been emailed.` });
+    } catch (err) {
+      setSaveMessage({ type: 'error', text: err.response?.data?.message || 'Could not save the evaluation, please try again' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formatDate = (date) =>
+    date ? new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-10 flex justify-center items-center">
+      <div className="min-h-screen bg-[#F7F8FC] flex justify-center items-center">
         <div className="text-xl text-gray-600">Loading submission details...</div>
       </div>
     );
@@ -56,10 +165,10 @@ const SubmissionDetail = () => {
 
   if (error || !submission) {
     return (
-      <div className="min-h-screen bg-gray-50 py-10">
-        <div className="max-w-4xl mx-auto bg-white shadow rounded-lg p-8">
-          <h1>{error || "Submission not found"}</h1>
-          <Button onClick={() => navigate(-1)} className="mt-4 bg-[#FF9900] text-white px-4 py-2 rounded">
+      <div className="min-h-screen bg-[#F7F8FC] py-10">
+        <div className="max-w-4xl mx-auto bg-white shadow rounded-2xl p-8">
+          <h1 className="text-lg text-[#1A202C]">{error || 'Submission not found'}</h1>
+          <Button onClick={() => navigate(-1)} className="mt-4 bg-[#FF9900] text-white px-4 py-2 rounded-xl">
             Go Back
           </Button>
         </div>
@@ -67,237 +176,105 @@ const SubmissionDetail = () => {
     );
   }
 
-  // Map backend fields to UI if needed, or use directly
-  // Backend columns: ID, SOL_TITLE, SOL_DESCRIPTION, SOL_LINK, SUB_DATE, STATUS (or SUB_STATUS), teamName, spocId, problemTitle
-  // GET /submissions/:id returns aliased columns (submission_title, team_name, solution_document, ...)
-  const submissionId = submission.submission_id || submission.ID || submission.id;
-  const solTitle = submission.submission_title || submission.SOL_TITLE || submission.sol_title || 'N/A';
-  const problemTitle = submission.problem_title || submission.problemTitle || submission.PROBLEM_TITLE || 'N/A';
-  const solDescription = submission.description || submission.SOL_DESCRIPTION || submission.sol_description || 'N/A';
-  const teamName = submission.team_name || submission.teamName || submission.TEAM_NAME || submission.TEAM_ID || 'N/A';
-  const spocId = submission.spoc_id || submission.spocId || submission.SPOC_ID || 'N/A';
-  const rawStatus = submission.status || submission.STATUS || submission.SUB_STATUS || submission.sub_status;
-  const displayStatus = rawStatus ? rawStatus.toUpperCase() : 'PENDING';
-
-  const rawDate = submission.submitted_date || submission.SUB_DATE || submission.sub_date;
-  const displayDate = rawDate ? new Date(rawDate).toLocaleDateString() : 'N/A';
-
-  // the uploaded PDF; fall back to the solution link if there is no file
-  const pdfUrl = submission.solution_document
-    ? `${URL}/${submission.solution_document}`
-    : (submission.sol_link || submission.SOL_LINK);
-
-  const onDocumentLoadSuccess = ({ numPages }) => {
-    setNumPages(numPages);
-  };
-
-  const goToPrevPage = () => {
-    setPageNumber((prev) => Math.max(prev - 1, 1));
-  };
-
-  const goToNextPage = () => {
-    setPageNumber((prev) => Math.min(prev + 1, numPages));
-  };
+  const status = String(submission.status || 'PENDING').toUpperCase();
+  const evaluated = status === 'ACCEPTED' || status === 'REJECTED';
 
   return (
-    <div className="min-h-screen bg-[#F7F8FC] py-10 px-8 transition-all duration-300">
-      <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-sm p-10 border border-[#E2E8F0]">
-        <div className="flex justify-between items-center mb-6">
+    <div className="min-h-screen bg-[#F7F8FC] py-10 px-4 sm:px-8 transition-all duration-300">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="flex justify-between items-center">
           <Breadcrumb />
           <div className="flex items-center gap-3">
-          <DeleteSubmissionButton
-            submissionId={submissionId}
-            className="rounded-xl"
-            onDeleted={() => navigate(-1)}
-          />
-          <Button
-            onClick={() => navigate(-1)}
-            className="!bg-[#FF9900] !hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            <FiArrowLeft className="w-5 h-5" />
-            <span>Back</span>
-          </Button>
+            <DeleteSubmissionButton
+              submissionId={submission.submission_id || id}
+              className="rounded-xl"
+              onDeleted={() => navigate(-1)}
+            />
+            <Button
+              onClick={() => navigate(-1)}
+              className="!bg-[#FF9900] !hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
+            >
+              <FiArrowLeft className="w-5 h-5" />
+              <span>Back</span>
+            </Button>
           </div>
         </div>
 
-        {/* Submission Information Table */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">Submission </h2>
+        {/* Submission information */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-[#E2E8F0]">
+          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">Submission</h2>
           <table className="w-full text-left border-collapse border border-[#E2E8F0] rounded-xl overflow-hidden">
             <tbody>
-              <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 w-1/3 text-[#1A202C]">Submission ID</td>
-                <td className="p-4 text-[#1A202C]">{submissionId}</td>
-              </tr>
-              <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Problem Title</td>
-                <td className="p-4 text-[#1A202C]">{problemTitle}</td>
-              </tr>
-              <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Submission Title</td>
-                <td className="p-4 text-[#1A202C]">{solTitle}</td>
-              </tr>
-              <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Description</td>
-                <td className="p-4 text-[#1A202C]">{solDescription}</td>
-              </tr>
-              <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Team Name</td>
-                <td className="p-4 text-[#1A202C]">{teamName}</td>
-              </tr>
-              <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">SPOC ID</td>
-                <td className="p-4 text-[#1A202C]">{spocId}</td>
-              </tr>
-              <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Submitted Date</td>
-                <td className="p-4 text-[#1A202C]">{displayDate}</td>
-              </tr>
-              <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Status</td>
-                <td className="p-4 flex justify-between items-center text-[#1A202C]">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${displayStatus === 'Evaluated' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                    {displayStatus}
-                  </span>
-                  <div className="flex space-x-2">
-                    {!isEditing ? (
-                      <Button
-                        onClick={() => setIsEditing(true)}
-                        className="bg-[#FF9900] hover:bg-[#e68900] text-white px-3 py-1 rounded-xl text-sm flex items-center space-x-1 shadow-md transition-all"
-                      >
-                        <FiEdit className="w-4 h-4" />
-                        <span>Edit</span>
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={() => {
-                          // Implement save logic later or mock it for now
-                          setIsEditing(false);
-                          alert('Save functionality not implemented yet.');
-                        }}
-                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-xl text-sm flex items-center space-x-1 shadow-md transition-all"
-                      >
-                        <FiSave className="w-4 h-4" />
-                        <span>Save</span>
-                      </Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-              <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Marks</td>
-                <td className="p-4 text-[#1A202C]">
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={marks}
-                      onChange={(e) => setMarks(e.target.value)}
-                      className="w-20 border border-[#E2E8F0] rounded-xl px-2 py-1 text-center bg-white text-[#1A202C]"
-                      placeholder="Marks"
-                    />
-                  ) : (
-                    marks ? `${marks}/100` : 'Not evaluated'
-                  )}
-                </td>
-              </tr>
-              <tr>
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Comments</td>
-                <td className="p-4 text-[#1A202C]">
-                  {isEditing ? (
-                    <textarea
-                      value={comments}
-                      onChange={(e) => setComments(e.target.value)}
-                      rows="2"
-                      className="w-full border border-[#E2E8F0] rounded-xl px-2 py-1 bg-white text-[#1A202C]"
-                      placeholder="Comments"
-                    />
-                  ) : (
-                    comments || 'No comments'
-                  )}
-                </td>
-              </tr>
+              <InfoRow label="Submission ID">{submission.submission_id}</InfoRow>
+              <InfoRow label="Problem Title">{submission.problem_title}</InfoRow>
+              <InfoRow label="Submission Title">{submission.submission_title}</InfoRow>
+              <InfoRow label="Description">{submission.description}</InfoRow>
+              <InfoRow label="Team Name">{submission.team_name}</InfoRow>
+              <InfoRow label="College">{submission.college_name}</InfoRow>
+              <InfoRow label="Submitted Date">{formatDate(submission.submitted_date)}</InfoRow>
+              <InfoRow label="Status">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusStyle(status)}`}>{status}</span>
+                {evaluated && submission.total_mark != null && (
+                  <span className="ml-3 font-medium">{submission.total_mark}/100</span>
+                )}
+              </InfoRow>
             </tbody>
           </table>
         </div>
 
-        {/* PDF Preview Section */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">PDF Preview</h2>
-          <div className="border border-[#E2E8F0] rounded-xl overflow-hidden bg-[#F7F8FC]">
-            <div className="flex justify-center items-center p-4">
-              {pdfUrl ? (
-                <Document
-                  file={pdfUrl}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  onLoadError={(error) => console.error('Error loading PDF:', error)}
-                  loading={
-                    <div className="flex items-center justify-center h-96">
-                      <div className="text-[#1A202C]">Loading PDF...</div>
-                    </div>
-                  }
-                >
-                  <Page
-                    pageNumber={pageNumber}
-                    renderTextLayer={true}
-                    renderAnnotationLayer={true}
-                    className="shadow-lg"
-                  />
-                </Document>
-              ) : (
-                <div className="p-10 text-gray-500">No PDF Link Available</div>
-              )}
+        {/* Solution document */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-[#E2E8F0]">
+          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">Solution Document</h2>
+          <PDFViewer url={submission.solution_document ? `${URL}/${submission.solution_document}` : null} />
+        </div>
 
-            </div>
+        {/* Evaluation */}
+        <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-[#E2E8F0]">
+          <h2 className="text-xl font-semibold mb-1 text-[#1A202C]">Evaluation</h2>
+          <p className="text-sm text-[#718096] mb-6">
+            Score each criterion. {PASS_MARK} or more out of 100 marks the solution as ACCEPTED, below that as REJECTED.
+            {evaluated && ' Saving again updates the marks and emails the team again.'}
+          </p>
 
-            {/* PDF Navigation Controls */}
-            {numPages && (
-              <div className="flex items-center justify-between bg-white px-6 py-3 border-t border-[#E2E8F0]">
-                <Button
-                  onClick={goToPrevPage}
-                  disabled={pageNumber <= 1}
-                  className={`flex items-center space-x-1 px-4 py-2 rounded-xl transition-all ${pageNumber <= 1
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-[#FF9900] hover:bg-[#e68900] text-white shadow-md'
-                    }`}
-                >
-                  <FiChevronLeft className="w-5 h-5" />
-                  <span>Previous</span>
-                </Button>
-
-                <div className="text-[#1A202C] font-medium">
-                  Page {pageNumber} of {numPages}
-                </div>
-
-                <Button
-                  onClick={goToNextPage}
-                  disabled={pageNumber >= numPages}
-                  className={`flex items-center space-x-1 px-4 py-2 rounded-xl transition-all ${pageNumber >= numPages
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-[#FF9900] hover:bg-[#e68900] text-white shadow-md'
-                    }`}
-                >
-                  <span>Next</span>
-                  <FiChevronRight className="w-5 h-5" />
-                </Button>
+          <div className="space-y-4">
+            {CRITERIA.map((c, index) => (
+              <div key={c.key} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                <span className="font-medium text-[#1A202C]">{c.title} <span className="text-[#718096]">(out of {c.max})</span></span>
+                <input
+                  type="number"
+                  min="0"
+                  max={c.max}
+                  value={scores[index]}
+                  onChange={(e) => {
+                    const value = Math.min(c.max, Math.max(0, Number(e.target.value) || 0));
+                    setScores((prev) => prev.map((v, i) => (i === index ? value : v)));
+                  }}
+                  className="w-28 border border-[#E2E8F0] rounded-xl px-3 py-2 text-center focus:ring-2 focus:ring-[#FF9900] focus:outline-none"
+                />
               </div>
-            )}
-
-            {/* Download Button */}
-            {pdfUrl && (
-              <div className="flex justify-center bg-white px-6 py-3 border-t border-[#E2E8F0]">
-                <a
-                  href={pdfUrl}
-                  download
-                  className="bg-[#FF9900] hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
-                >
-                  <FiDownload className="w-5 h-5" />
-                  <span>Download PDF</span>
-                </a>
-              </div>
-            )}
+            ))}
           </div>
+
+          <p className="text-center text-lg font-semibold mt-6 text-[#1A202C]">
+            Total Marks: <span className="text-[#FF9900]">{total} / 100</span>
+            <span className={`ml-3 px-2 py-1 rounded-full text-xs font-medium ${statusStyle(total >= PASS_MARK ? 'ACCEPTED' : 'REJECTED')}`}>
+              {total >= PASS_MARK ? 'ACCEPTED' : 'REJECTED'}
+            </span>
+          </p>
+
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full mt-6 bg-[#FF9900] text-white py-2.5 rounded-xl font-medium hover:bg-[#e68900] transition-colors disabled:opacity-60"
+          >
+            {saving ? 'Saving...' : evaluated ? 'Update Evaluation' : 'Save Evaluation'}
+          </button>
+
+          {saveMessage && (
+            <p className={`text-center mt-3 font-medium ${saveMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+              {saveMessage.text}
+            </p>
+          )}
         </div>
       </div>
     </div>

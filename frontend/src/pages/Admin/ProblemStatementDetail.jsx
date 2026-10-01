@@ -29,13 +29,6 @@ const ProblemStatementDetail = () => {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const [showSolutionModal, setShowSolutionModal] = useState(false);
-const [solutionLoading, setSolutionLoading] = useState(false);
-const [solutionData, setSolutionData] = useState(null);
-  const [activeSubmissionId, setActiveSubmissionId] = useState(null);
-  const [original, setOriginal] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(null);
-
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, [id]);
@@ -83,7 +76,6 @@ const [solutionData, setSolutionData] = useState(null);
           { withCredentials: true }
         );
 
-        setOriginal(res.data)
         
 
         if (!Array.isArray(res.data)) return;
@@ -160,28 +152,6 @@ const [solutionData, setSolutionData] = useState(null);
 
   const totalSubmissions = submissions.length;
 
-  const fetchSolution = async (submissionId) => {
-  try {
-    setSolutionLoading(true);
-    setSolutionData(null);
-
-    const res = await axios.get(
-      `${URL}/submission_solution/${submissionId}`,
-      { withCredentials: true }
-    );
-
-    // Adjust keys based on backend response
-    setSolutionData(res.data);
-  } catch (err) {
-    console.error(err);
-    toast.error('Failed to load solution');
-  } finally {
-    setSolutionLoading(false);
-  }
-  };
-  
-  
-
   /* ---------------- Loading / Error ---------------- */
 
   if (loading) {
@@ -196,60 +166,6 @@ const [solutionData, setSolutionData] = useState(null);
   }
 
 
-
-
-  {showSolutionModal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6">
-
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-semibold text-[#1A202C]">
-          Submission Solution
-        </h3>
-        <button
-          onClick={() => setShowSolutionModal(false)}
-          className="text-gray-500 hover:text-gray-700 text-xl"
-        >
-          ✕
-        </button>
-        </div>
-        
-      {/* Content */}
-      {solutionLoading ? (
-        <div className="flex justify-center items-center py-10">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FF9900]"></div>
-        </div>
-      ) : solutionData ? (
-        <div className="space-y-4">
-
-          {/* Text Solution */}
-          {solutionData.solutionText && (
-            <div className="bg-gray-50 border rounded-xl p-4 text-[#1A202C] whitespace-pre-wrap">
-              {solutionData.solutionText}
-            </div>
-          )}
-
-          {/* File / PDF Link */}
-          {solutionData.solutionFile && (
-            <a
-              href={solutionData.solutionFile}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 font-medium hover:underline"
-            >
-              View Attached Solution File
-            </a>
-          )}
-        </div>
-      ) : (
-        <p className="text-gray-500 text-center py-6">
-          No solution available
-        </p>
-      )}
-    </div>
-  </div>
-)}
 
 
   if (!problem) {
@@ -284,63 +200,6 @@ const [solutionData, setSolutionData] = useState(null);
           </div>
         </div>
         
-        {/*  data  */}
-
-        {showSolutionModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6">
-
-              {/* Header */}
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-[#1A202C]">
-                  Submission Solution
-                </h3>
-                <button
-                  onClick={() => setShowSolutionModal(false)}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Content */}
-              {solutionLoading ? (
-                <div className="flex justify-center items-center py-10">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FF9900]"></div>
-                </div>
-              ) : original ? (
-                  <div className="space-y-4">
-                    
-                  {/* Text Solution */}
-                    {original[currentIndex].SOL_DESCRIPTION && (
-                    <div className="bg-gray-50 border rounded-xl p-4 text-[#1A202C] whitespace-pre-wrap">
-                        {original[currentIndex].SOL_DESCRIPTION}
-                    </div>
-                    )}
-                    
-                  {/* File / PDF Link */}
-                    {original[currentIndex].FILES && (
-                      
-                      
-                    <a
-                      href={URL +"/" + ""+original[currentIndex]?.FILES}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 font-medium hover:underline"
-                    >
-                      View Attached Solution File
-                    </a>
-                  )}
-                </div>
-              ) : (
-                <p className="text-gray-500 text-center py-6">
-                  No solution available
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Problem Statement Information Table */}
         <div className="bg-white shadow-sm rounded-2xl p-6 border border-[#E2E8F0] mb-8">
           <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">Problem Statement Information</h2>
@@ -467,13 +326,13 @@ const [solutionData, setSolutionData] = useState(null);
               <tr>
                 <th className="p-4 font-semibold">Team Name</th>
                 <th className="p-4 font-semibold">Title</th>
-                <th className='p-4 font-semibold'>View</th>
+                <th className='p-4 font-semibold'>Evaluation</th>
                 <th className="p-4 font-semibold">Status</th>
                 <th className='p-4 font-semibold'>Marks</th>
               </tr>
             </thead>
             <tbody>
-              {filteredSubmissions.map((sub, key) => (
+              {filteredSubmissions.map((sub) => (
                 <tr
                   key={sub.id}
                   className="hover:bg-[#F9FAFB] border-t border-[#E2E8F0] transition-all"
@@ -488,17 +347,11 @@ const [solutionData, setSolutionData] = useState(null);
                   </td>
                   <td>
                     <button
-                      onClick={() => {
-                        setCurrentIndex(key);
-                        
-    setActiveSubmissionId(sub.id);
-    setShowSolutionModal(true);
-    fetchSolution(sub.id);
-  }}
-  className="bg-[#FF9900] text-white font-bold px-4 py-2 rounded-xl shadow hover:bg-[#e68900]"
->
-  Solution
-</button>
+                      onClick={() => navigate(`/admin/submissions/${sub.id}/details`)}
+                      className="bg-[#FF9900] text-white font-bold px-4 py-2 rounded-xl shadow hover:bg-[#e68900]"
+                    >
+                      {sub.status === 'PENDING' ? 'Evaluate' : 'View / Re-evaluate'}
+                    </button>
 
                   </td>
                   <td className="p-4">
@@ -516,9 +369,13 @@ const [solutionData, setSolutionData] = useState(null);
                     </span>
                   </td>
                   <td className="p-4 text-[#1A202C]">
-                      <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
-                        {sub.marks}
-                      </span>
+                      {sub.marks != null ? (
+                        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
+                          {sub.marks}/100
+                        </span>
+                      ) : (
+                        <span className="text-[#A0AEC0]">Not evaluated</span>
+                      )}
                   </td>
                 </tr>
               ))}

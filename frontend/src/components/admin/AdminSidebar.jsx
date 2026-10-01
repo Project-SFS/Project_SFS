@@ -56,7 +56,7 @@ const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }
           <NavItem to="/admin/problems" icon={<FiFileText size={20} />} isExpanded={isExpanded}>
             Problem Statements
           </NavItem>
-          <NavItem to="/admin/evaluators" icon={<FiUsers size={20} />} isExpanded={isExpanded}>
+          <NavItem to="/admin/users" icon={<FiUsers size={20} />} isExpanded={isExpanded}>
             Users
           </NavItem>
           <NavItem to="/admin/users/create" icon={<FiUserPlus size={20} />} isExpanded={isExpanded}>
@@ -87,7 +87,7 @@ const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }
           <NavItem to="/admin/problems" icon={<FiFileText size={20} />} isExpanded={true}>
             Problem Statements
           </NavItem>
-          <NavItem to="/admin/evaluators" icon={<FiUsers size={20} />} isExpanded={true}>
+          <NavItem to="/admin/users" icon={<FiUsers size={20} />} isExpanded={true}>
             Users
           </NavItem>
           <NavItem to="/admin/users/create" icon={<FiUserPlus size={20} />} isExpanded={true}>

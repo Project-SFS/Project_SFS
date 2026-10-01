@@ -194,7 +194,6 @@ export default function TeamProgress() {
                             <td className="py-2 px-3">
                               <span className="text-xs font-bold text-[#fc9300]">SFS_{p.PROBLEM_ID}</span>
                               <div className="font-medium text-gray-800">{p.TITLE}</div>
-                              {p.EVALUATOR_NAME && <div className="text-xs text-gray-500">Evaluator: {p.EVALUATOR_NAME}</div>}
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap">
                               {formatDate(p.SUB_DEADLINE)}

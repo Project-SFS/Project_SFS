@@ -129,15 +129,13 @@ const Header = () => {
                           const dashboardPaths = {
                             STUDENT: '/student',
                             SPOC: '/spoc',
-                            ADMIN: '/admin',
-                            EVALUATOR: '/evaluator'
+                            ADMIN: '/admin'
                           };
 
                           const dashboardLabels = {
                             STUDENT: 'Student Dashboard',
                             SPOC: 'SPOC Dashboard',
-                            ADMIN: 'Admin Panel',
-                            EVALUATOR: 'Evaluator Panel'
+                            ADMIN: 'Admin Panel'
                           };
 
                           const dashboardPath = dashboardPaths[userRole] || '/profile';
@@ -225,8 +223,7 @@ const Header = () => {
                 to={
                   userRole === 'STUDENT' ? '/student' :
                     userRole === 'SPOC' ? '/spoc' :
-                      userRole === 'ADMIN' ? '/admin' :
-                        userRole === 'EVALUATOR' ? '/evaluator' : '/profile'
+                      userRole === 'ADMIN' ? '/admin' : '/profile'
                 }
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="flex items-center mt-2 px-3 py-2 rounded-md text-base font-medium text-slate-200 hover:bg-black/20 hover:text-orange-400"

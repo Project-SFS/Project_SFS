@@ -6,14 +6,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiFilter, FiUsers, FiFileText, FiPlus, FiUpload } from 'react-icons/fi';
-import { mockProblemStatements, getEvaluatorUsers, mockSubmissions } from '../../mockData';
 import Breadcrumb from '../../components/common/Breadcrumb';
 import Button from '../../components/common/button';
 import { URL } from '../../Utils';
 
 const ProblemStatementsList = () => {
   const navigate = useNavigate();
-  const evaluators = getEvaluatorUsers();
   const [searchTerm, setSearchTerm] = useState('');
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -27,20 +25,8 @@ const ProblemStatementsList = () => {
     navigate(`/admin/problems/${problem.id}/details`);
   };
 
-  const getEvaluatorForProblem = (problem) => {
-    const evaluatorId = (problem.assignedEvaluators && problem.assignedEvaluators.length > 0)
-      ? problem.assignedEvaluators[0]
-      : 'E0001'; // Default fallback
-    return evaluators.find(e => e.id === evaluatorId) || null;
-  };
-
-  const getEvaluatedCount = (problemId) => {
-    const subs = (submissions && submissions.length > 0)
-      ? submissions.filter(s => String(s.problemId) === String(problemId))
-      : [];
-
-    return subs.filter(sub => ['ACCEPTED', 'REJECTED'].includes(String(sub.status).toUpperCase())).length;
-  };
+  // evaluated submissions of a problem, counted by the backend
+  const getEvaluatedCount = (problemId) => problems.find(p => p.id === String(problemId))?.evaluatedCount ?? 0;
 
   const formatDateTime = (isoString) => {
     const date = new Date(isoString);
@@ -78,10 +64,8 @@ const ProblemStatementsList = () => {
           description: p.DESCRIPTION || p.description || '',
           created: p.SUB_DATE ? new Date(p.SUB_DATE).toISOString() : (p.created || new Date().toISOString()),
           deadline: p.SUB_DEADLINE || p.deadline,
-          assignedEvaluators: p.assignedEvaluators || [],
           submissionsCount: p.submission_count ?? p.submissionsCount ?? 0,
-          evaluator: p.Evaluator_ID,
-          evaluator_email : p.evaluator_email
+          evaluatedCount: p.evaluated_count ?? 0
         })).filter(p => p.id && p.id !== ''); 
         
         setProblems(mapped);
@@ -259,8 +243,8 @@ const ProblemStatementsList = () => {
             <tr>
               <th className="p-4 font-semibold">PS ID</th>
               <th className="p-4 font-semibold">Problem Statement</th>
-              <th className="p-4 text-center font-semibold">Evaluator ID</th>
-              <th className="p-4 text-center font-semibold">Evaluator Email</th>
+              <th className="p-4 text-center font-semibold">Submissions</th>
+              <th className="p-4 text-center font-semibold">Evaluated</th>
               <th className="p-4 text-center font-semibold">Created</th>
             </tr>
           </thead>
@@ -275,8 +259,6 @@ const ProblemStatementsList = () => {
               </tr>
             ) : filteredData.length > 0 ? (
                 filteredData.map((problem) => {
-                
-                const evaluator = getEvaluatorForProblem(problem);
                 return (
                   <tr
                     key={problem.id}
@@ -298,10 +280,10 @@ const ProblemStatementsList = () => {
                       </span>
                     </td>
                     <td className="p-4 text-center text-[#1A202C]">
-                      {problem.evaluator || 'N/A'}
+                      {problem.submissionsCount}
                     </td>
                     <td className="p-4 text-center text-[#1A202C]">
-                      {problem.evaluator_email || 'N/A'}
+                      {problem.evaluatedCount} / {problem.submissionsCount}
                     </td>
                     
                     <td className="p-4 text-center text-[#718096]">

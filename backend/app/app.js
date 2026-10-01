@@ -36,7 +36,7 @@ app.use(cors((req, callback) => {
 
 app.use(cookieParser())
 
-// Solution PDFs are private to the team, its SPOC, evaluators and admins
+// Solution PDFs are private to the team, its SPOC and admins
 const uploadsDir = path.join(process.cwd(), "uploads")
 app.get("/uploads/:file", requireAuth, AsyncHandler(async (req, res) => {
     const file = path.basename(req.params.file)

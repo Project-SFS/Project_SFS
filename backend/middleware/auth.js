@@ -2,7 +2,8 @@ import jwt from "jsonwebtoken";
 import connection from "../database/db.js";
 
 // The login cookie's user, or null. The account is looked up again so a deleted or rejected
-// user loses access at once instead of when the 4 hour token expires.
+// user (or an account of the removed EVALUATOR role) loses access at once instead of when the
+// 4 hour token expires.
 const sessionUser = async (req) => {
   const token = req.cookies && req.cookies.login_creditionals;
   if (!token) return null;
@@ -12,8 +13,8 @@ const sessionUser = async (req) => {
   } catch (err) {
     return null;
   }
-  const [rows] = await connection.query("SELECT STATUS FROM SolveForSakthi_Users WHERE ID = ?", [payload.ID]);
-  if (rows.length === 0 || rows[0].STATUS === "REJECTED") return null;
+  const [rows] = await connection.query("SELECT STATUS, ROLE FROM SolveForSakthi_Users WHERE ID = ?", [payload.ID]);
+  if (rows.length === 0 || rows[0].STATUS === "REJECTED" || rows[0].ROLE === "EVALUATOR") return null;
   return payload;
 };
 

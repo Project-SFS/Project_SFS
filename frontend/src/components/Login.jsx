@@ -33,7 +33,6 @@ const Login = () => {
         setTimeout(() => {
           const role = res.data.user?.[0]?.ROLE;
           if (role === 'SPOC') navigate('/spoc');
-          else if (role === 'EVALUATOR') navigate('/evaluator');
           else if (role === 'ADMIN') navigate('/admin');
           else if (role === 'STUDENT') navigate('/student');
           else navigate('/');
@@ -43,7 +42,7 @@ const Login = () => {
 
       toast.error('Invalid Credentials');
     } catch (error) {
-      if (error.response && error.response.status === 401) {
+      if (error.response && [401, 403].includes(error.response.status)) {
         toast.error(error.response.data?.message || 'Invalid Credentials');
       } else {
         toast.error('Login Failed. Please try again.');

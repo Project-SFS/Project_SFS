@@ -28,33 +28,20 @@ import SpocDashboard from "./pages/spoc/SpocDashboard";
 // import Team_Members from "./pages/spoc/Team_Members.jsx";
 import TeamList from "./pages/spoc/TeamList.jsx";
 
-// Evaluator
-import EvaluatorLayout from "./pages/evaluator/EvaluatorLayout.jsx";
-import AssignedProblem from "./pages/evaluator/AssignedProblem.jsx";
-import SubmissionList from "./pages/evaluator/SubmissionList.jsx";
-import SubmissionDetail from "./pages/evaluator/SubmissionDetail.jsx";
-import AddProblemStatement from "./pages/evaluator/AddProblemStatement.jsx";
-import EvaluatorProblemDetail from "./pages/evaluator/EvaluatorProblemDetail.jsx";
-import EvaluatorProfile from "./pages/evaluator/EvaluatorProfile.jsx";
-
 // Admin
 import AdminLayout from "./components/admin/AdminLayout.jsx";
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
 import Approvals from "./pages/Admin/Approvals.jsx";
-import EvaluatorsList from "./pages/Admin/EvaluatorsList.jsx";
-import EvaluatorManage from "./pages/Admin/EvaluatorManage.jsx";
+import Users from "./pages/Admin/Users.jsx";
 import CreateUser from "./pages/Admin/CreateUser.jsx";
 import ProblemStatementsList from "./pages/Admin/ProblemStatementsList.jsx";
 import ProblemStatementCreate from "./pages/Admin/ProblemStatementCreate.jsx";
 import ProblemStatementEdit from "./pages/Admin/ProblemStatementEdit.jsx";
 import ProblemStatementDetail from "./pages/Admin/ProblemStatementDetail.jsx";
-import SubmissionDetail2 from "./pages/Admin/SubmissionDetail.jsx";
+import SubmissionDetail from "./pages/Admin/SubmissionDetail.jsx";
 import TeamDetails from "./pages/student/TeamDetails.jsx";
 import Team_Members from "./pages/spoc/Team_Members.jsx";
 // import TeamList from "./pages/spoc/TeamList.jsx";
-// import AssignedProblem from "./pages/evaluator/AssignedProblem.jsx";
-// import SubmissionList from "./pages/evaluator/SubmissionList.jsx";
-// import SubmissionDetail from "./pages/evaluator/SubmissionDetail.jsx";
 
 function App() {
   const showToast = (message) => {
@@ -183,22 +170,8 @@ function App() {
           }
         />
 
-        {/* Evaluator Routes */}
-        <Route
-          path="/evaluator"
-          element={
-            <ProtectedRoute allowedRoles={["EVALUATOR"]}>
-              <EvaluatorLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<AssignedProblem />} />
-          <Route path="submissions" element={<SubmissionList />} />
-          <Route path="submission/:id" element={<SubmissionDetail />} />
-          <Route path="AddProblemStatement" element={<ProblemStatementCreate />} />
-          <Route path="problem/:id" element={<EvaluatorProblemDetail />} />
-          <Route path="profile" element={<EvaluatorProfile />} />
-        </Route>
+        {/* The evaluator role was removed (admins evaluate); old links go to the home page */}
+        <Route path="/evaluator/*" element={<Navigate to="/" replace />} />
 
         {/* Admin Routes */}
         <Route
@@ -214,16 +187,15 @@ function App() {
           <Route path="approvals" element={<Approvals />} />
           <Route path="spoc-approvals" element={<Navigate to="/admin/approvals" replace />} />
           <Route path="problems/:id/details" element={<ProblemStatementDetail />} />
-          <Route path="submissions/:id/details" element={<SubmissionDetail2 />} />
+          <Route path="submissions/:id/details" element={<SubmissionDetail />} />
 
           {/* Problem Statement Management (CRUD) */}
           <Route path="problems" element={<ProblemStatementsList />} />
           <Route path="problems/create" element={<ProblemStatementCreate />} />
           <Route path="problems/edit/:id" element={<ProblemStatementEdit />} />
-          <Route path="evaluators" element={<EvaluatorsList />} />
-          <Route path="evaluators/create" element={<Navigate to="/admin/users/create" replace />} />
+          <Route path="users" element={<Users />} />
           <Route path="users/create" element={<CreateUser />} />
-          <Route path="evaluators/manage/:id" element={<EvaluatorManage />} />
+          <Route path="evaluators/*" element={<Navigate to="/admin/users" replace />} />
         </Route>
 
         {/* <Route path="*" element={<FallBack/>}/> */}

@@ -105,7 +105,7 @@ const StudentNav = () => {
                     </h2>
                     <p className="text-sm text-gray-600">
                       Every solution your team submitted, with its status and
-                      the evaluator's marks.
+                      marks.
                     </p>
                   </div>
                   <Student_submitions />

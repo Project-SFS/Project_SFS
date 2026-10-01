@@ -55,11 +55,9 @@ const Get_spoc_progress = AsyncHandler(async (req, res) => {
 
     const [assignments] = await connection.query(`
         SELECT tp.TEAM_ID, tp.STATUS AS ASSIGNMENT_STATUS, tp.REQUESTED_DATE, tp.ASSIGNED_DATE,
-               p.ID AS PROBLEM_ID, p.TITLE, p.DESCRIPTION, p.CATEGORY, p.SUB_DEADLINE, p.Reference,
-               ev.NAME AS EVALUATOR_NAME
+               p.ID AS PROBLEM_ID, p.TITLE, p.DESCRIPTION, p.CATEGORY, p.SUB_DEADLINE, p.Reference
         FROM SolveForSakthi_Team_Problems tp
         JOIN SolveForSakthi_Problems p ON p.ID = tp.PROBLEM_ID
-        LEFT JOIN SolveForSakthi_Users ev ON ev.ID = p.Evaluator_ID
         WHERE tp.TEAM_ID IN (${teams.map(() => "?").join(", ")})
         ORDER BY p.SUB_DEADLINE, p.ID`, teams.map((t) => t.ID));
 

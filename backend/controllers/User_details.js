@@ -17,12 +17,12 @@ const signup = AsyncHandler(async (req, res) => {
     }
     
     // Who may create which account:
-    //   SPOC / EVALUATOR - anyone, once the email passed the OTP check; an admin then approves them
+    //   SPOC - anyone, once the email passed the OTP check; an admin then approves them
     //   STUDENT (team lead login) - only a logged-in SPOC or ADMIN, from the team screen
     //   anything else (e.g. ADMIN) - never through this endpoint
     const requestedRole = String(role).toUpperCase();
     const creatorRole = String(req.user?.ROLE || "").toUpperCase();
-    if (requestedRole === "SPOC" || requestedRole === "EVALUATOR") {
+    if (requestedRole === "SPOC") {
         if (!isEmailVerified(email)) {
             return res.status(403).json({ message: "Verify your email with the OTP first" });
         }
@@ -36,7 +36,7 @@ const signup = AsyncHandler(async (req, res) => {
 
     let bcryptpass = hashSync(password, 10);
     try {
-        if (requestedRole === "SPOC" || requestedRole === "EVALUATOR") {
+        if (requestedRole === "SPOC") {
             const query = `INSERT INTO SolveForSakthi_Users(EMAIL,PASSWORD, ROLE, COLLEGE, COLLEGE_CODE, NAME, DATE, STATUS) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')`;
             const params = [email, bcryptpass, requestedRole, college, college_code, name, date];
             const [result] = await connection.query(query, params);
@@ -132,6 +132,10 @@ const login = async (req, res) => {
     }
 
     let rs = user.STATUS
+    // the evaluator role was removed (admins evaluate now); old evaluator accounts can no longer log in
+    if (response && user.ROLE === "EVALUATOR") {
+        return res.status(403).json({ data: "REMOVED", message: "Evaluator accounts are no longer used. Please contact the platform admin." });
+    }
     if (rs === "ACTIVE" && response) {
         // successful login: clear any recorded attempts
         loginAttempts.delete(clientKey);
@@ -144,7 +148,7 @@ const login = async (req, res) => {
 
         res.json({ data: response, user: safeUser })
     }
-    else if (rs == 'PENDING') {
+    else if (rs == 'PENDING' && response) {
         res.json({ data: "PENDING", user: safeUser })
     }
     else {
@@ -155,7 +159,7 @@ const login = async (req, res) => {
             attempt.count = (attempt.count || 0) + 1;
             loginAttempts.set(clientKey, attempt);
         }
-        res.status(401).json({ data: "REJECTED", user: safeUser })
+        res.status(401).json({ data: "REJECTED", message: rs === "REJECTED" && response ? "Your account request was rejected" : "Invalid credentials" })
     }
 
 }
@@ -175,11 +179,6 @@ const GetAllUsers = AsyncHandler(async (req, res) => {
     const [users] = await connection.query("SELECT * FROM SolveForSakthi_Users");
     res.status(200).json(users.map(({ PASSWORD, ...rest }) => rest));
 });
-
-const GetAllEvaluators = AsyncHandler(async (req, res) => {
-    const [users, error] = await connection.query("SELECT * FROM SolveForSakthi_Users WHERE ROLE='EVALUATOR'")
-    res.send(users.map(({ PASSWORD, ...rest }) => rest))
-})
 
 const verifyEmail = async (req, res) => {
     const { email } = req.body;
@@ -231,18 +230,18 @@ const UpdateUser = AsyncHandler(async (req, res) => {
     }
 });
 
-export { signup, login, logout, GetAllUsers, GetAllEvaluators, verifyEmail, UpdateUser }
+export { signup, login, logout, GetAllUsers, verifyEmail, UpdateUser }
 
-// Platform admin creates an ADMIN, SPOC or EVALUATOR account. It is active immediately (no OTP or
+// Platform admin creates an ADMIN or SPOC account. It is active immediately (no OTP or
 // approval) and behaves exactly like a self-registered account of that role, including new admins.
-const CREATABLE_ROLES = ["ADMIN", "SPOC", "EVALUATOR"]
+const CREATABLE_ROLES = ["ADMIN", "SPOC"]
 const Admin_create_user = AsyncHandler(async (req, res) => {
     const { email, name, college, phone } = req.body;
     const role = String(req.body.role || "").toUpperCase();
     let { password, college_code } = req.body;
 
     if (!CREATABLE_ROLES.includes(role)) {
-        return res.status(400).json({ message: "Role must be ADMIN, SPOC or EVALUATOR" });
+        return res.status(400).json({ message: "Role must be ADMIN or SPOC" });
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim()) || !name || !String(name).trim()) {
         return res.status(400).json({ message: "Name and a valid email are required" });
@@ -278,8 +277,9 @@ const Admin_create_user = AsyncHandler(async (req, res) => {
 
 export { Admin_create_user }
 
-// Platform admin deletes an ADMIN, SPOC or EVALUATOR account. Nothing is left pointing at a missing user:
-//  - EVALUATOR: their problems stay, just without an evaluator (an admin can assign a new one)
+// Platform admin deletes an ADMIN or SPOC account (or a leftover account of the removed EVALUATOR role).
+// Nothing is left pointing at a missing user:
+//  - EVALUATOR (old accounts): their problems stay, just without an evaluator
 //  - SPOC: only once they have no teams, so no team, login or submission is orphaned
 //  - ADMIN: never yourself, and never the last admin
 const Admin_delete_user = AsyncHandler(async (req, res) => {
@@ -296,7 +296,7 @@ const Admin_delete_user = AsyncHandler(async (req, res) => {
         return res.status(404).json({ message: "User not found" });
     }
     const role = String(user.ROLE).toUpperCase();
-    if (!CREATABLE_ROLES.includes(role)) {
+    if (![...CREATABLE_ROLES, "EVALUATOR"].includes(role)) {
         return res.status(400).json({ message: "Team logins are removed by deleting the team" });
     }
     if (role === "ADMIN") {

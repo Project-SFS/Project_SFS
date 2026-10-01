@@ -2,22 +2,21 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
-import { FiShield, FiBriefcase, FiCheckCircle, FiUserPlus } from "react-icons/fi";
+import { FiShield, FiBriefcase, FiUserPlus } from "react-icons/fi";
 import { URL } from "../../Utils";
 
 const ROLES = [
-  { value: "ADMIN", label: "Platform Admin", icon: FiShield, hint: "Full access, same as the main admin: approvals, problem statements, users." },
+  { value: "ADMIN", label: "Platform Admin", icon: FiShield, hint: "Full access, same as the main admin: approvals, problem statements, evaluating submissions, users." },
   { value: "SPOC", label: "SPOC", icon: FiBriefcase, hint: "College coordinator: creates teams and assigns problem statements to them." },
-  { value: "EVALUATOR", label: "Evaluator", icon: FiCheckCircle, hint: "Reviews and scores the solutions for the problem statements assigned to them." },
 ];
 
 const EMPTY = { name: "", email: "", phone: "", college: "", college_code: "", password: "" };
 
-// Platform admin creates Admin / SPOC / Evaluator accounts. They are active immediately and the
+// Platform admin creates Admin / SPOC accounts. They are active immediately and the
 // new user receives their login details by email.
 export default function CreateUser() {
   const navigate = useNavigate();
-  const [role, setRole] = useState("EVALUATOR");
+  const [role, setRole] = useState("SPOC");
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState(null);
@@ -59,7 +58,7 @@ export default function CreateUser() {
         <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
           <b>{created.name}</b> ({created.email}) was created as{" "}
           <b>{ROLES.find((r) => r.value === created.role)?.label}</b>. They can log in now.
-          <button onClick={() => navigate("/admin/evaluators")} className="ml-2 underline font-semibold">
+          <button onClick={() => navigate("/admin/users")} className="ml-2 underline font-semibold">
             View users
           </button>
         </div>
@@ -68,7 +67,7 @@ export default function CreateUser() {
       <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-8 space-y-6">
         <div>
           <span className={label}>Role</span>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {ROLES.map(({ value, label: text, icon: Icon }) => (
               <button
                 type="button"
@@ -112,12 +111,6 @@ export default function CreateUser() {
                 <input name="college_code" value={form.college_code} onChange={onChange} required className={input} />
               </div>
             </>
-          )}
-          {role === "EVALUATOR" && (
-            <div>
-              <label className={label}>Department</label>
-              <input name="college" value={form.college} onChange={onChange} className={input} />
-            </div>
           )}
 
           <div className="md:col-span-2">

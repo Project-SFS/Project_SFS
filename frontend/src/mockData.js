@@ -2,8 +2,6 @@
 
 export const mockUsers = [
   { id: 'u1', email: 'admin@sakthi.com', role: 'Admin', collegeId: null, teamName: null, phone: null },
-  { id: 'u2', email: 'eval1@sakthi.com', role: 'Evaluator', collegeId: null, teamName: null, phone: '123-456-7890' },
-  { id: 'u3', email: 'eval2@sakthi.com', role: 'Evaluator', collegeId: null, teamName: null, phone: '987-654-3210' },
   { id: 'u4', email: 'spoc1@collegea.edu', role: 'SPOC', collegeId: 'c1', teamName: null, phone: null },
   { id: 'u5', email: 'team1@collegea.edu', role: 'Team', collegeId: 'c1', teamName: 'Innovators', phone: null },
 ];
@@ -25,7 +23,6 @@ export const mockProblemStatements = [
     deadline: new Date(Date.now() + 86400000 * 30).toISOString(),
     created: new Date(Date.now() - 86400000 * 10).toISOString(), // Added created date
     status: 'Open',
-    assignedEvaluators: ['u2', 'u3'],
     submissions: 20,
   },
   {
@@ -39,7 +36,6 @@ export const mockProblemStatements = [
     deadline: new Date(Date.now() + 86400000 * 60).toISOString(),
     created: new Date(Date.now() - 86400000 * 5).toISOString(), // Added created date
     status: 'In Review',
-    assignedEvaluators: ['u3'],
     submissions: 112,
   },
 ];
@@ -142,8 +138,6 @@ export const mockSubmissions = [
 export const getProblemStatementById = (id) =>
   mockProblemStatements.find((p) => p.id === id);
 
-export const getEvaluatorUsers = () =>
-  mockUsers.filter((u) => u.role === 'Evaluator');
 
 export const getSpocRequests = () =>
     mockSpocRequests.filter((r) => r.status === 'Pending');
@@ -161,7 +155,6 @@ export const addProblemStatement = (newProblem) => {
     created: new Date().toISOString(), // Added created date
     deadline: new Date(Date.now() + 86400000 * 30).toISOString(), // Default deadline
     status: 'Open',
-    assignedEvaluators: [],
     submissionsCount: 0,
   });
 };

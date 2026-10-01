@@ -25,7 +25,7 @@ const TeamState = ({ problem }) => {
   return <span className={`whitespace-nowrap text-xs font-semibold px-2.5 py-1 rounded-full ${cls}`}>{label}</span>;
 };
 
-// Every problem statement published by the admin / evaluators. The team requests one from its SPOC,
+// Every problem statement published by the admins. The team requests one from its SPOC,
 // and once the SPOC approves it the team can submit a solution.
 export default function TeamProblemStatements() {
   const navigate = useNavigate();

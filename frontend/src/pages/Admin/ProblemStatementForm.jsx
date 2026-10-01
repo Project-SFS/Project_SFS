@@ -1,4 +1,4 @@
-import { useState,useEffect } from "react";
+import { useState } from "react";
 import axios from "axios";
 import { URL } from "../../Utils";
 import { toast, Toaster } from "react-hot-toast";
@@ -19,56 +19,8 @@ const ProblemStatementForm = () => {
   const [showModal, setShowModal] = useState(false);
   const [createdProblem, setCreatedProblem] = useState(null);
 
-  // Evaluator Logic
-  const [evaluators, setEvaluators] = useState([]);
-  const [selectedEvaluators, setSelectedEvaluators] = useState();
-  const [evaluatorSearch, setEvaluatorSearch] = useState("");
   const [reference,setReference]=useState("");
   
-
-  // Role Logic
-  const [isEvaluator, setIsEvaluator] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
-
-  
-  useEffect(() => {
-    const fetchUserAndEvaluators = async () => {
-      try {
-        // 1. Get current user
-        const userRes = await axios.get(`${URL}/cookie`, { withCredentials: true });
-        const userData = userRes.data;
-        const role = userData?.ROLE || userData?.role;
-        const id = userData?.ID || userData?.id;
-
-        setCurrentUserId(id);
-        const isEval = role === "EVALUATOR";
-        setIsEvaluator(isEval);
-
-        // 2. If NOT Evaluator (i.e. Admin), fetch list of evaluators
-        if (!isEval) {
-          const res = await axios.get(`${URL}/evaluators`);
-          setEvaluators(res.data || []);
-        } else {
-          // If Evaluator, pre-select themselves (logic optional here, mostly done in submit)
-        }
-      } catch (err) {
-        console.error("Failed to fetch user or evaluators", err);
-      }
-    };
-    fetchUserAndEvaluators();
-  }, []);
-
-  const filteredEvaluators = evaluators.filter(ev =>
-    (ev.NAME && ev.NAME.toLowerCase().includes(evaluatorSearch.toLowerCase())) ||
-    (ev.ID && String(ev.ID).toLowerCase().includes(evaluatorSearch.toLowerCase()))
-  );
-
-  
-
-  const toggleEvaluator = (id) => {
-    setSelectedEvaluators(id);
-  };
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -81,7 +33,6 @@ const ProblemStatementForm = () => {
         sub_date: deadline,
         category: category,
         reference: reference,
-        evaluators:selectedEvaluators
       },
       {withCredentials:true}
     );
@@ -99,8 +50,6 @@ const ProblemStatementForm = () => {
       setCategory("");
       setYoutubeLink("");
       setDatasetLink("");
-      setSelectedEvaluators(undefined);
-      setEvaluatorSearch("");
 
       // Navigate back after delay
       setTimeout(() => navigate(-1), 1000);
@@ -185,6 +134,8 @@ const ProblemStatementForm = () => {
                 placeholder="Submission Deadline"
                 className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-blue-300"
                 onChange={(e) => setDeadline(e.target.value)}
+                value={deadline}
+                required
               />
             </div>
 
@@ -211,48 +162,6 @@ const ProblemStatementForm = () => {
                 value={datasetLink}
               />
             </div>
-
-            {/* Evaluator Assignment (Full Width) */}
-            {/* Only show for Admin, hide for Evaluator */}
-            {!isEvaluator && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-[#4A5568] mb-2">Assign Evaluators</label>
-                <div className="border border-[#E2E8F0] rounded-xl p-4 bg-gray-50">
-                  <input
-                    type="text"
-                    placeholder="Search evaluators by name or ID..."
-                    className="w-full border border-[#E2E8F0] rounded-lg px-3 py-2 mb-3 text-sm focus:ring-2 focus:ring-[#FF9900]/20 outline-none"
-                    value={evaluatorSearch}
-                    onChange={(e) => setEvaluatorSearch(e.target.value)}
-                  />
-                  <div className="max-h-40 overflow-y-auto space-y-2">
-                    {filteredEvaluators.length > 0 ? (
-                      filteredEvaluators.map((evaluator) => (
-                        <div key={evaluator.ID} className="flex items-center space-x-3 bg-white p-2 rounded-lg border border-gray-100">
-                          <input
-                            type="radio"
-                            name="eval"
-                            id={`eval-${evaluator.ID}`}
-                            // checked={selectedEvaluatorsluator.ID)}
-                            // checked={selectedEvaluators}
-                            onChange={() => toggleEvaluator(evaluator.ID)}
-                            className="w-4 h-4 text-[#FF9900] border-gray-300 rounded focus:ring-[#FF9900]"
-                          />
-                         
-                            <span className="font-semibold">{evaluator.NAME}</span> <span className="text-gray-400 text-xs">({evaluator.ID})</span>
-                        
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 text-center py-2">No evaluators found</p>
-                    )}
-                  </div>
-                  {/* <div className="mt-2 text-xs text-gray-500">
-                    {selectedEvaluators.length} evaluator(s) selected
-                  </div> */}
-                </div>
-              </div>
-            )}
 
           </div>
 

@@ -450,7 +450,7 @@ const Homepage = () => {
               {
                 title: "Register & Join",
                 description:
-                  "Create your account and join as a student, SPOC, or evaluator.",
+                  "Your college SPOC registers, creates your team and gets you started.",
                 icon: <FaUsers className="w-8 h-8 text-primary-accent" />,
               },
               {

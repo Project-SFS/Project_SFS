@@ -83,48 +83,26 @@ const background = (label, task) => {
     Promise.resolve().then(task).catch((err) => console.error(`Notification failed (${label}):`, err.message))
 }
 
-// Submission with everything the mails need: problem, evaluator, team, lead, SPOC and college
+// Submission with everything the mails need: problem, team, lead, SPOC and college
 const loadSubmission = async (submissionId) => {
     const [rows] = await connection.query(`
         SELECT s.ID, s.SOL_TITLE, s.SUB_DATE, s.STATUS, s.MARK, s.CP_MARK, s.PS_MARK, s.BV_MARK, s.FP_MARK, s.IN_MARK,
                s.TEAM_EMAIL, p.ID AS PROBLEM_ID, p.TITLE AS PROBLEM_TITLE,
-               ev.EMAIL AS EVALUATOR_EMAIL, ev.NAME AS EVALUATOR_NAME,
                t.NAME AS TEAM_NAME, spoc.EMAIL AS SPOC_EMAIL, spoc.COLLEGE AS COLLEGE
         FROM SolveForSakthi_Submissions s
         LEFT JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID
-        LEFT JOIN SolveForSakthi_Users ev ON ev.ID = p.Evaluator_ID
         LEFT JOIN SolveForSakthi_Team_List t ON t.LEAD_EMAIL = s.TEAM_EMAIL
         LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
         WHERE s.ID = ?`, [submissionId])
     return rows[0]
 }
 
-// Admin/evaluator created a problem and assigned an evaluator to it
-const notifyEvaluatorAssigned = (problemId) => background("evaluator assigned", async () => {
-    const [rows] = await connection.query(`
-        SELECT p.TITLE, p.CATEGORY, p.SUB_DEADLINE, u.EMAIL, u.NAME
-        FROM SolveForSakthi_Problems p JOIN SolveForSakthi_Users u ON u.ID = p.Evaluator_ID
-        WHERE p.ID = ?`, [problemId])
-    const row = rows[0]
-    if (!row) return
-    deliver("evaluator assigned", {
-        to: row.EMAIL,
-        subject: `Problem statement assigned to you: ${row.TITLE}`,
-        html: layout({
-            heading: "A problem statement has been assigned to you",
-            intro: `Hello ${escapeHtml(row.NAME || "Evaluator")}, you are the evaluator for the problem statement below. You will get an email whenever a team submits a solution for it.`,
-            rows: [["Problem", row.TITLE], ["Problem ID", `SFS_${problemId}`], ["Category", row.CATEGORY || "—"], ["Submission deadline", formatDate(row.SUB_DEADLINE)]],
-            linkPath: "/evaluator", linkLabel: "Open evaluator portal",
-        }),
-    })
-})
-
-// Admin approved or rejected a SPOC / evaluator account
+// Admin approved or rejected a SPOC account
 const notifyAccountDecision = (userId, approved) => background("account decision", async () => {
     const [rows] = await connection.query("SELECT EMAIL, NAME, ROLE FROM SolveForSakthi_Users WHERE ID = ?", [userId])
     const user = rows[0]
     if (!user) return
-    const role = user.ROLE === "EVALUATOR" ? "evaluator" : "SPOC"
+    const role = "SPOC"
     deliver("account decision", {
         to: user.EMAIL,
         subject: approved ? "Your Solve For Sakthi account is approved" : "Your Solve For Sakthi registration was not approved",
@@ -201,26 +179,25 @@ const notifyRequestRejected = (teamId, problemId) => background("request rejecte
     })
 })
 
-// A team submitted (or replaced) a solution: tell the evaluator, and confirm to the team lead
+// A team submitted (or replaced) a solution: tell the platform admins (they evaluate), and confirm to the team lead
 const notifySubmission = (submissionId, replaced) => background("submission", async () => {
     const s = await loadSubmission(submissionId)
     if (!s) return
     const college = s.COLLEGE || "a college"
     const rows = [["Problem", s.PROBLEM_TITLE], ["Team", s.TEAM_NAME || s.TEAM_EMAIL], ["College", college], ["Solution title", s.SOL_TITLE || "—"], ["Submitted on", formatDate(s.SUB_DATE)]]
 
-    if (s.EVALUATOR_EMAIL) {
-        deliver("submission -> evaluator", {
-            to: s.EVALUATOR_EMAIL,
+    const [admins] = await connection.query("SELECT EMAIL FROM SolveForSakthi_Users WHERE ROLE = 'ADMIN' AND STATUS = 'ACTIVE'")
+    if (admins.length > 0) {
+        deliver("submission -> admins", {
+            to: admins.map((a) => a.EMAIL).join(", "),
             subject: `${replaced ? "Updated solution" : "New solution"} from ${college}: ${s.PROBLEM_TITLE}`,
             html: layout({
                 heading: replaced ? "A team updated its solution" : "A team submitted a solution",
                 intro: `A team from <b>${escapeHtml(college)}</b> ${replaced ? "updated its" : "submitted a"} solution for <b>${escapeHtml(s.PROBLEM_TITLE)}</b>. It is waiting for your evaluation.`,
                 rows,
-                linkPath: `/evaluator/submission/${s.ID}`, linkLabel: "Evaluate submission",
+                linkPath: `/admin/submissions/${s.ID}/details`, linkLabel: "Evaluate submission",
             }),
         })
-    } else {
-        console.warn(`Submission ${s.ID}: problem ${s.PROBLEM_ID} has no evaluator, nobody to notify`)
     }
 
     deliver("submission -> team", {
@@ -235,7 +212,7 @@ const notifySubmission = (submissionId, replaced) => background("submission", as
     })
 })
 
-// Evaluator scored a submission: send the result to the team lead, with the SPOC in copy
+// An admin scored a submission: send the result to the team lead, with the SPOC in copy
 const notifyEvaluated = (submissionId) => background("evaluated", async () => {
     const s = await loadSubmission(submissionId)
     if (!s) return
@@ -246,7 +223,7 @@ const notifyEvaluated = (submissionId) => background("evaluated", async () => {
         subject: `Your solution for ${s.PROBLEM_TITLE} has been evaluated: ${s.MARK}/100`,
         html: layout({
             heading: "Your solution has been evaluated",
-            intro: `The evaluator reviewed team <b>${escapeHtml(s.TEAM_NAME || s.TEAM_EMAIL)}</b>'s solution for <b>${escapeHtml(s.PROBLEM_TITLE)}</b>. You scored <b>${escapeHtml(s.MARK)}/100</b> and the solution is <b style="color:${accepted ? "#2f855a" : "#c53030"};">${accepted ? "ACCEPTED" : "REJECTED"}</b>.`,
+            intro: `The Solve For Sakthi panel reviewed team <b>${escapeHtml(s.TEAM_NAME || s.TEAM_EMAIL)}</b>'s solution for <b>${escapeHtml(s.PROBLEM_TITLE)}</b>. You scored <b>${escapeHtml(s.MARK)}/100</b> and the solution is <b style="color:${accepted ? "#2f855a" : "#c53030"};">${accepted ? "ACCEPTED" : "REJECTED"}</b>.`,
             rows: [
                 ["Client problem understanding & context", `${s.CP_MARK ?? 0} / 20`],
                 ["Proposed solution strategy", `${s.PS_MARK ?? 0} / 40`],
@@ -262,7 +239,7 @@ const notifyEvaluated = (submissionId) => background("evaluated", async () => {
 
 // A platform admin created an account for someone (login details included, since there is no other way to get them)
 const notifyAccountCreated = ({ email, name, role, password }) => background("account created", async () => {
-    const roleName = { ADMIN: "platform admin", SPOC: "SPOC", EVALUATOR: "evaluator" }[role] || role
+    const roleName = { ADMIN: "platform admin", SPOC: "SPOC" }[role] || role
     deliver("account created", {
         to: email,
         subject: "Your Solve For Sakthi account",
@@ -291,4 +268,4 @@ const notifySubmissionRemoved = (s) => background("submission removed", async ()
     })
 })
 
-export { layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyEvaluatorAssigned, notifyAccountDecision, notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected, notifySubmission, notifyEvaluated }
+export { layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected, notifySubmission, notifyEvaluated }

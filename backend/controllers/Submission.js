@@ -193,20 +193,7 @@ const AddMarkToSolution = AsyncHandler(async (req, res) => {
     }
     const sum = cp + ps + bv + fp + inn;
 
-    // only the evaluator assigned to the problem (or an admin) may score its submissions
-    const [owner] = await connection.query(`
-        SELECT p.Evaluator_ID FROM SolveForSakthi_Submissions s
-        JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID
-        WHERE s.ID = ?`, [subid]);
-    if (owner.length === 0) {
-        return res.status(404).json({ message: "Submission not found" });
-    }
-    if (req.user.ROLE !== "ADMIN" && owner[0].Evaluator_ID !== req.user.ID) {
-        return res.status(403).json({ message: "Only the evaluator assigned to this problem can score it" });
-    }
-
-
-
+    // admins score every submission (the route only lets admins in)
     const [data] = await connection.query(
         `UPDATE SolveForSakthi_Submissions 
    SET CP_MARK = ?, 
@@ -260,7 +247,6 @@ const check_status_submission = AsyncHandler(async (req, res) => {
 // Delete one submission and its PDF. Nothing else references a submission, so the team keeps its
 // problem assignment and can simply submit again.
 //   ADMIN      - any submission
-//   EVALUATOR  - submissions for problems assigned to them
 //   STUDENT    - their own team's submission while it is still PENDING (withdraw)
 const Delete_submission = AsyncHandler(async (req, res) => {
     const id = parseInt(req.body.id, 10);
@@ -269,9 +255,8 @@ const Delete_submission = AsyncHandler(async (req, res) => {
     }
 
     const [rows] = await connection.query(`
-        SELECT s.ID, s.TEAM_EMAIL, s.STATUS, s.FILES, p.Evaluator_ID
+        SELECT s.ID, s.TEAM_EMAIL, s.STATUS, s.FILES
         FROM SolveForSakthi_Submissions s
-        LEFT JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID
         WHERE s.ID = ?`, [id]);
     const submission = rows[0];
     if (!submission) {
@@ -283,8 +268,6 @@ const Delete_submission = AsyncHandler(async (req, res) => {
     if (role === "STUDENT") {
         if (!isOwner) return res.status(403).json({ message: "You can only withdraw your own team's submission" });
         if (submission.STATUS !== "PENDING") return res.status(400).json({ message: "An evaluated submission can no longer be withdrawn" });
-    } else if (role === "EVALUATOR") {
-        if (submission.Evaluator_ID !== req.user.ID) return res.status(403).json({ message: "Only the evaluator assigned to this problem can delete its submissions" });
     } else if (role !== "ADMIN") {
         return res.status(403).json({ message: "You cannot delete submissions" });
     }

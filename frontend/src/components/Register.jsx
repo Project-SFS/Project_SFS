@@ -17,7 +17,6 @@ const RoleSelect = ({ value, onChange, error }) => (
     >
       <option value="">Select role</option>
       <option value="spoc">SPOC</option>
-      <option value="evaluator">Evaluator</option>
     </select>
     {error && (
       <div className="mt-2 text-sm text-[#fc8f00]" role="alert">
@@ -30,7 +29,7 @@ const RoleSelect = ({ value, onChange, error }) => (
 const Register = () => {
   const [form, setForm] = useState({
     otp:"",
-    role: "",
+    role: "spoc", // only SPOCs register themselves; admins create the other accounts
     password: "",
     college: "",
     collegeid: "",
@@ -153,10 +152,6 @@ const Register = () => {
       if (!data.college) fieldErrors.college = "College is required for SPOC";
       if (!data.collegeid)
         fieldErrors.collegeid = "College ID is required for SPOC";
-    } else if (data.role === "evaluator") {
-      if (!data.name) fieldErrors.name = "Evaluator Name is required";
-      if (!data.college) fieldErrors.college = "Department is required for Evaluator";
-      if (!data.collegeid) fieldErrors.collegeid = "ID is required for Evaluator";
     }
 
     return fieldErrors;
@@ -305,17 +300,9 @@ const Register = () => {
               <>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
-                  <select
-                    name="role"
-                    value={form.role}
-                    onChange={onChange}
-                    className={`w-full px-4 py-3 border ${errors.role ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                    aria-invalid={!!errors.role}
-                  >
-                    <option value="">Select role</option>
-                    <option value="spoc">SPOC</option>
-                    <option value="evaluator">Evaluator</option>
-                  </select>
+                  <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                    SPOC (college coordinator)
+                  </div>
                   {errors.role && (
                     <div className="mt-2 text-sm text-red-600" role="alert">
                       {errors.role}
@@ -398,61 +385,6 @@ const Register = () => {
                   </>
                 )}
 
-                {form.role === "evaluator" && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Evaluator Name</label>
-                      <input
-                        name="name"
-                        type="text"
-                        value={form.name}
-                        onChange={onChange}
-                        placeholder="Enter Evaluator Name"
-                        className={`w-full px-4 py-3 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                        aria-invalid={!!errors.name}
-                      />
-                      {errors.name && (
-                        <div className="mt-2 text-sm text-red-600" role="alert">
-                          {errors.name}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Department</label>
-                      <input
-                        name="college"
-                        type="text"
-                        value={form.college}
-                        onChange={onChange}
-                        placeholder="Enter Department"
-                        className={`w-full px-4 py-3 border ${errors.college ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                        aria-invalid={!!errors.college}
-                      />
-                      {errors.college && (
-                        <div className="mt-2 text-sm text-red-600" role="alert">
-                          {errors.college}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">ID</label>
-                      <input
-                        name="collegeid"
-                        type="text"
-                        value={form.collegeid}
-                        onChange={onChange}
-                        placeholder="Enter ID"
-                        className={`w-full px-4 py-3 border ${errors.collegeid ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                        aria-invalid={!!errors.collegeid}
-                      />
-                      {errors.collegeid && (
-                        <div className="mt-2 text-sm text-red-600" role="alert">
-                          {errors.collegeid}
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
 
                 <div>
                   <button

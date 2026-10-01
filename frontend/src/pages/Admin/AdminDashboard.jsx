@@ -41,8 +41,7 @@ const AdminDashboard = () => {
   const [data, setData] = useState({
     problems: [],
     submissions: [],
-    spocs: [],
-    evaluators: []
+    spocs: []
   });
 
   const [recentActivities, setRecentActivities] = useState([]);
@@ -112,12 +111,11 @@ const AdminDashboard = () => {
 
       setData(prev => ({
         ...prev,
-        spocs: normalizedUsers.filter(u => u.role === 'SPOC'),
-        evaluators: normalizedUsers.filter(u => u.role === 'EVALUATOR')
+        spocs: normalizedUsers.filter(u => u.role === 'SPOC')
       }));
     } catch (err) {
       console.error('Error fetching users:', err);
-      setData(prev => ({ ...prev, spocs: [], evaluators: [] }));
+      setData(prev => ({ ...prev, spocs: [] }));
     }
   };
 
@@ -143,15 +141,12 @@ const AdminDashboard = () => {
       }
     });
 
-    [...data.spocs, ...data.evaluators].slice(-20).forEach(user => {
+    data.spocs.slice(-20).forEach(user => {
       if (user.date) {
         activities.push({
-          text:
-            user.role === 'SPOC'
-              ? `SPOC ${user.NAME || user.name} joined the platform`
-              : `Evaluator ${user.NAME || user.name} joined the platform`,
+          text: `SPOC ${user.NAME || user.name} joined the platform`,
           time: timeAgo(user.date),
-          icon: user.role === 'SPOC' ? FiUsers : FiCheckSquare,
+          icon: FiUsers,
           rawDate: new Date(user.date)
         });
       }
@@ -159,18 +154,21 @@ const AdminDashboard = () => {
 
     activities.sort((a, b) => b.rawDate - a.rawDate);
     setRecentActivities(activities.slice(0, 5));
-  }, [data.submissions, data.spocs, data.evaluators]);
+  }, [data.submissions, data.spocs]);
 
 
 
   const totalProblems = data.problems.length;
   const totalSubmissions = data.submissions.length;
-  // SPOCs and evaluators both wait for approval
-  const pendingApprovals = [...data.spocs, ...data.evaluators].filter(
+  // self-registered SPOCs wait for an admin's approval
+  const pendingApprovals = data.spocs.filter(
     s => (s.STATUS || '').toUpperCase() === 'PENDING'
   ).length;
 
-  const totalEvaluators = data.evaluators.filter(e => (e.STATUS || '').toUpperCase() === 'ACTIVE').length;
+  // submissions the admins still have to evaluate
+  const awaitingEvaluation = data.submissions.filter(
+    s => String(s.status || '').toUpperCase() === 'PENDING'
+  ).length;
 
   const evaluatedCount = useMemo(
     () =>
@@ -196,10 +194,10 @@ const AdminDashboard = () => {
             to="/admin/approvals"
           />
           <StatCard
-            title="Total Evaluators"
-            value={totalEvaluators}
+            title="Awaiting Evaluation"
+            value={awaitingEvaluation}
             icon={FiUsers}
-            to="/admin/evaluators"
+            to="/admin/problems"
           />
         </div>
 
@@ -225,8 +223,8 @@ const AdminDashboard = () => {
             <Link to="/admin/problem-statements/create" className="flex justify-between text-orange-400">
               Create Problem Statement <FiArrowRight />
             </Link>
-            <Link to="/admin/evaluators" className="flex justify-between text-orange-400">
-              Manage Evaluators <FiArrowRight />
+            <Link to="/admin/users" className="flex justify-between text-orange-400">
+              Manage Users <FiArrowRight />
             </Link>
           </div>
         </div>

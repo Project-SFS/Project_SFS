@@ -15,7 +15,7 @@ const CRITERIA = [
   ["IN_MARK", "Innovation", 10],
 ];
 
-// Every solution the team submitted (newest first), with status and the evaluator's marks
+// Every solution the team submitted (newest first), with status and marks
 export default function Student_submitions() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
