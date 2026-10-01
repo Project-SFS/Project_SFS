@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Pagination, { usePagination } from "../../components/common/Pagination";
 import { motion } from 'framer-motion';
 import { FaUsers, FaClipboardList, FaTasks } from 'react-icons/fa';
 import { AiOutlineTeam } from "react-icons/ai";
@@ -39,9 +40,7 @@ const NavItem = ({ item, activeView, onClick }) => {
 };
 
 const SpocDashboard = () => {
-    const [currentPage, setCurrentPage] = useState(1);
     const [activeView, setActiveView] = useState('dashboard');
-    const teamsPerPage = 10;
     const navigate = useNavigate();
     const [data, setData] = useState([]);// expected to be an array of teams
     const [spoc_data, setSpoc_data] = useState([]);
@@ -94,16 +93,8 @@ const SpocDashboard = () => {
 
     const totalTeams = data.length;
    
-    const indexOfLastTeam = currentPage * teamsPerPage;
-    const indexOfFirstTeam = indexOfLastTeam - teamsPerPage;
-    const currentTeams = data.slice(indexOfFirstTeam, indexOfLastTeam);
-
-    const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-    const pageNumbers = [];
-    for (let i = 1; i <= Math.max(1, Math.ceil(totalTeams / teamsPerPage)); i++) {
-        pageNumbers.push(i);
-    }
+    const { page, setPage, pageItems: currentTeams, total, totalPages, pageSize } = usePagination(data);
+    const indexOfFirstTeam = (page - 1) * pageSize;
 
     const cardVariants = {
         hidden: { opacity: 0, y: 50 },
@@ -231,34 +222,13 @@ const SpocDashboard = () => {
                                         })}
                                         {currentTeams.length === 0 && (
                                             <tr>
-                                                <td className="py-4 px-4 border-b border-gray-200" colSpan="3">No teams to display</td>
+                                                <td className="py-4 px-4 border-b border-gray-200" colSpan="4">No teams to display</td>
                                             </tr>
                                         )}
                                     </tbody>
                                 </table>
 
-                                {/* Pagination */}
-                                <div className="py-3 flex justify-center">
-                                    <nav className="block" aria-label="Pagination">
-                                        <ul className="flex pl-0 rounded list-none flex-wrap">
-                                                                        {pageNumbers.map((number) => (
-                                                                            <li key={number}>
-                                                                                <a
-                                                                                    onClick={(e) => {
-                                                                                        e.preventDefault();
-                                                                                        paginate(number);
-                                                                                    }}
-                                                                                    href="#"
-                                                                                    className={`first:ml-0 text-xs font-semibold flex w-8 h-8 mx-1 p-0 items-center justify-center leading-tight relative border border-solid border-gray-300 rounded-full ${currentPage === number ? 'bg-[#fc8f00] text-white' : 'text-gray-800'}`}
-                                                                                    aria-current={currentPage === number ? 'page' : undefined}
-                                                                                >
-                                                                                    {number}
-                                                                                </a>
-                                                                            </li>
-                                                                        ))}
-                                                                    </ul>
-                                                                </nav>
-                                                            </div>
+                                <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} label="teams" />
                                                         </motion.div>
                                                     </>
                                                 )}

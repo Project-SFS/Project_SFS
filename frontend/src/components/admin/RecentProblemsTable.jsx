@@ -67,6 +67,9 @@ const RecentProblemsTable = ({ problems = [] }) => {
                 Title
               </th>
               <th className="py-3 pr-3 text-left text-xs font-semibold text-gray-500 uppercase">
+                Created By
+              </th>
+              <th className="py-3 pr-3 text-left text-xs font-semibold text-gray-500 uppercase">
                 Submissions
               </th>
             </tr>
@@ -77,6 +80,7 @@ const RecentProblemsTable = ({ problems = [] }) => {
               const id = p.ID || p.id;
               const title = p.TITLE || p.title;
               const submissions = p.submission_count ?? p.SUBMISSIONS ?? p.submissions ?? 0;
+              const createdBy = p.created_by_email || p.created_by_name || (p.CREATED_BY ? "Deleted user" : "Not recorded");
 
               return (
                 <tr key={id} className="hover:bg-gray-50">
@@ -94,6 +98,9 @@ const RecentProblemsTable = ({ problems = [] }) => {
                   </td>
                   <td className="py-3 pr-3 text-sm text-brand-dark">
                     {title}
+                  </td>
+                  <td className="py-3 pr-3 text-sm text-gray-600">
+                    {createdBy}
                   </td>
                   <td className="py-3 pr-3 text-sm text-brand-orange font-semibold">
                     {submissions}

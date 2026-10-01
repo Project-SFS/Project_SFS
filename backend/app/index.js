@@ -4,6 +4,8 @@ dotenv.config()
 import app from "./app.js";
 import migrate from "../database/migrate.js";
 import { close } from "../database/db.js";
+import { startScheduledJobs } from "../utils/scheduler.js";
+import { waitForPendingMail } from "../utils/mailer.js";
 
 const PORT = process.env.PORT || 9022
 
@@ -31,14 +33,19 @@ const server = app.listen(PORT, () => {
   console.log(`Backend server is running on port ${PORT}`);
 });
 
+// graduation check and deadline reminders (now, then every few hours)
+startScheduledJobs();
+
 // Let in-flight requests finish when Docker stops the container
 const shutdown = (signal) => {
   console.log(`${signal} received, shutting down`);
   server.close(async () => {
+    // let mails that are being prepared or sent finish (docker-compose gives the backend 30 s to stop)
+    await waitForPendingMail(20000);
     await close().catch(() => {});
     process.exit(0);
   });
-  setTimeout(() => process.exit(1), 10000).unref();
+  setTimeout(() => process.exit(1), 25000).unref();
 };
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);

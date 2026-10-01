@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { URL } from "../../Utils";
 import { toast, Toaster } from "react-hot-toast";
@@ -6,33 +6,79 @@ import { FiSave, FiX } from "react-icons/fi";
 
 import { useNavigate } from "react-router-dom"; // Added import
 
-const ProblemStatementForm = () => {
+// "2026-10-31" -> "31 Oct 2026"
+const readableDate = (day) => (day ? new Date(`${day}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
+
+// Create a problem statement, or edit one when editId is given (every field, including the deadline)
+const ProblemStatementForm = ({ editId }) => {
   const navigate = useNavigate(); // Added hook
+  const editing = Boolean(editId);
+  const [loadingProblem, setLoadingProblem] = useState(editing);
+  const [loadError, setLoadError] = useState("");
+  const [originalDeadline, setOriginalDeadline] = useState("");
+  const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");// User asked for Category, mapping Dept to it or separate? specific request: "category". Detail view usually shows Dept as category. I'll stick to 'Department' as the field name but label it Category/Department to be safe, or just add Category.
   const [category, setCategory] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [youtubeLink, setYoutubeLink] = useState("");
-  const [datasetLink, setDatasetLink] = useState("");
+  // the same fields as the Excel import template
+  const [domain, setDomain] = useState("");
+  const [outcomes, setOutcomes] = useState("");
+  const [requirements, setRequirements] = useState("");
+  const [technology, setTechnology] = useState("");
 
-  // New: modal state and created item state
-  const [showModal, setShowModal] = useState(false);
-  const [createdProblem, setCreatedProblem] = useState(null);
+  // edit mode: start from the problem as it is stored
+  useEffect(() => {
+    if (!editing) return;
+    axios.get(`${URL}/problems/${editId}`, { withCredentials: true })
+      .then((res) => {
+        const p = res.data?.problems?.[0];
+        if (!p) throw new Error("not found");
+        const day = p.SUB_DEADLINE ? String(p.SUB_DEADLINE).slice(0, 10) : "";
+        setTitle(p.TITLE || "");
+        setDescription(p.DESCRIPTION || "");
+        setCategory(String(p.CATEGORY || "").toLowerCase());
+        setDeadline(day);
+        setOriginalDeadline(day);
+        setDomain(p.DOMAIN || "");
+        setOutcomes(p.EXPECTED_OUTCOMES || "");
+        setRequirements(p.REQUIREMENTS || "");
+        setTechnology(p.TECHNOLOGY || "");
+      })
+      .catch(() => setLoadError("This problem statement could not be loaded."))
+      .finally(() => setLoadingProblem(false));
+  }, [editing, editId]);
 
-  const [reference,setReference]=useState("");
-  
+  const saveEdit = async () => {
+    setSaving(true);
+    try {
+      const res = await axios.put(`${URL}/problems/${editId}`, {
+        title, description, sub_date: deadline, category, domain, outcomes, requirements, technology,
+      }, { withCredentials: true });
+      toast.success(res.data?.deadlineChanged
+        ? "Saved. Every team working on this problem and their SPOC have been emailed about the new deadline."
+        : "Problem statement saved", { position: "top-center", duration: 4000 });
+      setTimeout(() => navigate(`/admin/problems/${editId}/details`), 1200);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not save the problem statement", { position: "top-center" });
+      setSaving(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    
+    if (editing) return saveEdit();
+
     try {
       const response = await axios.post(`${URL}/addproblems`, {
         title: title,
         description: description,
         sub_date: deadline,
         category: category,
-        reference: reference,
+        domain,
+        outcomes,
+        requirements,
+        technology,
       },
       {withCredentials:true}
     );
@@ -48,8 +94,10 @@ const ProblemStatementForm = () => {
       setTitle("");
       setDescription("");
       setCategory("");
-      setYoutubeLink("");
-      setDatasetLink("");
+      setDomain("");
+      setOutcomes("");
+      setRequirements("");
+      setTechnology("");
 
       // Navigate back after delay
       setTimeout(() => navigate(-1), 1000);
@@ -57,10 +105,25 @@ const ProblemStatementForm = () => {
       toast.dismiss(problem)
 
     } catch (error) {
-      toast.error("Failed to Add Problem Statement", { position: "top-center" });
+      toast.error(error.response?.data?.message || "Failed to Add Problem Statement", { position: "top-center" });
     }
 
   };
+
+  if (editing && (loadingProblem || loadError)) {
+    return (
+      <div className="min-h-screen bg-[#F7F8FC] flex items-start justify-center pt-20 px-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-8 text-center max-w-md w-full">
+          {loadingProblem ? <p className="text-gray-600">Loading problem statement...</p> : (
+            <>
+              <p className="text-[#1A202C]">{loadError}</p>
+              <button onClick={() => navigate("/admin/problems")} className="mt-4 px-4 py-2 rounded-xl bg-[#FF9900] text-white">Back to problem statements</button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F7F8FC] flex flex-col items-center justify-start pt-10 px-6">
@@ -75,8 +138,17 @@ const ProblemStatementForm = () => {
         </button>
 
         <div className="mb-8 border-b border-gray-100 pb-4">
-          <h2 className="text-2xl font-bold text-[#1A202C]">Create Problem Statement</h2>
-          <p className="text-[#718096] text-sm mt-1">Fill in the details to post a new problem for teams.</p>
+          <h2 className="text-2xl font-bold text-[#1A202C]">{editing ? "Edit Problem Statement" : "Create Problem Statement"}</h2>
+          <p className="text-[#718096] text-sm mt-1">
+            {editing ? "Update the details below and click Save Changes." : "Fill in the details to post a new problem for teams."}
+          </p>
+          {editing && deadline && originalDeadline && deadline !== originalDeadline && (
+            <p className="mt-3 text-sm rounded-xl bg-orange-50 border border-orange-200 text-[#C05621] px-4 py-2">
+              <b>New deadline: {readableDate(deadline)}</b> (was {readableDate(originalDeadline)}).
+              <br />
+              When you save, every team working on this problem and their SPOC will get an email about the {deadline > originalDeadline ? "extension" : "change"}.
+            </p>
+          )}
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
@@ -91,6 +163,7 @@ const ProblemStatementForm = () => {
                 className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
                 onChange={(e) => setTitle(e.target.value)}
                 value={title}
+                maxLength={300}
                 required
               />
             </div>
@@ -126,40 +199,68 @@ const ProblemStatementForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Enter Submission DeadLine
+              <label className="block text-sm font-semibold text-[#4A5568] mb-2">
+                Submission Deadline
               </label>
               <input
                 type="date"
                 placeholder="Submission Deadline"
-                className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:ring focus:ring-blue-300"
+                className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
                 onChange={(e) => setDeadline(e.target.value)}
                 value={deadline}
                 required
               />
             </div>
 
-            {/* YouTube Link */}
+
+
+            {/* Domain */}
             <div>
-              <label className="block text-sm font-semibold text-[#4A5568] mb-2">YouTube Video Link</label>
+              <label className="block text-sm font-semibold text-[#4A5568] mb-2">Domain</label>
               <input
-                type="url"
-                placeholder="https://youtube.com/..."
+                type="text"
+                placeholder="e.g. Automotive, Manufacturing, Energy"
+                maxLength={200}
                 className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
-                onChange={(e) => setReference(e.target.value)}
-                value={reference}
+                onChange={(e) => setDomain(e.target.value)}
+                value={domain}
               />
             </div>
 
-            {/* Dataset Link */}
+            {/* Technology */}
             <div>
-              <label className="block text-sm font-semibold text-[#4A5568] mb-2">Dataset Link</label>
+              <label className="block text-sm font-semibold text-[#4A5568] mb-2">Technology</label>
               <input
-                type="url"
-                placeholder="https://drive.google.com/..."
+                type="text"
+                placeholder="e.g. IoT, Machine Learning, Embedded C"
+                maxLength={500}
                 className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
-                onChange={(e) => setDatasetLink(e.target.value)}
-                value={datasetLink}
+                onChange={(e) => setTechnology(e.target.value)}
+                value={technology}
+              />
+            </div>
+
+            {/* Expected Outcomes */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-[#4A5568] mb-2">Expected Outcomes</label>
+              <textarea
+                rows="3"
+                placeholder="What a good solution should deliver..."
+                className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
+                onChange={(e) => setOutcomes(e.target.value)}
+                value={outcomes}
+              />
+            </div>
+
+            {/* Requirements */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-[#4A5568] mb-2">Requirements</label>
+              <textarea
+                rows="3"
+                placeholder="Constraints, data or skills needed..."
+                className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
+                onChange={(e) => setRequirements(e.target.value)}
+                value={requirements}
               />
             </div>
 
@@ -178,7 +279,7 @@ const ProblemStatementForm = () => {
               className="px-6 py-2.5 rounded-xl bg-[#FF9900] text-white hover:bg-[#E68500] font-medium shadow-md hover:shadow-lg transition-all flex items-center gap-2"
             >
               <FiSave />
-              Create Problem Statement
+              {editing ? (saving ? "Saving…" : "Save Changes") : "Create Problem Statement"}
             </button>
           </div>
         </form>

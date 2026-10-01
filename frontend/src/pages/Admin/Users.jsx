@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
-import { FiPlus, FiSearch, FiTrash2, FiUsers, FiX } from "react-icons/fi";
+import { Link, useSearchParams } from "react-router-dom";
+import { FiPlus, FiSearch, FiTrash2, FiUsers, FiX, FiUserCheck, FiKey } from "react-icons/fi";
+import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { URL } from "../../Utils";
+import Pagination, { usePagination } from "../../components/common/Pagination";
+import TeamsSection from "./TeamsSection";
 
 // Platform users an admin manages. Team logins (STUDENT) are managed through their team.
 // EVALUATOR is a removed role: leftover accounts can no longer log in and are listed only so
@@ -19,6 +22,10 @@ const statusStyle = (status) =>
     : "bg-red-100 text-red-800";
 
 const Users = () => {
+  // two sections: platform accounts and registered teams (?section=teams links straight to teams)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const section = searchParams.get("section") === "teams" ? "teams" : "accounts";
+  const setSection = (next) => setSearchParams(next === "teams" ? { section: "teams" } : {}, { replace: true });
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -26,6 +33,20 @@ const Users = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [details, setDetails] = useState(null);
   const [toDelete, setToDelete] = useState(null);
+  const [passwordFor, setPasswordFor] = useState(null);
+
+  const savePassword = async (password, emailUser) => {
+    const res = await axios.post(`${URL}/admin/set_password`, { userId: passwordFor.ID, password, emailUser }, { withCredentials: true });
+    const self = res.data?.self;
+    setPasswordFor(null);
+    if (self) {
+      // the admin's own login was just signed out
+      showToast("Your password was changed. Please log in again.", "success");
+      setTimeout(() => { window.location.href = "/login"; }, 1500);
+      return;
+    }
+    showToast(`Password changed for ${passwordFor.EMAIL}${emailUser ? " and emailed to them" : ""}`, "success");
+  };
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -55,6 +76,8 @@ const Users = () => {
     .filter((u) => String(u.ROLE).toUpperCase() === activeTab)
     .filter((u) => [u.NAME, u.EMAIL, u.COLLEGE, u.COLLEGE_CODE, u.ID].some((v) => String(v ?? "").toLowerCase().includes(query)));
 
+  const { page, setPage, pageItems, total, totalPages } = usePagination(filtered, { resetKey: `${activeTab}|${query}` });
+
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
@@ -76,7 +99,20 @@ const Users = () => {
       <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#1A202C] mb-1">Users</h1>
-          <p className="text-[#718096] text-sm">Manage SPOC and admin accounts. Team logins are managed through their team.</p>
+          <p className="text-[#718096] text-sm">
+            {section === "teams" ? "Every team registered by the SPOCs, with their problem statements and submissions." : "Manage SPOC and admin accounts."}
+          </p>
+          <div className="inline-flex mt-4 bg-white border border-[#E2E8F0] rounded-xl p-1 shadow-sm">
+            {[["accounts", "Accounts", FiUserCheck], ["teams", "Teams", FiUsers]].map(([key, label, Icon]) => (
+              <button
+                key={key}
+                onClick={() => setSection(key)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${section === key ? "bg-[#FF9900] text-white shadow" : "text-[#718096] hover:bg-gray-50"}`}
+              >
+                <Icon /> {label}
+              </button>
+            ))}
+          </div>
         </div>
         <Link
           to="/admin/users/create"
@@ -86,6 +122,7 @@ const Users = () => {
         </Link>
       </div>
 
+      {section === "teams" ? <TeamsSection /> : (<>
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {TABS.slice(0, 2).map((t) => (
@@ -151,8 +188,8 @@ const Users = () => {
           <tbody>
             {loading ? (
               <tr><td colSpan="6" className="py-6 text-center text-[#A0AEC0] italic">Loading users...</td></tr>
-            ) : filtered.length > 0 ? (
-              filtered.map((u) => (
+            ) : pageItems.length > 0 ? (
+              pageItems.map((u) => (
                 <tr key={u.ID} className="border-t border-[#E2E8F0] hover:bg-gray-50 transition-all">
                   <td className="py-4 px-5 font-medium text-[#1A202C]">{u.ID}</td>
                   <td className="py-4 px-5">
@@ -166,7 +203,16 @@ const Users = () => {
                   <td className="py-4 px-5">
                     <span className={`text-xs font-semibold rounded-full px-2 py-1 ${statusStyle(u.STATUS)}`}>{u.STATUS || "-"}</span>
                   </td>
-                  <td className="py-4 px-5 text-center">
+                  <td className="py-4 px-5 text-center space-x-4 whitespace-nowrap">
+                    {u.ROLE !== "EVALUATOR" && (
+                      <button
+                        onClick={() => setPasswordFor(u)}
+                        className="text-gray-500 hover:text-[#FF9900] transition-all"
+                        title="Change password"
+                      >
+                        <FiKey size={18} />
+                      </button>
+                    )}
                     {u.ID !== currentUserId && (
                       <button
                         onClick={() => setToDelete(u)}
@@ -185,6 +231,8 @@ const Users = () => {
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} label="users" />
+      </>)}
 
       {/* Details popup */}
       {details && (
@@ -244,6 +292,15 @@ const Users = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {passwordFor && (
+        <ChangePasswordModal
+          title="Change password"
+          subtitle={`${passwordFor.NAME || ""} · ${passwordFor.EMAIL}${passwordFor.ID === currentUserId ? " (your own account: you will be logged out)" : ""}`}
+          onSave={savePassword}
+          onClose={() => setPasswordFor(null)}
+        />
       )}
 
       {/* Toast */}

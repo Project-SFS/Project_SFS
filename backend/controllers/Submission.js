@@ -2,7 +2,8 @@ import fs from "fs";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import connection from "../database/db.js";
 import { today, checkProblemOpen } from "../utils/deadline.js";
-import { notifySubmission, notifyEvaluated, loadSubmission, notifySubmissionRemoved } from "../utils/notifications.js";
+import { notifySubmission, notifyReviewed, loadSubmission, notifySubmissionRemoved } from "../utils/notifications.js";
+import { DECISIONS, CHANGES_REQUESTED, REJECTED, CRITERIA, parseMarks, canTeamEdit, lockedMessage, uploadClosedReason } from "../utils/review.js";
 import { isAssignedToTeamOf } from "./TeamProblems.js";
 import { canViewTeamOfLead } from "../utils/teamAccess.js";
 
@@ -22,7 +23,12 @@ const SubmitSolution = AsyncHandler(async (req, res) => {
         return res.status(403).json({ message: "You can only submit for your own team" });
     }
 
-    const closedReason = await checkProblemOpen(problemId);
+    // same rule as file uploads: one submission per team per problem, replaceable while awaiting review
+    // or when changes were requested
+    const [existing] = await connection.query("SELECT TOP 1 ID, STATUS FROM SolveForSakthi_Submissions WHERE TEAM_EMAIL = ? AND PROBLEM_ID = ? ORDER BY ID DESC", [team.LEAD_EMAIL, problemId]);
+    const previous = existing[0];
+
+    const closedReason = uploadClosedReason(await checkProblemOpen(problemId), previous);
     if (closedReason) {
         return res.status(400).json({ message: closedReason });
     }
@@ -33,14 +39,11 @@ const SubmitSolution = AsyncHandler(async (req, res) => {
 
     const SUB_DATE = today();
 
-    // same rule as file uploads: one submission per team per problem, replaceable until evaluated
-    const [existing] = await connection.query("SELECT TOP 1 ID, STATUS FROM SolveForSakthi_Submissions WHERE TEAM_EMAIL = ? AND PROBLEM_ID = ? ORDER BY ID DESC", [team.LEAD_EMAIL, problemId]);
-    const previous = existing[0];
-    if (previous && previous.STATUS !== "PENDING") {
-        return res.status(400).json({ message: "This solution has already been evaluated and can no longer be changed" });
+    if (previous && !canTeamEdit(previous.STATUS)) {
+        return res.status(400).json({ message: lockedMessage(previous.STATUS) });
     }
     if (previous) {
-        await connection.query("UPDATE SolveForSakthi_Submissions SET TEAM_ID = ?, SOL_TITLE = ?, SOL_DESCRIPTION = ?, SUB_DATE = ?, SOL_LINK = ? WHERE ID = ?", [team.ID, SOL_TITLE, SOL_DESCRIPTION, SUB_DATE, SOL_LINK, previous.ID]);
+        await connection.query("UPDATE SolveForSakthi_Submissions SET TEAM_ID = ?, SOL_TITLE = ?, SOL_DESCRIPTION = ?, SUB_DATE = ?, SOL_LINK = ?, STATUS = 'PENDING' WHERE ID = ?", [team.ID, SOL_TITLE, SOL_DESCRIPTION, SUB_DATE, SOL_LINK, previous.ID]);
         notifySubmission(previous.ID, true);
         return res.status(200).json({ message: "Solution updated successfully", submissionId: previous.ID, replaced: true });
     }
@@ -110,6 +113,11 @@ const Get_submission_by_prob_id = AsyncHandler(async (req, res) => {
       s.STATUS,
       s.SOL_LINK,
       s.FILES,
+      s.EVALUATION_COMMENT,
+      s.EVAL_TOTAL,
+      s.EVALUATED_AT,
+      ev.NAME AS evaluated_by_name,
+      ev.EMAIL AS evaluated_by_email,
 
       t.ID AS team_id,
       t.NAME AS team_name,
@@ -127,6 +135,8 @@ const Get_submission_by_prob_id = AsyncHandler(async (req, res) => {
       ON s.TEAM_EMAIL = t.LEAD_EMAIL
   LEFT JOIN SolveForSakthi_Users u
       ON t.LEAD_EMAIL = u.EMAIL
+  LEFT JOIN SolveForSakthi_Users ev
+      ON ev.ID = s.EVALUATED_BY
   WHERE s.PROBLEM_ID = ?
   ORDER BY s.ID DESC
   `,
@@ -150,6 +160,7 @@ SELECT
     s.SOL_TITLE AS submission_title,
     s.SOL_DESCRIPTION AS description,
     t.NAME AS team_name,
+    t.ID AS team_id,
     t.SPOC_ID AS spoc_id,
     s.SUB_DATE AS submitted_date,
     s.FILES AS solution_document,
@@ -158,18 +169,18 @@ SELECT
     s.PROBLEM_ID AS problem_id,
     u.COLLEGE AS college_name,
 
-    -- marks
-    s.MARK     AS total_mark,
-    s.CP_MARK  AS cp_mark,
-    s.PS_MARK  AS ps_mark,
-    s.BV_MARK  AS bv_mark,
-    s.FP_MARK  AS fp_mark,
-    s.IN_MARK  AS in_mark
+    -- the latest review: comment, who, when
+    s.EVALUATION_COMMENT AS evaluation_comment,
+    s.EVAL_UNDERSTANDING, s.EVAL_SOLUTION, s.EVAL_TOOLS, s.EVAL_PRESENTATION, s.EVAL_ACCEPTANCE, s.EVAL_TOTAL,
+    s.EVALUATED_AT AS evaluated_at,
+    ev.NAME    AS evaluated_by_name,
+    ev.EMAIL   AS evaluated_by_email
 
 FROM SolveForSakthi_Submissions s
 JOIN SolveForSakthi_Problems p ON s.PROBLEM_ID = p.ID
 LEFT JOIN SolveForSakthi_Team_List t ON s.TEAM_EMAIL = t.LEAD_EMAIL
 LEFT JOIN SolveForSakthi_Users u ON t.LEAD_EMAIL = u.EMAIL
+LEFT JOIN SolveForSakthi_Users ev ON ev.ID = s.EVALUATED_BY
 WHERE s.ID = ?;
 `;
 
@@ -178,40 +189,70 @@ WHERE s.ID = ?;
     if (result.length === 0) {
         return res.status(404).json({ message: "Submission not found" });
     }
-    res.status(200).json(result[0]);
+    // every decision on this submission, newest first
+    const [reviews] = await connection.query(`
+        SELECT r.ID, r.DECISION, r.COMMENT, r.REVIEWED_AT, u.NAME AS REVIEWER_NAME, u.EMAIL AS REVIEWER_EMAIL,
+               r.EVAL_UNDERSTANDING, r.EVAL_SOLUTION, r.EVAL_TOOLS, r.EVAL_PRESENTATION, r.EVAL_ACCEPTANCE, r.EVAL_TOTAL
+        FROM SolveForSakthi_Submission_Reviews r
+        LEFT JOIN SolveForSakthi_Users u ON u.ID = r.REVIEWED_BY
+        WHERE r.SUBMISSION_ID = ?
+        ORDER BY r.ID DESC`, [id]);
+    res.status(200).json({ ...result[0], reviews });
 });
 
-const AddMarkToSolution = AsyncHandler(async (req, res) => {
-    const { evaluation, subid } = req.body;
-    if (!subid || !Array.isArray(evaluation) || evaluation.length < 5) {
-        return res.status(400).json({ message: "subid and 5 evaluation scores are required" });
+// Admin reviews a submission: Changes needed / Approved / Rejected, with a comment and the evaluation marks
+// (5 criteria x 20), emailed to the team lead and, separately, to their SPOC. Marks are required to approve or reject
+// and optional when asking for changes. Changes needed lets the team upload a revised solution.
+const COMMENT_MAX = 5000;
+const Review_submission = AsyncHandler(async (req, res) => {
+    const subid = parseInt(req.body.subid, 10);
+    const decision = String(req.body.decision || "").toUpperCase();
+    const comment = String(req.body.comment ?? "").trim();
+    if (Number.isNaN(subid)) {
+        return res.status(400).json({ message: "Submission id is required" });
     }
-    const [cp, ps, bv, fp, inn] = evaluation.slice(0, 5).map(element => Number(element.value) || 0);
-    const limits = [20, 40, 20, 10, 10];
-    if ([cp, ps, bv, fp, inn].some((mark, i) => mark < 0 || mark > limits[i])) {
-        return res.status(400).json({ message: "Marks must be within 0-20, 0-40, 0-20, 0-10 and 0-10" });
+    if (!DECISIONS.includes(decision)) {
+        return res.status(400).json({ message: "Choose Changes needed, Approve or Reject" });
     }
-    const sum = cp + ps + bv + fp + inn;
+    if (!comment && (decision === CHANGES_REQUESTED || decision === REJECTED)) {
+        return res.status(400).json({ message: decision === CHANGES_REQUESTED ? "Write what the team needs to change" : "Write why the solution is rejected" });
+    }
+    if (comment.length > COMMENT_MAX) {
+        return res.status(400).json({ message: `The comment can be at most ${COMMENT_MAX} characters` });
+    }
+    const { marks, error: marksError } = parseMarks(req.body.marks);
+    if (marksError) return res.status(400).json({ message: marksError });
+    if (!marks && decision !== CHANGES_REQUESTED) {
+        return res.status(400).json({ message: "Give marks for all five criteria to approve or reject" });
+    }
 
-    // admins score every submission (the route only lets admins in)
+    // the latest review's marks replace the previous ones (none given -> cleared)
+    const markColumns = [...CRITERIA.map((c) => c.column), "EVAL_TOTAL"];
+    const markValues = markColumns.map((col) => (marks ? marks[col] : null));
     const [data] = await connection.query(
-        `UPDATE SolveForSakthi_Submissions 
-   SET CP_MARK = ?, 
-       PS_MARK = ?, 
-       BV_MARK = ?, 
-       FP_MARK = ?, 
-       IN_MARK = ?,
-       MARK = ?,
-       STATUS = ?
-   WHERE ID = ?`,
-        [cp, ps, bv, fp, inn, sum, sum >= 60 ? "ACCEPTED" : "REJECTED", subid]
+        `UPDATE SolveForSakthi_Submissions
+         SET STATUS = ?, EVALUATION_COMMENT = ?, EVALUATED_BY = ?, EVALUATED_AT = SYSUTCDATETIME(),
+             ${markColumns.map((col) => `${col} = ?`).join(", ")}
+         WHERE ID = ?`,
+        [decision, comment || null, req.user.ID, ...markValues, subid]
     );
-
     if (data.affectedRows === 0) {
         return res.status(404).json({ message: "Submission not found" });
     }
-    notifyEvaluated(subid);
-    res.status(200).json({ message: "Marks saved", total: sum });
+    await connection.query(
+        `INSERT INTO SolveForSakthi_Submission_Reviews (SUBMISSION_ID, DECISION, COMMENT, REVIEWED_BY, REVIEWED_AT, ${markColumns.join(", ")})
+         VALUES (?, ?, ?, ?, SYSUTCDATETIME(), ${markColumns.map(() => "?").join(", ")})`,
+        [subid, decision, comment || null, req.user.ID, ...markValues]
+    );
+    notifyReviewed(subid);
+    res.status(200).json({
+        message: "Review saved and emailed to the team",
+        status: decision,
+        comment: comment || null,
+        marks,
+        evaluatedBy: { name: req.user.NAME, email: req.user.EMAIL },
+        evaluatedAt: new Date().toISOString(),
+    });
 })
 
 const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
@@ -248,6 +289,7 @@ const check_status_submission = AsyncHandler(async (req, res) => {
 // problem assignment and can simply submit again.
 //   ADMIN      - any submission
 //   STUDENT    - their own team's submission while it is still PENDING (withdraw)
+// Its review history goes with it.
 const Delete_submission = AsyncHandler(async (req, res) => {
     const id = parseInt(req.body.id, 10);
     if (Number.isNaN(id)) {
@@ -267,13 +309,14 @@ const Delete_submission = AsyncHandler(async (req, res) => {
     const isOwner = String(submission.TEAM_EMAIL || "").toLowerCase() === String(req.user.EMAIL || "").toLowerCase();
     if (role === "STUDENT") {
         if (!isOwner) return res.status(403).json({ message: "You can only withdraw your own team's submission" });
-        if (submission.STATUS !== "PENDING") return res.status(400).json({ message: "An evaluated submission can no longer be withdrawn" });
+        if (submission.STATUS !== "PENDING") return res.status(400).json({ message: "A reviewed submission can no longer be withdrawn" });
     } else if (role !== "ADMIN") {
         return res.status(403).json({ message: "You cannot delete submissions" });
     }
 
     // load the mail details before the row is gone
     const snapshot = role === "STUDENT" ? null : await loadSubmission(id);
+    await connection.query("DELETE FROM SolveForSakthi_Submission_Reviews WHERE SUBMISSION_ID = ?", [id]);
     await connection.query("DELETE FROM SolveForSakthi_Submissions WHERE ID = ?", [id]);
     if (submission.FILES) fs.unlink(submission.FILES, () => {});
     if (snapshot) notifySubmissionRemoved(snapshot);
@@ -281,4 +324,4 @@ const Delete_submission = AsyncHandler(async (req, res) => {
     res.json({ message: role === "STUDENT" ? "Submission withdrawn" : "Submission deleted" });
 });
 
-export { Delete_submission, SubmitSolution, check_status_submission, Get_solution, Get_all_submissions, Get_submission_by_id, AddMarkToSolution, Get_submission_by_prob_id, fetch_submissions_by_email };
+export { Delete_submission, SubmitSolution, check_status_submission, Get_solution, Get_all_submissions, Get_submission_by_id, Review_submission, Get_submission_by_prob_id, fetch_submissions_by_email };

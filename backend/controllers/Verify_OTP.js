@@ -32,6 +32,7 @@ const Verify_OTP = async (req, res) => {
 
     try {
         const info = await sendMail({
+            sensitive: true,
             to: email,
             // the code in the subject makes every OTP mail unique (no Gmail threading) and readable at a glance
             subject: `${otp} is your Solve For Sakthi verification code`,

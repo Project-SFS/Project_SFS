@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import {URL} from "../Utils";
 import toast, {Toaster} from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import PasswordStrength from "./PasswordStrength";
+import PasswordFields, { passwordsReady, passwordIsValid } from "./PasswordFields";
 import Header from "./Header";
 
 const RoleSelect = ({ value, onChange, error }) => (
@@ -31,6 +31,7 @@ const Register = () => {
     otp:"",
     role: "spoc", // only SPOCs register themselves; admins create the other accounts
     password: "",
+    confirmPassword: "",
     college: "",
     collegeid: "",
     dept: "",
@@ -51,7 +52,12 @@ const Register = () => {
     const timer = setTimeout(() => setResendIn((s) => s - 1), 1000);
     return () => clearTimeout(timer);
   }, [resendIn]);
-  const [isPasswordValid, setIsPasswordValid] = useState(false);
+  // password and its re-entry must follow the rule and match before sign-up is possible
+  const isPasswordValid = passwordsReady(form.password, form.confirmPassword);
+  const setPasswordField = (name) => (value) => {
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, password: undefined }));
+  };
 
 
 
@@ -85,10 +91,6 @@ const Register = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
 
-    if (name === "password") {
-      const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{8,}$/;
-      setIsPasswordValid(passwordRegex.test(value));
-    }
   };
 
   const checkIfEmailAlreadyExist = async (email) => {
@@ -146,6 +148,8 @@ const Register = () => {
       fieldErrors.email = "Email must be verified first";
     if (!data.role) fieldErrors.role = "Role is required";
     if (!data.password) fieldErrors.password = "Password is required";
+    else if (!passwordIsValid(data.password)) fieldErrors.password = "The password does not meet the rules";
+    else if (data.password !== data.confirmPassword) fieldErrors.password = "The passwords do not match";
 
     if (data.role === "spoc") {
       if (!data.name) fieldErrors.name = "SPOC Name is required";
@@ -194,11 +198,12 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center p-4">
+    // starts below the fixed header and grows with the form, so nothing is hidden or cut off
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex justify-center items-start px-4 pt-28 pb-12">
       <Header />
       <Toaster position="top-right" />
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden md:flex transition-all duration-500 ease-in-out">
-        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-orange-400 to-orange-600 items-center justify-center p-12 relative">
+      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden md:flex">
+        <div className="hidden md:flex md:w-2/5 bg-gradient-to-br from-orange-400 to-orange-600 items-center justify-center p-10 relative">
           <div className="absolute inset-0 bg-[#494949] bg-opacity-20"></div>
           <div className="text-white text-center relative z-10">
             <h2 className="text-4xl font-bold mb-4">Join Us</h2>
@@ -210,12 +215,12 @@ const Register = () => {
             </div>
           </div>
         </div>
-        <div className="w-full md:w-1/2 p-10">
-          <div className="text-center mb-8">
+        <div className="w-full md:w-3/5 p-6 sm:p-10">
+          <div className="text-center mb-6">
             <h3 className="text-3xl font-bold text-gray-800 mb-2">Sign Up</h3>
             <p className="text-gray-600">Create your account to access the SFS Portal</p>
           </div>
-          <form onSubmit={onSubmit} className="space-y-6" aria-label="Register form">
+          <form onSubmit={onSubmit} className="space-y-5" aria-label="Register form">
             {/* Email Field */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
@@ -311,26 +316,22 @@ const Register = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-                  <input
-                    name="password"
-                    type="password"
-                    value={form.password}
-                    onChange={onChange}
-                    placeholder="Enter your password"
-                    className={`w-full px-4 py-3 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
-                    aria-invalid={!!errors.password}
+                  <PasswordFields
+                    password={form.password}
+                    confirm={form.confirmPassword}
+                    onPasswordChange={setPasswordField("password")}
+                    onConfirmChange={setPasswordField("confirmPassword")}
+                    inputClassName={`w-full px-4 py-3 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition duration-200`}
                   />
                   {errors.password && (
                     <div className="mt-2 text-sm text-red-600" role="alert">
                       {errors.password}
                     </div>
                   )}
-                  <PasswordStrength password={form.password} />
                 </div>
 
                 {(form.role === "spoc") && (
-                  <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">SPOC Name</label>
                       <input
@@ -348,7 +349,7 @@ const Register = () => {
                         </div>
                       )}
                     </div>
-                    <div>
+                    <div className="sm:col-span-2 sm:order-last">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">College</label>
                       <input
                         name="college"
@@ -382,7 +383,7 @@ const Register = () => {
                         </div>
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
 
 
@@ -390,7 +391,7 @@ const Register = () => {
                   <button
                     type="submit"
                     disabled={!isPasswordValid}
-                    className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-200 transform hover:scale-105"
+                    className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
                     Sign Up
                   </button>
@@ -398,7 +399,7 @@ const Register = () => {
               </>
             )}
           </form>
-          <div className="mt-8 text-center">
+          <div className="mt-6 text-center">
             <p className="text-gray-600">Already have an account? <a href="/login" className="text-orange-600 hover:text-orange-800 font-medium transition duration-200">Sign In</a></p>
           </div>
         </div>

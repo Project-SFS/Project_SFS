@@ -166,6 +166,7 @@ const TeamDetails = () => {
                     <div className="flex items-center gap-2"><EmailIcon /><span>{m.EMAIL}</span></div>
                     <div className="flex items-center gap-2"><PhoneIcon /><span>{m.PHONE}</span></div>
                     <div className="flex items-center gap-2"><GenderIcon /><span>{m.GENDER}</span></div>
+                    {m.GRAD_YEAR && <div className="flex items-center gap-2"><span className="font-semibold">Graduating</span><span>{m.GRAD_YEAR}</span></div>}
                   </div>
                 </div>
               ))}

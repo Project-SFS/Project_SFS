@@ -1,9 +1,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FiChevronRight, FiHome } from 'react-icons/fi';
-import { getSubmissionById } from '../../mockData';
-
-const Breadcrumb = () => {
+// problemId: on a submission page, the problem it belongs to (from the API), for the middle link
+const Breadcrumb = ({ problemId }) => {
   const location = useLocation();
   const pathnames = location.pathname.split('/').filter((x) => x);
 
@@ -20,12 +19,9 @@ const Breadcrumb = () => {
       { label: 'Problem Statement Details', path: location.pathname },
     ];
   } else if (location.pathname.match(/^\/admin\/submissions\/[^\/]+\/details$/)) {
-    const submissionId = location.pathname.split('/')[3];
-    const submission = getSubmissionById(submissionId);
-    const problemId = submission ? submission.problemId : 'unknown';
     breadcrumbItems = [
       { label: 'Problem Statements', path: '/admin/problems' },
-      { label: 'Problem Statement Details', path: `/admin/problems/${problemId}/details` },
+      ...(problemId ? [{ label: 'Problem Statement Details', path: `/admin/problems/${problemId}/details` }] : []),
       { label: 'Submission Details', path: location.pathname },
     ];
   } else {

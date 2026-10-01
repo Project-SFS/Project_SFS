@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiSearch } from "react-icons/fi";
 import axios from "axios";
 import { URL } from "../../Utils";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 
 // SPOCs who signed up themselves wait here until an admin approves or rejects them
 const roleLabel = () => "SPOC";
@@ -56,6 +57,8 @@ const Approvals = () => {
       [r.NAME, r.EMAIL, r.COLLEGE, r.COLLEGE_CODE].some((v) => String(v || "").toLowerCase().includes(query))
     );
 
+  const { page, setPage, pageItems, total, totalPages } = usePagination(filteredData, { resetKey: query });
+
   return (
     <div className="min-h-screen bg-[#F7F8FC] px-6 py-8 transition-all duration-300">
       {/* Header */}
@@ -104,7 +107,7 @@ const Approvals = () => {
                 <td colSpan="5" className="py-5 text-center text-[#A0AEC0] italic">Loading requests...</td>
               </tr>
             ) : filteredData.length > 0 ? (
-              filteredData.map((user) => (
+              pageItems.map((user) => (
                 <tr key={user.ID} className="hover:bg-gray-50 border-t border-[#E2E8F0] transition-all">
                   <td className="py-3 px-4 text-[#1A202C] font-medium">{user.NAME || "-"}</td>
                   <td className="py-3 px-4 text-[#718096]">
@@ -141,6 +144,7 @@ const Approvals = () => {
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} label="requests" />
 
       {/* Confirm Modal */}
       <AnimatePresence>

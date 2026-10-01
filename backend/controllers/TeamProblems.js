@@ -19,8 +19,9 @@ const loadSubmissions = async (leadEmails) => {
     if (leadEmails.length === 0) return new Map();
     const placeholders = leadEmails.map(() => "?").join(", ");
     const [rows] = await connection.query(`
-        SELECT ID, PROBLEM_ID, TEAM_EMAIL, SOL_TITLE, SOL_LINK, FILES, SUB_DATE, STATUS,
-               MARK, CP_MARK, PS_MARK, BV_MARK, FP_MARK, IN_MARK
+        SELECT ID, PROBLEM_ID, TEAM_EMAIL, SOL_TITLE, SOL_DESCRIPTION, SOL_LINK, FILES, SUB_DATE, STATUS,
+               EVALUATION_COMMENT, EVALUATED_AT,
+               EVAL_UNDERSTANDING, EVAL_SOLUTION, EVAL_TOOLS, EVAL_PRESENTATION, EVAL_ACCEPTANCE, EVAL_TOTAL
         FROM SolveForSakthi_Submissions
         WHERE TEAM_EMAIL IN (${placeholders})
         ORDER BY ID DESC`, leadEmails);
@@ -42,14 +43,14 @@ const withProgress = (row, leadEmail, submissions, todayStr) => {
     };
 };
 
-// SPOC: every team of theirs with members, requested/assigned problems, submission status and marks
+// SPOC: every team of theirs with members, requested/assigned problems, submission status and review comment
 const Get_spoc_progress = AsyncHandler(async (req, res) => {
     const spocId = isAdmin(req) && req.query.spocId ? Number(req.query.spocId) : req.user.ID;
     const [teams] = await connection.query(`
         SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL,
                (SELECT COUNT(*) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID) AS MEMBER_COUNT
         FROM SolveForSakthi_Team_List t
-        WHERE t.SPOC_ID = ?
+        WHERE t.SPOC_ID = ? AND t.GRADUATED_AT IS NULL
         ORDER BY t.ID`, [spocId]);
     if (teams.length === 0) return res.json({ teams: [] });
 
@@ -75,10 +76,14 @@ const Get_spoc_progress = AsyncHandler(async (req, res) => {
 
 // Loads a team and checks the caller may manage it (its own SPOC, or an admin)
 const loadOwnedTeam = async (req, res, teamId) => {
-    const [rows] = await connection.query("SELECT ID, SPOC_ID, LEAD_EMAIL FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
+    const [rows] = await connection.query("SELECT ID, SPOC_ID, LEAD_EMAIL, GRADUATED_AT FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
     const team = rows[0];
     if (!team) {
         res.status(404).json({ message: "Team not found" });
+        return null;
+    }
+    if (team.GRADUATED_AT) {
+        res.status(400).json({ message: "This team has graduated; its records are read-only" });
         return null;
     }
     if (!isAdmin(req) && team.SPOC_ID !== req.user.ID) {
@@ -177,7 +182,7 @@ const loadStudentTeam = async (email) => {
         SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.MENTOR_NAME, t.MENTOR_EMAIL, t.SPOC_ID, spoc.COLLEGE
         FROM SolveForSakthi_Team_List t
         LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
-        WHERE t.LEAD_EMAIL = ?`, [email]);
+        WHERE t.LEAD_EMAIL = ? AND t.GRADUATED_AT IS NULL`, [email]);
     return teams[0];
 };
 
@@ -185,7 +190,8 @@ const loadStudentTeam = async (email) => {
 const Get_student_overview = AsyncHandler(async (req, res) => {
     const team = await loadStudentTeam(req.user.EMAIL);
     const [problems] = await connection.query(`
-        SELECT p.ID AS PROBLEM_ID, p.TITLE, p.DESCRIPTION, p.CATEGORY, p.DEPT, p.SUB_DEADLINE, p.Reference,
+        SELECT p.ID AS PROBLEM_ID, p.TITLE, p.DESCRIPTION, p.CATEGORY, p.DEPT, p.SUB_DEADLINE,
+               p.DOMAIN, p.EXPECTED_OUTCOMES, p.REQUIREMENTS, p.TECHNOLOGY,
                tp.STATUS AS ASSIGNMENT_STATUS, tp.REQUESTED_DATE, tp.ASSIGNED_DATE
         FROM SolveForSakthi_Problems p
         LEFT JOIN SolveForSakthi_Team_Problems tp ON tp.PROBLEM_ID = p.ID AND tp.TEAM_ID = ?

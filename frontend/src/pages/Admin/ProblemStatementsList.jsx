@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiFilter, FiUsers, FiFileText, FiPlus, FiUpload } from 'react-icons/fi';
 import Breadcrumb from '../../components/common/Breadcrumb';
 import Button from '../../components/common/button';
+import Pagination, { usePagination } from '../../components/common/Pagination';
 import { URL } from '../../Utils';
 
 const ProblemStatementsList = () => {
@@ -28,10 +29,8 @@ const ProblemStatementsList = () => {
   // evaluated submissions of a problem, counted by the backend
   const getEvaluatedCount = (problemId) => problems.find(p => p.id === String(problemId))?.evaluatedCount ?? 0;
 
-  const formatDateTime = (isoString) => {
-    const date = new Date(isoString);
-    return date.toLocaleString();
-  };
+  const formatDateTime = (isoString) =>
+    isoString ? new Date(isoString).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Not recorded';
 
   let json;
 
@@ -62,7 +61,8 @@ const ProblemStatementsList = () => {
           id: p.ID ? String(p.ID) : (p.id ? String(p.id) : ''),
           title: p.TITLE || p.title || 'Untitled',
           description: p.DESCRIPTION || p.description || '',
-          created: p.SUB_DATE ? new Date(p.SUB_DATE).toISOString() : (p.created || new Date().toISOString()),
+          created: p.CREATED_AT || null,
+          createdBy: p.created_by_email || p.created_by_name || (p.CREATED_BY ? 'Deleted user' : null),
           deadline: p.SUB_DEADLINE || p.deadline,
           submissionsCount: p.submission_count ?? p.submissionsCount ?? 0,
           evaluatedCount: p.evaluated_count ?? 0
@@ -120,19 +120,21 @@ const ProblemStatementsList = () => {
         problem.id.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;
 
-      if (statusFilter === 'evaluated') {
-        return getEvaluatedCount(problem.id) > 0;
-      }
-      if (statusFilter === 'pending') {
-        return getEvaluatedCount(problem.id) === 0;
-      }
+      // one submission is enough to count as "has submissions"
+      if (statusFilter === 'with-submissions') return problem.submissionsCount > 0;
+      if (statusFilter === 'no-submissions') return problem.submissionsCount === 0;
+      if (statusFilter === 'evaluated') return getEvaluatedCount(problem.id) > 0;
+      if (statusFilter === 'awaiting') return problem.submissionsCount > getEvaluatedCount(problem.id);
       return true;
     })
     .sort((a, b) => {
-      if (sortOrder === 'newest') return new Date(b.created) - new Date(a.created);
-      if (sortOrder === 'oldest') return new Date(a.created) - new Date(b.created);
+      // problems from before creation times were recorded fall back to their ID order
+      if (sortOrder === 'newest') return (new Date(b.created || 0) - new Date(a.created || 0)) || (Number(b.id) - Number(a.id));
+      if (sortOrder === 'oldest') return (new Date(a.created || 0) - new Date(b.created || 0)) || (Number(a.id) - Number(b.id));
       return 0;
     });
+
+  const { page, setPage, pageItems, total, totalPages } = usePagination(filteredData, { resetKey: `${searchTerm}|${statusFilter}|${sortOrder}` });
 
   return (
     <div className="min-h-screen bg-[#F7F8FC] px-6 py-8 transition-all duration-300">
@@ -151,13 +153,22 @@ const ProblemStatementsList = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => navigate('/admin/problems/create')}
-          className="flex items-center gap-2 bg-[#FF9900] hover:bg-[#e68900] text-white px-5 py-2.5 rounded-xl shadow-md transition-all"
-        >
-          <FiPlus className="text-lg" />
-          Create Problem Statem
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => navigate('/admin/problems/import')}
+            className="flex items-center gap-2 bg-white border border-[#FF9900] text-[#FF9900] hover:bg-[#FF9900] hover:text-white px-5 py-2.5 rounded-xl shadow-sm transition-all"
+          >
+            <FiUpload className="text-lg" />
+            Import from Excel
+          </button>
+          <button
+            onClick={() => navigate('/admin/problems/create')}
+            className="flex items-center gap-2 bg-[#FF9900] hover:bg-[#e68900] text-white px-5 py-2.5 rounded-xl shadow-md transition-all"
+          >
+            <FiPlus className="text-lg" />
+            Create Problem Statement
+          </button>
+        </div>
       </div>
 
       {/* Summary Metrics */}
@@ -219,9 +230,11 @@ const ProblemStatementsList = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-4 py-2 border border-[#E2E8F0] rounded-xl text-base focus:ring-2 focus:ring-[#FF9900] focus:outline-none transition-all"
           >
-            <option value="all">All</option>
-            <option value="evaluated">Evaluated</option>
-            <option value="pending">Not Evaluated</option>
+            <option value="all">All problem statements</option>
+            <option value="with-submissions">Has submissions</option>
+            <option value="no-submissions">No submissions</option>
+            <option value="evaluated">Has evaluated solutions</option>
+            <option value="awaiting">Has solutions awaiting evaluation</option>
           </select>
 
           <label className="text-[#4A5568] font-medium text-base">Sort:</label>
@@ -245,6 +258,7 @@ const ProblemStatementsList = () => {
               <th className="p-4 font-semibold">Problem Statement</th>
               <th className="p-4 text-center font-semibold">Submissions</th>
               <th className="p-4 text-center font-semibold">Evaluated</th>
+              <th className="p-4 font-semibold">Created By</th>
               <th className="p-4 text-center font-semibold">Created</th>
             </tr>
           </thead>
@@ -258,7 +272,7 @@ const ProblemStatementsList = () => {
                 </td>
               </tr>
             ) : filteredData.length > 0 ? (
-                filteredData.map((problem) => {
+                pageItems.map((problem) => {
                 return (
                   <tr
                     key={problem.id}
@@ -286,6 +300,9 @@ const ProblemStatementsList = () => {
                       {problem.evaluatedCount} / {problem.submissionsCount}
                     </td>
                     
+                    <td className="p-4 text-[#1A202C]">
+                      {problem.createdBy || <span className="text-[#A0AEC0]">Not recorded</span>}
+                    </td>
                     <td className="p-4 text-center text-[#718096]">
                       {formatDateTime(problem.created)}
                     </td>
@@ -302,6 +319,7 @@ const ProblemStatementsList = () => {
           </tbody>
         </table>
       </div>
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} label="problem statements" />
     </div>
   );
 };

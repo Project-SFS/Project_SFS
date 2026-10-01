@@ -14,7 +14,7 @@ const Fetch_Teams = AsyncHandler(async (req, res) => {
         select t.*,
                (select count(*) from SolveForSakthi_Submissions s where s.TEAM_EMAIL = t.LEAD_EMAIL) as SUBMISSION_COUNT,
                case when exists (select 1 from SolveForSakthi_Submissions s where s.TEAM_EMAIL = t.LEAD_EMAIL) then 1 else 0 end as SUBMITTED
-        from SolveForSakthi_Team_List t WHERE t.SPOC_ID = ?`, [id])
+        from SolveForSakthi_Team_List t WHERE t.SPOC_ID = ? AND t.GRADUATED_AT IS NULL`, [id])
     
     res.send(result)
 })
@@ -63,4 +63,108 @@ const fetch_team_id_email = AsyncHandler(async (req, res) => {
     res.send(data)
 })
 
-export { Fetch_Teams, Fetch_Team_Members, Delete_team, Fetch_Team_For_Students, fetch_team_id_email }
+// Admin: every registered team with its SPOC / college, members, problem statements and submissions,
+// for the Teams section of the admin Users page (filtered and paged in the browser)
+const Admin_list_teams = AsyncHandler(async (req, res) => {
+    const [teams] = await connection.query(`
+        SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.CREATED_AT, t.SPOC_ID,
+               t.GRADUATED_AT, COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
+               spoc.NAME AS SPOC_NAME, spoc.EMAIL AS SPOC_EMAIL, spoc.COLLEGE, spoc.COLLEGE_CODE,
+               (SELECT COUNT(*) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID) AS MEMBER_COUNT,
+               CASE WHEN EXISTS (SELECT 1 FROM SolveForSakthi_Users u WHERE u.EMAIL = t.LEAD_EMAIL AND u.ROLE = 'STUDENT') THEN 1 ELSE 0 END AS HAS_LOGIN
+        FROM SolveForSakthi_Team_List t
+        LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
+        ORDER BY t.ID DESC`);
+
+    const [assignments] = await connection.query(`
+        SELECT tp.TEAM_ID, tp.PROBLEM_ID, tp.STATUS, p.TITLE
+        FROM SolveForSakthi_Team_Problems tp
+        JOIN SolveForSakthi_Problems p ON p.ID = tp.PROBLEM_ID`);
+
+    const [submissions] = await connection.query(`
+        SELECT s.ID, s.PROBLEM_ID, s.TEAM_EMAIL, s.STATUS, s.EVALUATION_COMMENT, s.EVAL_TOTAL, s.SUB_DATE, p.TITLE
+        FROM SolveForSakthi_Submissions s
+        LEFT JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID
+        ORDER BY s.ID DESC`);
+
+    // latest submission per team lead + problem
+    const latest = new Map();
+    for (const s of submissions) {
+        const key = `${String(s.TEAM_EMAIL || "").toLowerCase()}|${s.PROBLEM_ID}`;
+        if (!latest.has(key)) latest.set(key, s);
+    }
+
+    res.json(teams.map((team) => {
+        const lead = String(team.LEAD_EMAIL || "").toLowerCase();
+        const problems = new Map();
+        for (const a of assignments) {
+            if (a.TEAM_ID === team.ID) problems.set(a.PROBLEM_ID, { PROBLEM_ID: a.PROBLEM_ID, TITLE: a.TITLE, ASSIGNMENT_STATUS: a.STATUS, submission: null });
+        }
+        // a submission keeps counting even if its problem was unassigned later
+        for (const [key, s] of latest) {
+            if (!lead || !key.startsWith(`${lead}|`)) continue;
+            const entry = problems.get(s.PROBLEM_ID) || { PROBLEM_ID: s.PROBLEM_ID, TITLE: s.TITLE, ASSIGNMENT_STATUS: null, submission: null };
+            entry.submission = { ID: s.ID, STATUS: s.STATUS, COMMENT: s.EVALUATION_COMMENT, TOTAL: s.EVAL_TOTAL, SUB_DATE: s.SUB_DATE };
+            problems.set(s.PROBLEM_ID, entry);
+        }
+        const list = [...problems.values()];
+        const subs = list.filter((p) => p.submission);
+        return {
+            ...team,
+            HAS_LOGIN: Boolean(team.HAS_LOGIN),
+            problems: list,
+            ASSIGNED_COUNT: list.filter((p) => p.ASSIGNMENT_STATUS === "ASSIGNED").length,
+            REQUESTED_COUNT: list.filter((p) => p.ASSIGNMENT_STATUS === "REQUESTED").length,
+            SUBMISSION_COUNT: subs.length,
+            EVALUATED_COUNT: subs.filter((p) => p.submission.STATUS !== "PENDING").length,
+        };
+    }));
+});
+
+// Admin: everything on record for one team (also after it graduated): members, every submission with its
+// full review history, and every email sent to the team's addresses
+const Admin_team_history = AsyncHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid team id" });
+    const [teams] = await connection.query("SELECT ID, LEAD_EMAIL, MENTOR_EMAIL FROM SolveForSakthi_Team_List WHERE ID = ?", [id]);
+    const team = teams[0];
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    const [members] = await connection.query("SELECT ID, ROLE, NAME, EMAIL, PHONE, GENDER, GRAD_YEAR FROM SolveForSakthi_Team_Members_List WHERE Team_ID = ? ORDER BY ID", [id]);
+
+    const [submissions] = team.LEAD_EMAIL ? await connection.query(`
+        SELECT s.ID, s.PROBLEM_ID, p.TITLE AS PROBLEM_TITLE, s.SOL_TITLE, s.SOL_DESCRIPTION, s.SOL_LINK, s.FILES,
+               s.SUB_DATE, s.STATUS, s.EVALUATION_COMMENT, s.EVALUATED_AT, s.EVAL_TOTAL
+        FROM SolveForSakthi_Submissions s
+        LEFT JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID
+        WHERE s.TEAM_EMAIL = ?
+        ORDER BY s.ID DESC`, [team.LEAD_EMAIL]) : [[]];
+
+    const [reviews] = submissions.length ? await connection.query(`
+        SELECT r.ID, r.SUBMISSION_ID, r.DECISION, r.COMMENT, r.REVIEWED_AT, u.EMAIL AS REVIEWER_EMAIL, u.NAME AS REVIEWER_NAME, r.EVAL_TOTAL
+        FROM SolveForSakthi_Submission_Reviews r
+        LEFT JOIN SolveForSakthi_Users u ON u.ID = r.REVIEWED_BY
+        WHERE r.SUBMISSION_ID IN (${submissions.map(() => "?").join(", ")})
+        ORDER BY r.ID DESC`, submissions.map((s) => s.ID)) : [[]];
+
+    // mails to or copied to any team address (lead, members, mentor)
+    const addresses = [...new Set([team.LEAD_EMAIL, team.MENTOR_EMAIL, ...members.map((m) => m.EMAIL)]
+        .filter(Boolean).map((e) => String(e).trim().toLowerCase()))];
+    const [mails] = addresses.length ? await connection.query(`
+        SELECT TOP 500 ID, TO_ADDR, CC_ADDR, SUBJECT, BODY_TEXT, STATUS, ERROR, SENT_AT
+        FROM SolveForSakthi_Mail_Log
+        WHERE ${addresses.map(() => "(LOWER(TO_ADDR) LIKE ? OR LOWER(CC_ADDR) LIKE ?)").join(" OR ")}
+        ORDER BY ID DESC`, addresses.flatMap((a) => {
+        // _ and % are LIKE wildcards; [_] matches a literal underscore
+        const pattern = `%${a.replace(/[%_[]/g, "[$&]")}%`;
+        return [pattern, pattern];
+    })) : [[]];
+
+    res.json({
+        members,
+        submissions: submissions.map((s) => ({ ...s, reviews: reviews.filter((r) => r.SUBMISSION_ID === s.ID) })),
+        mails,
+    });
+});
+
+export { Fetch_Teams, Fetch_Team_Members, Delete_team, Fetch_Team_For_Students, fetch_team_id_email, Admin_list_teams, Admin_team_history }

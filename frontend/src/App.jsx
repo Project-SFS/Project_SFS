@@ -36,6 +36,7 @@ import Users from "./pages/Admin/Users.jsx";
 import CreateUser from "./pages/Admin/CreateUser.jsx";
 import ProblemStatementsList from "./pages/Admin/ProblemStatementsList.jsx";
 import ProblemStatementCreate from "./pages/Admin/ProblemStatementCreate.jsx";
+import ProblemImport from "./pages/Admin/ProblemImport.jsx";
 import ProblemStatementEdit from "./pages/Admin/ProblemStatementEdit.jsx";
 import ProblemStatementDetail from "./pages/Admin/ProblemStatementDetail.jsx";
 import SubmissionDetail from "./pages/Admin/SubmissionDetail.jsx";
@@ -192,6 +193,7 @@ function App() {
           {/* Problem Statement Management (CRUD) */}
           <Route path="problems" element={<ProblemStatementsList />} />
           <Route path="problems/create" element={<ProblemStatementCreate />} />
+          <Route path="problems/import" element={<ProblemImport />} />
           <Route path="problems/edit/:id" element={<ProblemStatementEdit />} />
           <Route path="users" element={<Users />} />
           <Route path="users/create" element={<CreateUser />} />

@@ -234,6 +234,9 @@ function Team_Members() {
                     <th className="px-4 sm:px-6 py-3 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Gender
                     </th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Graduation Year
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -258,6 +261,9 @@ function Team_Members() {
                       </td>
                       <td className="px-4 sm:px-6 py-3 text-gray-600 whitespace-nowrap">
                         {m.GENDER}
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 text-gray-600 whitespace-nowrap">
+                        {m.GRAD_YEAR || "—"}
                       </td>
                     </tr>
                   ))}

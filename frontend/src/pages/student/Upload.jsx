@@ -1,347 +1,532 @@
 import axios from 'axios'
-import { useState, useRef, useEffect } from 'react'
-import { auth, URL } from '../../Utils'
-import { useLocation, useParams } from 'react-router-dom'
-import {toast, Toaster} from "react-hot-toast"
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { toast, Toaster } from 'react-hot-toast'
+import {
+    FiArrowLeft, FiCalendar, FiCheckCircle, FiClock, FiFileText, FiInfo,
+    FiLink, FiTag, FiUploadCloud, FiX, FiAlertTriangle, FiAward, FiMessageSquare,
+} from 'react-icons/fi'
+import Header from '../../components/Header'
+import Footer from '../../components/Footer'
+import { URL } from '../../Utils'
+import { StatusBadge, normalizeStatus, statusMeta, EVAL_CRITERIA, MarksBreakdown } from '../../submissionStatus'
+
+const MAX_MB = 20
+const TITLE_MAX = 100
+const DESCRIPTION_MAX = 1000
+
+// the three review outcomes, explained in the side panel
+const OUTCOMES = [
+    ['CHANGES_REQUESTED', 'The evaluator tells you what to improve. Update your solution and upload it again, even after the deadline.'],
+    ['APPROVED', 'Your solution is accepted.'],
+    ['REJECTED', 'Your solution is not accepted. The comment explains why.'],
+]
+
+const formatDate = (value) =>
+    value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
+
+// whole days from today until the deadline (0 = due today, negative = passed)
+const daysLeft = (deadline) => {
+    if (!deadline) return null
+    const end = new Date(deadline)
+    end.setHours(0, 0, 0, 0)
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    return Math.round((end - now) / (24 * 60 * 60 * 1000))
+}
+
+const formatSize = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`)
+
+const isValidUrl = (value) => {
+    try {
+        const url = new window.URL(value)
+        return url.protocol === 'http:' || url.protocol === 'https:'
+    } catch {
+        return false
+    }
+}
+
 const Upload = () => {
-    const [files, setFiles] = useState([])
-    const [previews, setPreviews] = useState([])
-    const [progress, setProgress] = useState(0)
-    const [status, setStatus] = useState(null)
-    const [dragActive, setDragActive] = useState(false)
+    const location = useLocation()
+    const probId = new URLSearchParams(location.search).get('problemId')
+
+    // the problem this page is for, with the team's current submission (undefined = loading, null = not found)
+    const [problem, setProblem] = useState(undefined)
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [link, setLink] = useState('')
+    const [file, setFile] = useState(null)
+    const [fileError, setFileError] = useState('')
+    const [dragActive, setDragActive] = useState(false)
+    const [touched, setTouched] = useState(false)
+    const [uploading, setUploading] = useState(false)
+    const [progress, setProgress] = useState(0)
+    const [confirmReplace, setConfirmReplace] = useState(false)
+    const [done, setDone] = useState(null) // { replaced } after a successful upload
     const inputRef = useRef(null)
-    const [email, setEmail] = useState();
-    
-    const { problemId } = useParams();
 
-    const location = useLocation();
-
-    
-    const probId = new URLSearchParams(location.search).get('problemId');
-    // the assigned problem this upload is for, with the team's current submission (if any)
-    const [problemInfo, setProblemInfo] = useState(undefined);
-    useEffect(() => {
-        axios.get(`${URL}/student/overview`)
-            .then(res => setProblemInfo((res.data.problems || []).find(p => String(p.PROBLEM_ID) === String(probId)) || null))
-            .catch(() => setProblemInfo(null));
-    }, [probId]);
-
-
-    // useEffect(() => {
-    //     // build previews and clean up old object URLs
-    //     const urls = files.map((f) => URL.createObjectURL(f))
-    //     setPreviews(urls)
-    //     return () => {
-    //         urls.forEach((u) => URL.revokeObjectURL(u))
-    //     }
-    // }, [files])
-
-    const handleFileChange = (e) => {
-        
-        // one PDF per submission: the backend stores a single file
-        const selected = Array.from(e.target.files).slice(0, 1)
-        if (selected.length) {
-            setFiles(selected)
-            setProgress(0)
-            setStatus(null)
+    const loadProblem = useCallback(() => {
+        if (!probId) {
+            setProblem(null)
+            return Promise.resolve()
         }
-        e.target.value = null
+        return axios.get(`${URL}/student/overview`, { withCredentials: true })
+            .then((res) => setProblem((res.data.problems || []).find((p) => String(p.PROBLEM_ID) === String(probId)) || null))
+            .catch(() => setProblem(null))
+    }, [probId])
+
+    useEffect(() => {
+        loadProblem()
+    }, [loadProblem])
+
+    const submission = problem?.submission || null
+    const assigned = problem?.ASSIGNMENT_STATUS === 'ASSIGNED'
+    const status = submission ? normalizeStatus(submission.STATUS) : null
+    // approved / rejected are final; "changes needed" reopens the submission for a revised upload
+    const evaluated = status === 'APPROVED' || status === 'REJECTED'
+    const changesRequested = status === 'CHANGES_REQUESTED'
+    const deadlinePassed = Boolean(problem?.DEADLINE_PASSED)
+    const canSubmit = Boolean(problem) && assigned && !evaluated && (!deadlinePassed || changesRequested)
+    const replacing = status === 'PENDING' || changesRequested
+    const remaining = daysLeft(problem?.SUB_DEADLINE)
+
+    // updating an existing submission: start from its current details, so only the PDF has to be chosen again
+    useEffect(() => {
+        if (!replacing) return
+        setTitle((t) => t || submission.SOL_TITLE || '')
+        setDescription((d) => d || submission.SOL_DESCRIPTION || '')
+        setLink((l) => l || submission.SOL_LINK || '')
+    }, [submission, replacing])
+
+    const pickFile = (candidate) => {
+        if (!candidate) return
+        if (candidate.type !== 'application/pdf' && !candidate.name.toLowerCase().endsWith('.pdf')) {
+            setFileError('Only PDF files can be uploaded.')
+            return
+        }
+        if (candidate.size > MAX_MB * 1024 * 1024) {
+            setFileError(`This file is ${formatSize(candidate.size)}. The maximum is ${MAX_MB} MB.`)
+            return
+        }
+        setFileError('')
+        setFile(candidate)
     }
-    
-    useEffect(() => {
-        axios.defaults.withCredentials = true;
-        const res = axios.get(`${URL}/cookie`, { withCredentials: true })
-        res.then(res => {
-            setEmail(res.data.EMAIL);
 
-        }
-        )
-   },[])
-    
-    
+    const titleError = !title.trim() ? 'Please give your solution a title.' : ''
+    const linkError = link.trim() && !isValidUrl(link.trim()) ? 'Enter a full link starting with https://' : ''
+    const missingFile = !file ? 'Please choose your solution PDF.' : ''
+    const formValid = !titleError && !linkError && !missingFile
 
-    
-
-    const onDrop = (e) => {
+    const startSubmit = (e) => {
         e.preventDefault()
-        setDragActive(false)
-        const dropped = Array.from(e.dataTransfer.files).filter((f) => f.type === 'application/pdf').slice(0, 1)
-        if (dropped.length) {
-            setFiles(dropped)
-            setProgress(0)
-            setStatus(null)
-        }
-    }
-
-    const removeFile = (index) => {
-        setFiles((prev) => prev.filter((_, i) => i !== index))
-    }
-
-    const uploadFiles = () => {
-
-        if (!title.trim()) {
-            setStatus({ type: 'error', msg: 'Please provide a solution title' })
+        setTouched(true)
+        if (!formValid || !canSubmit || uploading) return
+        if (replacing) {
+            setConfirmReplace(true)
             return
         }
+        upload()
+    }
 
-        if (files.length === 0) {
-            setStatus({ type: 'error', msg: 'No files selected' })
-            return
-        }
-
-        const loading = toast.loading("Processing");
-
+    const upload = () => {
+        setConfirmReplace(false)
+        setUploading(true)
+        setProgress(0)
 
         const form = new FormData()
-        form.append('title', title)
-        form.append('description', description)
-        form.append('link', link)
-        // form.append('files',)
-        form.append('email', email);
+        form.append('title', title.trim())
+        form.append('description', description.trim())
+        form.append('link', link.trim())
         form.append('problemId', probId)
-        files.forEach((f) => form.append('files', f))
+        form.append('files', file)
+
         axios.post(`${URL}/upload_files`, form, {
-            headers: {
-                "Content-Type":"multipart/form-data"
-            }
+            withCredentials: true,
+            onUploadProgress: (e) => e.total && setProgress(Math.round((e.loaded / e.total) * 100)),
         })
-            .then(res => {
-                toast.dismiss(loading);
-                if (res.data) {
-                    toast.success(res.data?.replaced ? "Submission updated" : "Uploaded");
-                    clearAll()
-                }
-                else {
-                    toast.error("Error uploading")
-                }
-        }
-        )
-            .catch(err => {
-                toast.dismiss(loading);
-                const msg = err.response?.data?.message || "Upload failed, please try again"
-                toast.error(msg);
-                setStatus({ type: 'error', msg })
+            .then((res) => {
+                setDone({ replaced: Boolean(res.data?.replaced) })
+                toast.success(res.data?.replaced ? 'Your solution was updated' : 'Your solution was submitted')
+                setFile(null)
+                setTouched(false)
+                loadProblem()
+            })
+            .catch((err) => {
+                toast.error(err.response?.data?.message || 'Upload failed, please try again')
+            })
+            .finally(() => {
+                setUploading(false)
+                setProgress(0)
             })
     }
 
-    const clearAll = () => {
-        setFiles([])
-        setProgress(0)
-        setStatus(null)
-        setTitle('')
-        setDescription('')
-        setLink('')
-        if (inputRef.current) inputRef.current.value = null
+    const inputClass = (error) =>
+        `w-full px-4 py-3 rounded-xl border bg-white text-gray-800 placeholder-gray-400 transition focus:outline-none focus:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+            error ? 'border-red-300 focus:ring-red-200' : 'border-gray-200 focus:ring-orange-200 focus:border-[#fc9300]'
+        }`
+
+    /* ---------- page states ---------- */
+
+    const renderStatusBadge = () => {
+        if (!problem) return null
+        if (!assigned) return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Not assigned</span>
+        if (submission) return <StatusBadge status={status} />
+        return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-[#c76f00]">Not submitted yet</span>
+    }
+
+    const renderDeadline = () => {
+        if (!problem?.SUB_DEADLINE) return null
+        const tone = deadlinePassed ? 'text-red-600' : remaining <= 2 ? 'text-orange-600' : 'text-gray-600'
+        const label = deadlinePassed ? (changesRequested ? 'Deadline passed · your revision is still accepted' : 'Deadline passed') : remaining <= 0 ? 'Due today' : `${remaining} day${remaining === 1 ? '' : 's'} left`
+        return (
+            <div className={`flex items-center gap-2 text-sm ${tone}`}>
+                <FiCalendar className="shrink-0" />
+                <span>Deadline: <b>{formatDate(problem.SUB_DEADLINE)}</b></span>
+                {!evaluated && <span className="flex items-center gap-1"><FiClock /> {label}</span>}
+            </div>
+        )
     }
 
     return (
-        // added pt-24 to push content below a fixed header; adjust value if your header height differs
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 pt-24 mb-6">
-            <Toaster/>
-            <div className="w-full max-w-5xl bg-white/60 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                <div className="flex flex-col md:flex-row">
-                    {/* Left: Dropzone + inputs */}
-                    <div className="md:w-1/2 p-8 flex flex-col items-center justify-center">
-                        <div className="w-full space-y-3">
-                            {problemInfo && problemInfo.ASSIGNMENT_STATUS === 'ASSIGNED' && (
-                                <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm">
-                                    <div className="text-gray-700">Submitting for <span className="font-bold text-[#fc9300]">SFS_{problemInfo.PROBLEM_ID}</span>: <span className="font-semibold">{problemInfo.TITLE}</span></div>
-                                    {problemInfo.submission?.STATUS === 'PENDING' && (
-                                        <div className="text-gray-600 mt-1">You already submitted a solution. Uploading again will replace it.</div>
-                                    )}
-                                    {problemInfo.submission && problemInfo.submission.STATUS !== 'PENDING' && (
-                                        <div className="text-red-600 mt-1">Your solution was already evaluated and can no longer be changed.</div>
-                                    )}
-                                    {problemInfo.DEADLINE_PASSED && (
-                                        <div className="text-red-600 mt-1">The deadline for this problem has passed.</div>
-                                    )}
-                                </div>
-                            )}
-                            {(problemInfo === null || (problemInfo && problemInfo.ASSIGNMENT_STATUS !== 'ASSIGNED')) && (
-                                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                                    This problem statement is not assigned to your team. Request it from your SPOC under "Problem Statements" first.
-                                </div>
-                            )}
-                            <label className="text-sm font-medium text-gray-700">Solution Title</label>
-                            <input
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-300"
-                                placeholder="Enter solution title"
-                                aria-label="Solution title"
-                            />
+        <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800">
+            <Header />
+            <Toaster position="top-right" />
 
-                            <label className="text-sm font-medium text-gray-700">Description</label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                className="w-full px-3 py-2 border rounded-md h-24 resize-y focus:outline-none focus:ring-2 focus:ring-orange-300"
-                                placeholder="Add a short description"
-                                aria-label="Solution description"
-                            />
+            <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-28 pb-16">
+                <Link to="/student" className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-[#fc9300] transition mb-6">
+                    <FiArrowLeft /> Back to problem statements
+                </Link>
 
-                            <label className="text-sm font-medium text-gray-700">YouTube or Drive Link (optional)</label>
-                            <input
-                                value={link}
-                                onChange={(e) => setLink(e.target.value)}
-                                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-300"
-                                placeholder="https://youtube.com/... or https://drive.google.com/..."
-                                aria-label="YouTube or Drive link"
-                            />
-                        </div>
-
-                        <div
-                            onDrop={onDrop}
-                            onDragOver={(e) => {
-                                e.preventDefault()
-                                setDragActive(true)
-                            }}
-                            onDragLeave={() => setDragActive(false)}
-                            onClick={() => inputRef.current && inputRef.current.click()}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault()
-                                    inputRef.current && inputRef.current.click()
-                                }
-                            }}
-                            role="button"
-                            tabIndex={0}
-                            className={`w-full mt-4 h-56 rounded-xl border-2 transition-all duration-150 flex flex-col items-center justify-center text-center px-6 ${
-                                dragActive ? 'border-orange-400 bg-orange-50/60 shadow-inner' : 'border-dashed border-gray-200 bg-white'
-                            }`}
-                        >
-                            <svg
-                                className="w-12 h-12 text-orange-500 mb-3"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                                aria-hidden
-                            >
-                                <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M7 16v4a1 1 0 001 1h8a1 1 0 001-1v-4M12 3v13" />
-                                <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M8 8l4-4 4 4" />
-                            </svg>
-
-                            <div className="text-sm text-gray-600 mb-2">Drag & drop files here or click to browse</div>
-                        </div>
-
-                        <div className="text-xs text-gray-400 mt-2">One PDF file • Max 20 MB</div>
-
-                        <input ref={inputRef} type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" aria-label="Upload files" />
-
-                        <div className="mt-6 flex gap-3">
-                            <button
-                                type="button"
-                                onClick={uploadFiles}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-full shadow hover:bg-orange-600 transition"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                                    <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5 5 5" />
-                                </svg>
-                                Upload
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={clearAll}
-                                className="px-4 py-2 border rounded-full bg-white hover:bg-gray-50 transition text-sm"
-                            >
-                                Clear
-                            </button>
-                        </div>
-
-                        {status && (
-                            <div
-                                className={`mt-4 text-sm ${
-                                    status.type === 'error' ? 'text-red-600' : status.type === 'success' ? 'text-green-600' : 'text-gray-600'
-                                }`}
-                                role="status"
-                            >
-                                {status.msg}
-                            </div>
-                        )}
+                <div className="mb-6">
+                    <div className="inline-flex items-center rounded-full border border-[#fc9300]/40 bg-[#fff7ec] px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] text-[#fc9300] mb-3">
+                        Submit Solution
                     </div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">
+                        {problem ? problem.TITLE : 'Submit your solution'}
+                    </h1>
+                </div>
 
-                    {/* Right: Files preview */}
-                    <div className="md:w-1/2 p-6 border-l hidden md:block">
-                        <h2 className="text-lg font-semibold text-gray-800 mb-4">Selected Files</h2>
+                {problem === undefined && (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 flex justify-center">
+                        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#fc9300]" />
+                    </div>
+                )}
 
-                        {files.length === 0 ? (
-                            <div className="text-sm text-gray-400">No files selected</div>
-                        ) : (
-                            <div className="space-y-3 max-h-[420px] overflow-auto pr-2">
-                                {files.map((f, i) => (
-                                    <div
-                                        key={i}
-                                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:shadow-sm transition bg-white"
-                                    >
-                                        <div className="w-16 h-12 shrink-0 rounded-md overflow-hidden bg-gray-50 flex items-center justify-center">
-                                            {f.type && f.type.startsWith('image/') ? (
-                                                <img src={previews[i]} alt={f.name} className="object-cover w-full h-full" />
-                                            ) : (
-                                                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                                                    <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M7 7v10" />
-                                                    <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M17 7v10" />
-                                                </svg>
-                                            )}
-                                        </div>
+                {problem === null && (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
+                        <FiAlertTriangle className="mx-auto text-4xl text-[#fc9300] mb-3" />
+                        <h2 className="text-lg font-semibold text-gray-900">Problem statement not found</h2>
+                        <p className="text-sm text-gray-600 mt-1">Open the problem statement from your dashboard and choose "Submit Solution" there.</p>
+                        <Link to="/student" className="inline-block mt-5 px-5 py-2.5 rounded-xl bg-[#fc9300] text-white font-medium hover:bg-[#e68400] transition">
+                            Go to my dashboard
+                        </Link>
+                    </div>
+                )}
 
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-sm font-medium text-gray-800 truncate">{f.name}</div>
-                                                <div className="text-xs text-gray-400">{(f.size / 1024).toFixed(1)} KB</div>
-                                            </div>
-                                            <div className="text-xs text-gray-500 mt-1 truncate">{f.type || 'Unknown type'}</div>
-                                        </div>
+                {problem && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Main column */}
+                        <div className="lg:col-span-2 space-y-6">
+                            {/* Problem summary */}
+                            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                <div className="flex flex-wrap items-center gap-3 mb-3">
+                                    <span className="text-sm font-bold text-[#fc9300]">SFS_{problem.PROBLEM_ID}</span>
+                                    {problem.CATEGORY && (
+                                        <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-600 capitalize">
+                                            <FiTag /> {problem.CATEGORY}
+                                        </span>
+                                    )}
+                                    {renderStatusBadge()}
+                                </div>
+                                {problem.DESCRIPTION && (
+                                    <p className="text-sm text-gray-600 leading-relaxed line-clamp-4 whitespace-pre-line">{problem.DESCRIPTION}</p>
+                                )}
+                                <div className="mt-4">{renderDeadline()}</div>
+                            </section>
 
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => removeFile(i)}
-                                                className="text-red-500 hover:text-red-600 text-sm"
-                                                aria-label={`Remove ${f.name}`}
-                                            >
-                                                Remove
+                            {/* Success message after an upload */}
+                            {done && (
+                                <section className="bg-green-50 border border-green-200 rounded-2xl p-6 flex gap-4">
+                                    <FiCheckCircle className="text-3xl text-green-600 shrink-0" />
+                                    <div>
+                                        <h2 className="font-semibold text-green-800">{done.replaced ? 'Your solution was updated' : 'Your solution was submitted'}</h2>
+                                        <p className="text-sm text-green-700 mt-1">
+                                            A confirmation email is on its way. The evaluator will review it and you will get the decision and their comment by email.
+                                            You can still replace it until it is reviewed.
+                                        </p>
+                                        <div className="flex flex-wrap gap-3 mt-4">
+                                            <Link to="/student" className="px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition">
+                                                Back to dashboard
+                                            </Link>
+                                            <button onClick={() => setDone(null)} className="px-4 py-2 rounded-xl border border-green-300 text-green-800 text-sm font-medium hover:bg-green-100 transition">
+                                                Upload a new version
                                             </button>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                </section>
+                            )}
 
-                        {progress > 0 && (
-                            <div className="mt-4">
-                                <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
-                                    <div
-                                        className="h-3 bg-linear-to-r from-orange-400 to-orange-600 transition-width"
-                                        style={{ width: `${progress}%` }}
-                                    />
+                            {/* Reviewed: the evaluator's decision and comment */}
+                            {(evaluated || changesRequested) && (
+                                <section className={`bg-white rounded-2xl border-2 ${statusMeta(status).border} shadow-sm p-6`}>
+                                    <div className="flex items-start gap-3">
+                                        {evaluated ? <FiAward className={`text-2xl shrink-0 ${statusMeta(status).text}`} /> : <FiMessageSquare className="text-2xl shrink-0 text-orange-600" />}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h2 className="font-semibold text-gray-900">
+                                                    {status === 'APPROVED' ? 'Your solution is approved' : status === 'REJECTED' ? 'Your solution was not approved' : 'The evaluator asked for changes'}
+                                                </h2>
+                                                <StatusBadge status={status} />
+                                            </div>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                "{submission.SOL_TITLE || 'Untitled'}", submitted on {formatDate(submission.SUB_DATE)}.
+                                                {evaluated ? ' It can no longer be changed.' : ' Update your solution below and submit it again.'}
+                                            </p>
+                                            {submission.EVALUATION_COMMENT ? (
+                                                <div className="mt-4 rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
+                                                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Evaluator's comment</div>
+                                                    <p className="text-sm text-gray-800 whitespace-pre-line">{submission.EVALUATION_COMMENT}</p>
+                                                </div>
+                                            ) : (
+                                                <p className="mt-3 text-sm text-gray-500">No comment was added.</p>
+                                            )}
+                                            <MarksBreakdown row={submission} className="mt-4" />
+                                        </div>
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* Why the form is locked */}
+                            {!evaluated && !canSubmit && (
+                                <section className="bg-red-50 border border-red-200 rounded-2xl p-5 flex gap-3 text-sm text-red-700">
+                                    <FiAlertTriangle className="text-xl shrink-0 mt-0.5" />
+                                    <div>
+                                        {!assigned
+                                            ? <>This problem statement is not assigned to your team yet. Request it from your SPOC under <b>Problem Statements</b> first.</>
+                                            : <>The deadline for this problem statement has passed, so solutions can no longer be submitted or changed.</>}
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* Upload form */}
+                            {!evaluated && !done && (
+                                <form onSubmit={startSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5" noValidate>
+                                    {status === 'PENDING' && canSubmit && (
+                                        <div className="flex gap-3 rounded-xl bg-[#fff7ec] border border-orange-200 px-4 py-3 text-sm text-gray-700">
+                                            <FiInfo className="text-[#fc9300] text-lg shrink-0 mt-0.5" />
+                                            <div>
+                                                You already submitted <b>"{submission.SOL_TITLE || 'Untitled'}"</b> on {formatDate(submission.SUB_DATE)}.
+                                                Submitting again <b>replaces</b> it.
+                                            </div>
+                                        </div>
+                                    )}
+                                    {changesRequested && canSubmit && (
+                                        <h2 className="font-semibold text-gray-900">Upload your revised solution</h2>
+                                    )}
+
+                                    <fieldset disabled={!canSubmit || uploading} className="space-y-5">
+                                        <div>
+                                            <div className="flex justify-between mb-1.5">
+                                                <label htmlFor="sol-title" className="text-sm font-semibold text-gray-700">Solution title <span className="text-red-500">*</span></label>
+                                                <span className="text-xs text-gray-400">{title.length}/{TITLE_MAX}</span>
+                                            </div>
+                                            <input
+                                                id="sol-title"
+                                                value={title}
+                                                maxLength={TITLE_MAX}
+                                                onChange={(e) => setTitle(e.target.value)}
+                                                className={inputClass(touched && titleError)}
+                                                placeholder="e.g. Predictive maintenance using vibration sensors"
+                                            />
+                                            {touched && titleError && <p className="text-xs text-red-600 mt-1">{titleError}</p>}
+                                        </div>
+
+                                        <div>
+                                            <div className="flex justify-between mb-1.5">
+                                                <label htmlFor="sol-description" className="text-sm font-semibold text-gray-700">Short description</label>
+                                                <span className="text-xs text-gray-400">{description.length}/{DESCRIPTION_MAX}</span>
+                                            </div>
+                                            <textarea
+                                                id="sol-description"
+                                                value={description}
+                                                maxLength={DESCRIPTION_MAX}
+                                                onChange={(e) => setDescription(e.target.value)}
+                                                className={`${inputClass(false)} h-28 resize-y`}
+                                                placeholder="Summarise your approach in a few lines (optional)"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label htmlFor="sol-link" className="text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                                                <FiLink /> Video or Drive link <span className="font-normal text-gray-400">(optional)</span>
+                                            </label>
+                                            <input
+                                                id="sol-link"
+                                                value={link}
+                                                maxLength={256}
+                                                onChange={(e) => setLink(e.target.value)}
+                                                className={inputClass(linkError)}
+                                                placeholder="https://youtube.com/... or https://drive.google.com/..."
+                                            />
+                                            {linkError && <p className="text-xs text-red-600 mt-1">{linkError}</p>}
+                                        </div>
+
+                                        <div>
+                                            <span className="text-sm font-semibold text-gray-700 block mb-1.5">Solution PDF <span className="text-red-500">*</span></span>
+                                            {file ? (
+                                                <div className="flex items-center gap-4 p-4 rounded-xl border border-green-200 bg-green-50">
+                                                    <div className="w-11 h-11 rounded-lg bg-white border border-green-200 flex items-center justify-center shrink-0">
+                                                        <FiFileText className="text-xl text-red-500" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm font-medium text-gray-900 truncate">{file.name}</div>
+                                                        <div className="text-xs text-gray-500">{formatSize(file.size)} · PDF</div>
+                                                    </div>
+                                                    <button type="button" onClick={() => inputRef.current?.click()} className="text-sm font-medium text-[#fc9300] hover:underline">
+                                                        Change
+                                                    </button>
+                                                    <button type="button" onClick={() => setFile(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-white" aria-label="Remove file">
+                                                        <FiX />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div
+                                                    onDrop={(e) => {
+                                                        e.preventDefault()
+                                                        setDragActive(false)
+                                                        if (canSubmit && !uploading) pickFile(e.dataTransfer.files?.[0])
+                                                    }}
+                                                    onDragOver={(e) => {
+                                                        e.preventDefault()
+                                                        if (canSubmit) setDragActive(true)
+                                                    }}
+                                                    onDragLeave={() => setDragActive(false)}
+                                                    onClick={() => canSubmit && !uploading && inputRef.current?.click()}
+                                                    onKeyDown={(e) => {
+                                                        if ((e.key === 'Enter' || e.key === ' ') && canSubmit) {
+                                                            e.preventDefault()
+                                                            inputRef.current?.click()
+                                                        }
+                                                    }}
+                                                    role="button"
+                                                    tabIndex={canSubmit ? 0 : -1}
+                                                    className={`h-48 rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-center px-6 transition ${
+                                                        !canSubmit ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                                                            : dragActive ? 'border-[#fc9300] bg-orange-50 cursor-copy'
+                                                            : touched && missingFile ? 'border-red-300 bg-red-50/40 cursor-pointer'
+                                                            : 'border-gray-200 bg-white hover:border-[#fc9300] hover:bg-orange-50/40 cursor-pointer'
+                                                    }`}
+                                                >
+                                                    <FiUploadCloud className="text-4xl text-[#fc9300] mb-2" />
+                                                    <div className="text-sm text-gray-700"><b>Click to choose</b> or drag and drop your PDF here</div>
+                                                    <div className="text-xs text-gray-400 mt-1">One PDF file, up to {MAX_MB} MB</div>
+                                                </div>
+                                            )}
+                                            <input
+                                                ref={inputRef}
+                                                type="file"
+                                                accept="application/pdf,.pdf"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    pickFile(e.target.files?.[0])
+                                                    e.target.value = null
+                                                }}
+                                            />
+                                            {fileError && <p className="text-xs text-red-600 mt-1">{fileError}</p>}
+                                            {!fileError && touched && missingFile && <p className="text-xs text-red-600 mt-1">{missingFile}</p>}
+                                        </div>
+                                    </fieldset>
+
+                                    {uploading && (
+                                        <div>
+                                            <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                                <div className="h-2.5 bg-[#fc9300] transition-all duration-200" style={{ width: `${progress}%` }} />
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1.5">{progress < 100 ? `Uploading… ${progress}%` : 'Processing…'}</div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2 border-t border-gray-100">
+                                        <Link to="/student" className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium text-center hover:bg-gray-50 transition">
+                                            Cancel
+                                        </Link>
+                                        <button
+                                            type="submit"
+                                            disabled={!canSubmit || uploading}
+                                            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#fc9300] text-white text-sm font-semibold shadow-sm hover:bg-[#e68400] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <FiUploadCloud />
+                                            {uploading ? 'Submitting…' : changesRequested ? 'Submit revised solution' : replacing ? 'Replace submission' : 'Submit solution'}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+
+                        {/* Side column: guidance */}
+                        <aside className="space-y-6">
+                            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                <h2 className="font-semibold text-gray-900 mb-3">Before you submit</h2>
+                                <ul className="space-y-2.5 text-sm text-gray-600">
+                                    {[
+                                        `Upload one PDF, up to ${MAX_MB} MB.`,
+                                        'You can replace your solution until it is reviewed or the deadline passes.',
+                                        "You get a confirmation email now, and the evaluator's decision and comment by email after the review.",
+                                    ].map((text) => (
+                                        <li key={text} className="flex gap-2">
+                                            <FiCheckCircle className="text-green-600 shrink-0 mt-0.5" /> <span>{text}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+
+                            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                                <h2 className="font-semibold text-gray-900 mb-1">How review works</h2>
+                                <p className="text-xs text-gray-500 mb-3">An evaluator scores your solution on the five criteria below and gives one of three decisions, with a comment. You receive the decision, comment and marks by email.</p>
+                                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Evaluation criteria (100 marks)</div>
+                                <div className="space-y-1.5 mb-4">
+                                    {EVAL_CRITERIA.map((c) => (
+                                        <div key={c.key} className="flex justify-between gap-3 text-sm" title={c.hint}>
+                                            <span className="text-gray-600">{c.label}</span>
+                                            <span className="font-semibold text-gray-900 shrink-0">{c.max}</span>
+                                        </div>
+                                    ))}
                                 </div>
-                                <div className="text-xs text-gray-500 mt-2">{progress}% uploaded</div>
-                            </div>
-                        )}
+                                <div className="space-y-3">
+                                    {OUTCOMES.map(([key, text]) => (
+                                        <div key={key} className="text-sm">
+                                            <StatusBadge status={key} />
+                                            <p className="text-gray-600 mt-1">{text}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </aside>
+                    </div>
+                )}
+            </main>
+
+            {/* Replace confirmation */}
+            {confirmReplace && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+                        <h2 className="text-lg font-semibold text-gray-900">Replace your submission?</h2>
+                        <p className="text-sm text-gray-600 mt-2">
+                            Your current solution <b>"{submission?.SOL_TITLE || 'Untitled'}"</b> will be replaced by <b>{file?.name}</b>. This cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button onClick={() => setConfirmReplace(false)} className="px-4 py-2 rounded-xl bg-gray-100 text-gray-800 text-sm hover:bg-gray-200 transition">
+                                Keep current
+                            </button>
+                            <button onClick={upload} className="px-4 py-2 rounded-xl bg-[#fc9300] text-white text-sm font-medium hover:bg-[#e68400] transition">
+                                Replace
+                            </button>
+                        </div>
                     </div>
                 </div>
+            )}
 
-                {/* Mobile file list */}
-                <div className="md:hidden border-t p-4">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Files</h3>
-                    {files.length === 0 ? (
-                        <div className="text-sm text-gray-400">No files selected</div>
-                    ) : (
-                        <div className="flex gap-2 overflow-x-auto">
-                            {files.map((f, i) => (
-                                <div key={i} className="min-w-[140px] p-2 bg-white border rounded-lg">
-                                    <div className="text-sm font-medium truncate">{f.name}</div>
-                                    <div className="text-xs text-gray-400">{(f.size / 1024).toFixed(1)} KB</div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
+            <Footer />
         </div>
     )
 }

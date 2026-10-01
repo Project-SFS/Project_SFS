@@ -7,7 +7,8 @@ import cookie from "cookie-parser"
 import jwt from "jsonwebtoken"
 import { isEmailVerified, consumeVerifiedEmail } from "./Verify_OTP.js"
 import crypto from "crypto"
-import { notifyAccountCreated } from "../utils/notifications.js"
+import { notifyAccountCreated, notifyPasswordChanged } from "../utils/notifications.js"
+import { passwordError } from "../utils/password.js"
 
 const signup = AsyncHandler(async (req, res) => {
     const { email, password, role, college, college_code, name, date } = req.body;
@@ -23,6 +24,8 @@ const signup = AsyncHandler(async (req, res) => {
     const requestedRole = String(role).toUpperCase();
     const creatorRole = String(req.user?.ROLE || "").toUpperCase();
     if (requestedRole === "SPOC") {
+        const weak = passwordError(password);
+        if (weak) return res.status(400).json({ message: weak });
         if (!isEmailVerified(email)) {
             return res.status(403).json({ message: "Verify your email with the OTP first" });
         }
@@ -55,6 +58,7 @@ const signup = AsyncHandler(async (req, res) => {
   
          
                     const info = await sendMail({
+                        sensitive: true,
                         to: email,
                         subject: "Your Solve For Sakthi team login",
                         html: layout({
@@ -133,6 +137,9 @@ const login = async (req, res) => {
 
     let rs = user.STATUS
     // the evaluator role was removed (admins evaluate now); old evaluator accounts can no longer log in
+    if (response && rs === "GRADUATED") {
+        return res.status(403).json({ data: "GRADUATED", message: "Your team has graduated, so this account is closed. Congratulations, and thank you for taking part!" });
+    }
     if (response && user.ROLE === "EVALUATOR") {
         return res.status(403).json({ data: "REMOVED", message: "Evaluator accounts are no longer used. Please contact the platform admin." });
     }
@@ -249,8 +256,9 @@ const Admin_create_user = AsyncHandler(async (req, res) => {
     if (role === "SPOC" && (!college || !college_code)) {
         return res.status(400).json({ message: "College name and college code are required for a SPOC" });
     }
-    if (password && String(password).length < 8) {
-        return res.status(400).json({ message: "Password must be at least 8 characters" });
+    if (password) {
+        const weak = passwordError(password);
+        if (weak) return res.status(400).json({ message: weak });
     }
     // no password given: generate one; it is emailed to the new user
     if (!password) password = crypto.randomBytes(9).toString("base64url");
@@ -320,3 +328,48 @@ const Admin_delete_user = AsyncHandler(async (req, res) => {
 });
 
 export { Admin_delete_user }
+
+// Sets a new password for a user (admin for anyone, SPOC for their own team logins). Logins issued before
+// the change stop working; optionally the new password is emailed to the user.
+const setPassword = async (user, password, { emailUser, changedBy }) => {
+    await connection.query(
+        "UPDATE SolveForSakthi_Users SET PASSWORD = ?, PASSWORD_CHANGED_AT = SYSUTCDATETIME() WHERE ID = ?",
+        [hashSync(password, 10), user.ID]
+    );
+    if (emailUser) notifyPasswordChanged({ email: user.EMAIL, name: user.NAME, role: user.ROLE, password, changedBy });
+};
+
+// Admin: change any account's password (SPOC, admin or team login)
+const Admin_set_password = AsyncHandler(async (req, res) => {
+    const userId = parseInt(req.body.userId, 10);
+    const { password, emailUser = true } = req.body;
+    if (Number.isNaN(userId)) return res.status(400).json({ message: "Invalid user id" });
+    const weak = passwordError(password);
+    if (weak) return res.status(400).json({ message: weak });
+    const [users] = await connection.query("SELECT ID, EMAIL, NAME, ROLE FROM SolveForSakthi_Users WHERE ID = ?", [userId]);
+    if (!users[0]) return res.status(404).json({ message: "User not found" });
+    await setPassword(users[0], password, { emailUser: Boolean(emailUser), changedBy: "a platform admin" });
+    res.json({ message: "Password changed", self: users[0].ID === req.user.ID });
+});
+
+// SPOC (own, active teams) or admin: change a team's login password
+const Set_team_password = AsyncHandler(async (req, res) => {
+    const teamId = parseInt(req.body.teamId, 10);
+    const { password, emailUser = true } = req.body;
+    if (Number.isNaN(teamId)) return res.status(400).json({ message: "Invalid team id" });
+    const weak = passwordError(password);
+    if (weak) return res.status(400).json({ message: weak });
+    const [teams] = await connection.query("SELECT ID, SPOC_ID, LEAD_EMAIL, GRADUATED_AT FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
+    const team = teams[0];
+    if (!team) return res.status(404).json({ message: "Team not found" });
+    if (req.user.ROLE !== "ADMIN" && team.SPOC_ID !== req.user.ID) {
+        return res.status(403).json({ message: "You can only change passwords of your own teams" });
+    }
+    if (team.GRADUATED_AT) return res.status(400).json({ message: "This team has graduated and its login is closed" });
+    const [users] = await connection.query("SELECT ID, EMAIL, NAME, ROLE FROM SolveForSakthi_Users WHERE EMAIL = ? AND ROLE = 'STUDENT'", [team.LEAD_EMAIL]);
+    if (!users[0]) return res.status(404).json({ message: "This team has no login yet" });
+    await setPassword(users[0], password, { emailUser: Boolean(emailUser), changedBy: req.user.ROLE === "ADMIN" ? "a platform admin" : "your SPOC" });
+    res.json({ message: "Team password changed" });
+});
+
+export { Admin_set_password, Set_team_password }

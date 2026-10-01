@@ -10,9 +10,12 @@ import {
   FiUsers,
   FiFileText,
   FiArrowLeft,
-  FiTrash2
+  FiTrash2,
+  FiEdit2
 } from 'react-icons/fi';
 import { URL } from '../../Utils';
+import { StatusBadge, normalizeStatus } from '../../submissionStatus';
+import Pagination, { usePagination } from '../../components/common/Pagination';
 
 const ProblemStatementDetail = () => {
   const { id } = useParams();
@@ -21,11 +24,7 @@ const ProblemStatementDetail = () => {
   const [problem, setProblem] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterOptions, setFilterOptions] = useState({
-    evaluated: false,
-    submitted: false
-  });
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -55,11 +54,15 @@ const ProblemStatementDetail = () => {
             description: p.DESCRIPTION || p.description || '',
             category: p.CATEGORY || p.category || 'N/A',
             assignedTeams: p.assigned_team_count ?? null,
-            youtube: p.Reference || p.youtube || p.youtube_link || '',
-            dataset: p.Reference || p.dataset || '',
-            created: p.SUB_DATE
-              ? new Date(p.SUB_DATE).toISOString()
-              : new Date().toISOString()
+            deadline: p.SUB_DEADLINE || null,
+            domain: p.DOMAIN || '',
+            technology: p.TECHNOLOGY || '',
+            outcomes: p.EXPECTED_OUTCOMES || '',
+            requirements: p.REQUIREMENTS || '',
+            createdAt: p.CREATED_AT || null,
+            createdByName: p.created_by_name || null,
+            createdByEmail: p.created_by_email || null,
+            createdById: p.CREATED_BY ?? null
           });
         }
       } catch (err) {
@@ -85,10 +88,12 @@ const ProblemStatementDetail = () => {
           id: String(s.submission_id ?? ''),
           team_name: s.team_name || 'N/A',
           title: s.SOL_TITLE || 'No Title',
-          status: String(s.STATUS || 'N/A')
-            .trim()
-            .toUpperCase(),
-          marks:s.MARK
+          status: normalizeStatus(s.STATUS),
+          comment: s.EVALUATION_COMMENT || '',
+          total: s.EVAL_TOTAL ?? null,
+          evaluatedByName: s.evaluated_by_name || null,
+          evaluatedByEmail: s.evaluated_by_email || null,
+          evaluatedAt: s.EVALUATED_AT || null
         }));
 
         
@@ -98,6 +103,12 @@ const ProblemStatementDetail = () => {
         toast.error('Failed to load submissions');
       }
     };
+
+    // an address like /admin/problems/abc/details is simply "not found", without error messages
+    if (!/^\d+$/.test(String(id))) {
+      setLoading(false);
+      return () => { mounted = false; };
+    }
 
     Promise.all([fetchProblem(), fetchSubmissions()])
       .finally(() => mounted && setLoading(false));
@@ -126,6 +137,9 @@ const ProblemStatementDetail = () => {
     }
   };
 
+  const formatDateTime = (value) =>
+    value ? new Date(value).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
+
   /* ---------------- Filters ---------------- */
 
   const filteredSubmissions = submissions.filter(sub => {
@@ -135,14 +149,14 @@ const ProblemStatementDetail = () => {
       (sub.team_name || '').toLowerCase().includes(search) ||
       (sub.title || '').toLowerCase().includes(search);
 
-    const status = sub.status;
-
-    const matchesFilter =
-      (!filterOptions.evaluated && !filterOptions.submitted) ||
-      (filterOptions.evaluated && (status === 'ACCEPTED' || status === 'REJECTED')) ||
-      (filterOptions.submitted && status === 'PENDING');
+    const matchesFilter = statusFilter === 'all' || sub.status === statusFilter;
 
     return matchesSearch && matchesFilter;
+  });
+
+  // hooks stay above the loading / not-found returns below
+  const { page, setPage, pageItems, total, totalPages } = usePagination(filteredSubmissions, {
+    resetKey: `${searchTerm}|${statusFilter}`
   });
 
   // teams the problem is assigned to (falls back to distinct submitting teams)
@@ -172,7 +186,14 @@ const ProblemStatementDetail = () => {
     return (
       <div className="min-h-screen bg-gray-50 py-10">
         <div className="max-w-4xl mx-auto bg-white shadow rounded-lg p-8">
-          <h1>Problem Statement not found</h1>
+          <h1 className="text-lg text-[#1A202C]">Problem statement not found</h1>
+          <p className="text-sm text-[#718096] mt-1">It may have been deleted, or the link is wrong.</p>
+          <Button
+            onClick={() => navigate('/admin/problems')}
+            className="mt-4 !bg-[#FF9900] text-white px-4 py-2 rounded-xl"
+          >
+            Back to problem statements
+          </Button>
         </div>
       </div>
     );
@@ -183,6 +204,13 @@ const ProblemStatementDetail = () => {
         <div className="flex justify-between items-center mb-6">
           <Breadcrumb />
           <div className="flex gap-4">
+            <Button
+              onClick={() => navigate(`/admin/problems/edit/${id}`)}
+              className="!bg-white border border-[#FF9900] !text-[#FF9900] hover:!bg-[#FF9900] hover:!text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm transition-all duration-200"
+            >
+              <FiEdit2 className="w-5 h-5" />
+              <span>Edit</span>
+            </Button>
             <Button
               onClick={() => setShowDeleteModal(true)}
               className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
@@ -219,26 +247,46 @@ const ProblemStatementDetail = () => {
               </tr>
               <tr className="border-b border-[#E2E8F0]">
                 <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Description</td>
-                <td className="p-4 text-[#1A202C]">{problem.description}</td>
+                <td className="p-4 text-[#1A202C] whitespace-pre-line">{problem.description}</td>
               </tr>
               <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">YouTube Link</td>
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Domain</td>
+                <td className="p-4 text-[#1A202C]">{problem.domain || 'N/A'}</td>
+              </tr>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Expected Outcomes</td>
+                <td className="p-4 text-[#1A202C]"><span className="whitespace-pre-line">{problem.outcomes || 'N/A'}</span></td>
+              </tr>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Requirements</td>
+                <td className="p-4 text-[#1A202C]"><span className="whitespace-pre-line">{problem.requirements || 'N/A'}</span></td>
+              </tr>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Technology</td>
+                <td className="p-4 text-[#1A202C]">{problem.technology || 'N/A'}</td>
+              </tr>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Submission Deadline</td>
                 <td className="p-4 text-[#1A202C]">
-                  {problem.youtube ? (
-                    <a href={problem.youtube} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      {problem.youtube}
-                    </a>
-                  ) : 'N/A'}
+                  {problem.deadline ? new Date(problem.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}
                 </td>
               </tr>
-              <tr>
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Dataset Link</td>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Created By</td>
                 <td className="p-4 text-[#1A202C]">
-                  {problem.dataset ? (
-                    <a href={problem.dataset} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      {problem.dataset}
-                    </a>
-                  ) : 'N/A'}
+                  {problem.createdByName || problem.createdByEmail ? (
+                    <>
+                      <span className="font-medium break-all">{problem.createdByEmail || problem.createdByName}</span>
+                    </>
+                  ) : (
+                    <span className="text-[#A0AEC0]">{problem.createdById ? 'Deleted user' : 'Not recorded'}</span>
+                  )}
+                </td>
+              </tr>
+              <tr className="border-b border-[#E2E8F0]">
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Created On</td>
+                <td className="p-4 text-[#1A202C]">
+                  {formatDateTime(problem.createdAt) || <span className="text-[#A0AEC0]">Not recorded</span>}
                 </td>
               </tr>
             </tbody>
@@ -284,39 +332,20 @@ const ProblemStatementDetail = () => {
               <FiSearch className="w-6 h-6" />
             </button>
           </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className="bg-[#FF9900] hover:bg-[#e68900] text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm hover:shadow-md transition-all duration-200"
+          <label className="flex items-center gap-2 text-sm font-medium text-[#4A5568]">
+            <FiFilter className="w-5 h-5 text-[#FF9900]" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="border border-[#E2E8F0] rounded-xl px-3 py-2.5 bg-white text-[#1A202C] focus:ring-2 focus:ring-[#FF9900]/20 outline-none"
             >
-              <FiFilter className="w-5 h-5" />
-              <span>Filter</span>
-            </button>
-            {showFilterDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-sm z-10">
-                <div className="p-4">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={filterOptions.evaluated}
-                      onChange={(e) => setFilterOptions({ ...filterOptions, evaluated: e.target.checked })}
-                      className="w-4 h-4 text-[#FF9900] border-[#E2E8F0] rounded focus:ring-[#FF9900]/20"
-                    />
-                    <span className="text-[#1A202C]">Evaluated</span>
-                  </label>
-                  <label className="flex items-center space-x-2 mt-3">
-                    <input
-                      type="checkbox"
-                      checked={filterOptions.submitted}
-                      onChange={(e) => setFilterOptions({ ...filterOptions, submitted: e.target.checked })}
-                      className="w-4 h-4 text-[#FF9900] border-[#E2E8F0] rounded focus:ring-[#FF9900]/20"
-                    />
-                    <span className="text-[#1A202C]">Awaiting evaluation</span>
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
+              <option value="all">All statuses</option>
+              <option value="PENDING">Awaiting review</option>
+              <option value="CHANGES_REQUESTED">Changes needed</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+          </label>
         </div>
 
         {/* Submission List Table */}
@@ -326,13 +355,15 @@ const ProblemStatementDetail = () => {
               <tr>
                 <th className="p-4 font-semibold">Team Name</th>
                 <th className="p-4 font-semibold">Title</th>
-                <th className='p-4 font-semibold'>Evaluation</th>
+                <th className='p-4 font-semibold'>Review</th>
                 <th className="p-4 font-semibold">Status</th>
                 <th className='p-4 font-semibold'>Marks</th>
+                <th className='p-4 font-semibold'>Latest Comment</th>
+                <th className='p-4 font-semibold'>Reviewed By</th>
               </tr>
             </thead>
             <tbody>
-              {filteredSubmissions.map((sub) => (
+              {pageItems.map((sub) => (
                 <tr
                   key={sub.id}
                   className="hover:bg-[#F9FAFB] border-t border-[#E2E8F0] transition-all"
@@ -350,38 +381,48 @@ const ProblemStatementDetail = () => {
                       onClick={() => navigate(`/admin/submissions/${sub.id}/details`)}
                       className="bg-[#FF9900] text-white font-bold px-4 py-2 rounded-xl shadow hover:bg-[#e68900]"
                     >
-                      {sub.status === 'PENDING' ? 'Evaluate' : 'View / Re-evaluate'}
+                      {sub.status === 'PENDING' ? 'Review' : 'View / Re-review'}
                     </button>
 
                   </td>
                   <td className="p-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${sub.status === 'ACCEPTED'
-                        ? 'bg-green-100 text-green-800'
-                        : sub.status === 'REJECTED'
-                          ? 'bg-red-100 text-red-800'
-                          : sub.status === 'PENDING'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-gray-100 text-gray-800'
-                        }`}
-                    >
-                      {sub.status}
-                    </span>
+                    <StatusBadge status={sub.status} />
+                  </td>
+                  <td className="p-4 text-[#1A202C] whitespace-nowrap">
+                    {sub.total != null ? <span className="font-semibold">{sub.total} / 100</span> : <span className="text-[#A0AEC0]">-</span>}
                   </td>
                   <td className="p-4 text-[#1A202C]">
-                      {sub.marks != null ? (
-                        <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">
-                          {sub.marks}/100
-                        </span>
+                      {sub.comment ? (
+                        <span className="block max-w-xs text-sm line-clamp-2" title={sub.comment}>{sub.comment}</span>
                       ) : (
-                        <span className="text-[#A0AEC0]">Not evaluated</span>
+                        <span className="text-[#A0AEC0]">-</span>
                       )}
+                  </td>
+                  <td className="p-4 text-[#1A202C]">
+                    {sub.evaluatedByName || sub.evaluatedByEmail ? (
+                      <>
+                        <span className="font-medium break-all">{sub.evaluatedByEmail || sub.evaluatedByName}</span>
+                        {sub.evaluatedAt && (
+                          <span className="block text-xs text-[#718096]">{formatDateTime(sub.evaluatedAt)}</span>
+                        )}
+                      </>
+                    ) : sub.status === 'PENDING' ? (
+                      <span className="text-[#A0AEC0]">-</span>
+                    ) : (
+                      <span className="text-[#A0AEC0]">{sub.evaluatedAt ? 'Deleted user' : 'Not recorded'}</span>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {filteredSubmissions.length === 0 && (
+            <p className="p-6 text-center text-[#A0AEC0] italic">
+              {submissions.length ? 'No submissions match the search or filter.' : 'No submissions yet for this problem statement.'}
+            </p>
+          )}
         </div>
+        <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} label="submissions" />
       </div>
 
       {/* Delete Confirmation Modal */}

@@ -13,8 +13,12 @@ const sessionUser = async (req) => {
   } catch (err) {
     return null;
   }
-  const [rows] = await connection.query("SELECT STATUS, ROLE FROM SolveForSakthi_Users WHERE ID = ?", [payload.ID]);
-  if (rows.length === 0 || rows[0].STATUS === "REJECTED" || rows[0].ROLE === "EVALUATOR") return null;
+  const [rows] = await connection.query("SELECT STATUS, ROLE, PASSWORD_CHANGED_AT FROM SolveForSakthi_Users WHERE ID = ?", [payload.ID]);
+  if (rows.length === 0 || ["REJECTED", "GRADUATED"].includes(rows[0].STATUS) || rows[0].ROLE === "EVALUATOR") return null;
+  // the token carries the user's row as it was at login, including PASSWORD_CHANGED_AT; once an admin or
+  // SPOC changes the password the stored value differs, so logins from before the change stop working
+  const stamp = (value) => (value ? new Date(value).getTime() : 0);
+  if (stamp(rows[0].PASSWORD_CHANGED_AT) !== stamp(payload.PASSWORD_CHANGED_AT)) return null;
   return payload;
 };
 

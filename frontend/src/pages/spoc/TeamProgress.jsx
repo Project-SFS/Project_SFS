@@ -3,11 +3,12 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { URL } from "../../Utils";
 import SubmissionStatus from "../student/SubmissionStatus";
+import Pagination, { usePagination } from "../../components/common/Pagination";
 
 const formatDate = (value) => (value ? String(value).split("T")[0] : "—");
 const todayStr = () => new Date().toLocaleDateString("en-CA");
 
-// SPOC view: assign problem statements to teams and follow every team's submissions and marks
+// SPOC view: assign problem statements to teams and follow every team's submissions and reviews
 export default function TeamProgress() {
   const [teams, setTeams] = useState([]);
   const [problems, setProblems] = useState([]);
@@ -77,6 +78,8 @@ export default function TeamProgress() {
     }
   };
 
+  const { page, setPage, pageItems, total, totalPages } = usePagination(teams);
+
   if (loading) {
     return <div className="text-gray-500">Loading team progress...</div>;
   }
@@ -118,7 +121,7 @@ export default function TeamProgress() {
       )}
 
       <div className="space-y-6">
-        {teams.map((team) => {
+        {pageItems.map((team) => {
           const assigned = team.problems.filter((p) => p.ASSIGNMENT_STATUS === "ASSIGNED");
           const requests = team.problems.filter((p) => p.ASSIGNMENT_STATUS === "REQUESTED");
           // already assigned or requested problems are handled above; closed ones are listed but disabled
@@ -179,7 +182,8 @@ export default function TeamProgress() {
                         <th className="py-2 px-3">Problem</th>
                         <th className="py-2 px-3">Deadline</th>
                         <th className="py-2 px-3">Status</th>
-                        <th className="py-2 px-3">Score</th>
+                        <th className="py-2 px-3">Marks</th>
+                        <th className="py-2 px-3">Evaluator's comment</th>
                         <th className="py-2 px-3">Submitted</th>
                         <th className="py-2 px-3">Solution</th>
                         <th className="py-2 px-3"></th>
@@ -188,7 +192,6 @@ export default function TeamProgress() {
                     <tbody>
                       {assigned.map((p) => {
                         const sub = p.submission;
-                        const evaluated = sub && sub.STATUS !== "PENDING";
                         return (
                           <tr key={p.PROBLEM_ID} className="border-t border-gray-100 align-top">
                             <td className="py-2 px-3">
@@ -201,10 +204,11 @@ export default function TeamProgress() {
                             </td>
                             <td className="py-2 px-3"><SubmissionStatus submission={sub} /></td>
                             <td className="py-2 px-3 whitespace-nowrap">
-                              {evaluated ? (
-                                <span title={`CP ${sub.CP_MARK ?? 0}/20 · PS ${sub.PS_MARK ?? 0}/40 · BV ${sub.BV_MARK ?? 0}/20 · FP ${sub.FP_MARK ?? 0}/10 · IN ${sub.IN_MARK ?? 0}/10`}>
-                                  <b>{sub.MARK ?? 0}</b> / 100
-                                </span>
+                              {sub?.EVAL_TOTAL != null ? <b>{sub.EVAL_TOTAL} / 100</b> : "—"}
+                            </td>
+                            <td className="py-2 px-3">
+                              {sub?.EVALUATION_COMMENT ? (
+                                <span className="block max-w-xs text-gray-700 whitespace-pre-line line-clamp-3" title={sub.EVALUATION_COMMENT}>{sub.EVALUATION_COMMENT}</span>
                               ) : "—"}
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap">{sub ? formatDate(sub.SUB_DATE) : "—"}</td>
@@ -263,6 +267,7 @@ export default function TeamProgress() {
           );
         })}
       </div>
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} label="teams" />
     </div>
   );
 }

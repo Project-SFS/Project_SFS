@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer"
 import dotenv from "dotenv"
+import connection from "../database/db.js"
 
 dotenv.config()
 
@@ -102,16 +103,62 @@ if (account && process.env.NODE_ENV !== "test") {
         .catch((err) => console.error(`Mail account NOT working: ${account.label} - ${err.message}`))
 }
 
+// Every mail is written to SolveForSakthi_Mail_Log for the admin's communication history.
+// sensitive: true (passwords, verification codes) keeps the recipients and subject but not the text.
+// Logging never blocks or breaks sending.
+const addresses = (value) => (Array.isArray(value) ? value.join(", ") : value ? String(value) : null)
+const logMail = (message, text, status, error) => {
+    trackMailWork(connection.query(
+        "INSERT INTO SolveForSakthi_Mail_Log (TO_ADDR, CC_ADDR, SUBJECT, BODY_TEXT, STATUS, ERROR, SENT_AT) VALUES (?, ?, ?, ?, ?, ?, SYSUTCDATETIME())",
+        [
+            addresses(message.to)?.slice(0, 1000) ?? null,
+            addresses(message.cc)?.slice(0, 1000) ?? null,
+            message.subject ? String(message.subject).slice(0, 500) : null,
+            message.sensitive ? "(not stored: this email contained login details or a verification code)" : text || null,
+            status,
+            error ? String(error).slice(0, 500) : null,
+        ]
+    ).catch((err) => console.error("Mail log failed:", err.message)))
+}
+
+// Mail work still running (notifications prepare their data, then send). On shutdown the server waits
+// for it, so a restart or deploy does not drop mails half way.
+const pendingWork = new Set()
+const trackMailWork = (promise) => {
+    pendingWork.add(promise)
+    promise.finally(() => pendingWork.delete(promise)).catch(() => {})
+    return promise
+}
+// waits until nothing is pending (work can start more work, e.g. a sent mail is then logged) or the timeout
+const waitForPendingMail = async (timeoutMs = 20000) => {
+    const deadline = Date.now() + timeoutMs
+    while (pendingWork.size > 0 && Date.now() < deadline) {
+        await Promise.race([Promise.allSettled([...pendingWork]), new Promise((resolve) => setTimeout(resolve, deadline - Date.now()))])
+    }
+}
+
 // The sender address must be the authenticated mailbox, so callers only choose the display name
-const sendMail = async ({ fromName = "Solve For Sakthi", ...message }) => {
+const sendMail = async ({ fromName = "Solve For Sakthi", sensitive = false, cc, bcc, ...message }) => {
     if (!account) throw new Error("No mail account set in backend/.env")
-    return account.transporter.sendMail({
-        from: `"${fromName}" <${account.user}>`,
-        ...(message.html && !message.text ? { text: htmlToText(message.html) } : {}),
-        ...message,
-    })
+    // the platform never copies people into a mail: every recipient gets their own email
+    if (cc || bcc) console.warn(`Mail "${message.subject}": cc/bcc is not used and was dropped`)
+    const text = message.text || (message.html ? htmlToText(message.html) : "")
+    try {
+        const info = await account.transporter.sendMail({
+            from: `"${fromName}" <${account.user}>`,
+            ...(message.html && !message.text ? { text } : {}),
+            ...message,
+        })
+        logMail({ ...message, sensitive }, text, "SENT")
+        return info
+    } catch (err) {
+        logMail({ ...message, sensitive }, text, "FAILED", err.message)
+        throw err
+    }
 }
 
 const transporter = account?.transporter
 
-export { transporter, sendMail }
+const trackedSendMail = (message) => trackMailWork(sendMail(message))
+
+export { transporter, trackedSendMail as sendMail, trackMailWork, waitForPendingMail }

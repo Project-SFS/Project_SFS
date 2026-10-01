@@ -5,6 +5,9 @@ import toast, { Toaster } from "react-hot-toast";
 import { URL } from "../../Utils";
 import SubmissionStatus from "./SubmissionStatus";
 import DeleteSubmissionButton from "../../components/DeleteSubmissionButton";
+import Pagination, { usePagination } from "../../components/common/Pagination";
+import ProblemDetailsFields from "../../components/ProblemDetailsFields";
+import { normalizeStatus, statusMeta } from "../../submissionStatus";
 
 const formatDate = (value) => (value ? String(value).split("T")[0] : "N/A");
 
@@ -61,6 +64,11 @@ export default function TeamProblemStatements() {
     }
   };
 
+  const visible = data.problems.filter((p) =>
+    filter === "assigned" ? p.ASSIGNMENT_STATUS === "ASSIGNED" : filter === "requested" ? p.ASSIGNMENT_STATUS === "REQUESTED" : true
+  );
+  const { page, setPage, pageItems, total, totalPages } = usePagination(visible, { resetKey: filter });
+
   if (loading) {
     return <div className="text-center text-gray-500 py-10">Loading problem statements...</div>;
   }
@@ -68,18 +76,18 @@ export default function TeamProblemStatements() {
     return <div className="text-center text-red-600 py-10">{error}</div>;
   }
 
-  const visible = data.problems.filter((p) =>
-    filter === "assigned" ? p.ASSIGNMENT_STATUS === "ASSIGNED" : filter === "requested" ? p.ASSIGNMENT_STATUS === "REQUESTED" : true
-  );
-
   const actionFor = (p) => {
     const sub = p.submission;
     if (p.ASSIGNMENT_STATUS === "ASSIGNED") {
-      const evaluated = sub && sub.STATUS !== "PENDING";
-      const label = evaluated ? "Evaluated" : p.DEADLINE_PASSED ? "Deadline passed" : sub ? "Replace submission" : "Submit solution";
+      const status = sub ? normalizeStatus(sub.STATUS) : null;
+      // changes requested: the team may upload its revision even after the deadline
+      const changes = status === "CHANGES_REQUESTED";
+      const final = status === "APPROVED" || status === "REJECTED";
+      const blocked = final || (p.DEADLINE_PASSED && !changes);
+      const label = final ? statusMeta(status).label : changes ? "Upload revised solution" : p.DEADLINE_PASSED ? "Deadline passed" : sub ? "Replace submission" : "Submit solution";
       return (
         <button
-          disabled={evaluated || p.DEADLINE_PASSED}
+          disabled={blocked}
           onClick={() => navigate(`/student/submit-solution?problemId=${p.PROBLEM_ID}`)}
           className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[#fc9300] hover:bg-[#e08300] disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
@@ -149,7 +157,7 @@ export default function TeamProblemStatements() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {visible.map((p) => {
+          {pageItems.map((p) => {
             const sub = p.submission;
             const isOpen = expanded[p.PROBLEM_ID];
             return (
@@ -171,6 +179,7 @@ export default function TeamProblemStatements() {
                     >
                       {isOpen ? "Show less" : "Read full problem statement"}
                     </button>
+                    {isOpen && <ProblemDetailsFields problem={p} className="mt-3" />}
                   </div>
                 )}
 
@@ -193,9 +202,15 @@ export default function TeamProblemStatements() {
                       Your solution: <span className="font-medium text-gray-800">{sub.SOL_TITLE || "Untitled"}</span> ({formatDate(sub.SUB_DATE)})
                     </div>
                   )}
-                  {sub && sub.STATUS !== "PENDING" && (
+                  {sub && sub.EVAL_TOTAL != null && normalizeStatus(sub.STATUS) !== "PENDING" && (
                     <div>
-                      Score: <span className="font-semibold text-gray-900">{sub.MARK ?? 0} / 100</span>
+                      Marks: <span className="font-semibold text-gray-900">{sub.EVAL_TOTAL} / 100</span>
+                    </div>
+                  )}
+                  {sub && sub.EVALUATION_COMMENT && normalizeStatus(sub.STATUS) !== "PENDING" && (
+                    <div className={`mt-2 rounded-md border-l-4 ${statusMeta(sub.STATUS).border} bg-gray-50 px-3 py-2`}>
+                      <div className="text-xs font-semibold text-gray-700">Evaluator's comment</div>
+                      <p className="text-sm text-gray-700 whitespace-pre-line">{sub.EVALUATION_COMMENT}</p>
                     </div>
                   )}
                 </div>
@@ -214,22 +229,13 @@ export default function TeamProblemStatements() {
                       }}
                     />
                   )}
-                  {p.Reference && (
-                    <a
-                      href={p.Reference}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50"
-                    >
-                      Reference
-                    </a>
-                  )}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} label="problem statements" />
     </div>
   );
 }

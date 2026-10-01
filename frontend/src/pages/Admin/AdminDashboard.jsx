@@ -172,7 +172,8 @@ const AdminDashboard = () => {
 
   const evaluatedCount = useMemo(
     () =>
-      data.submissions.filter(s => s.status === 'ACCEPTED' || s.status === 'REJECTED').length,
+      // reviewed at least once and not waiting for a review again
+      data.submissions.filter(s => s.status && s.status !== 'PENDING').length,
     [data.submissions]
   );
 
@@ -194,7 +195,7 @@ const AdminDashboard = () => {
             to="/admin/approvals"
           />
           <StatCard
-            title="Awaiting Evaluation"
+            title="Awaiting Review"
             value={awaitingEvaluation}
             icon={FiUsers}
             to="/admin/problems"

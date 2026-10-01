@@ -515,6 +515,12 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { URL } from "../../Utils";
+import Pagination, { usePagination } from "../../components/common/Pagination";
+import ChangePasswordModal from "../../components/ChangePasswordModal";
+import { FiKey } from "react-icons/fi";
+
+// a member can graduate this year or up to ten years ahead (e.g. 2026-2036); the team leaves the SPOC list after its last member graduates
+const GRAD_YEARS = Array.from({ length: 11 }, (_, i) => new Date().getFullYear() + i);
 import { useNavigate } from "react-router-dom";
 import { FaUsers } from "react-icons/fa";
 import toast, { Toaster } from "react-hot-toast";
@@ -523,6 +529,7 @@ import { FaRegEdit } from "react-icons/fa";
 
 function TeamList() {
   const [FullTeam, setFullTeam] = useState([]);
+  const [passwordTeam, setPasswordTeam] = useState(null); // team whose login password is being changed
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
@@ -539,10 +546,10 @@ function TeamList() {
   const [teamFormData, setTeamFormData] = useState({
     teamName: "",
     members: [
-      { role: "Team Lead", name: "", email: "", phone: "", gender: "" },
-      { role: "Member 1", name: "", email: "", phone: "", gender: "" },
-      { role: "Member 2", name: "", email: "", phone: "", gender: "" },
-      { role: "Member 3", name: "", email: "", phone: "", gender: "" },
+      { role: "Team Lead", name: "", email: "", phone: "", gender: "", gradYear: "" },
+      { role: "Member 1", name: "", email: "", phone: "", gender: "", gradYear: "" },
+      { role: "Member 2", name: "", email: "", phone: "", gender: "", gradYear: "" },
+      { role: "Member 3", name: "", email: "", phone: "", gender: "", gradYear: "" },
     ],
   });
 
@@ -609,6 +616,7 @@ function TeamList() {
             email: res.data.result[0].EMAIL,
             phone: res.data.result[0].PHONE,
             gender: res.data.result[0].GENDER,
+            gradYear: res.data.result[0].GRAD_YEAR ? String(res.data.result[0].GRAD_YEAR) : "",
           },
           {
             role: "Member 1",
@@ -616,6 +624,7 @@ function TeamList() {
             email: res.data.result[1].EMAIL,
             phone: res.data.result[1].PHONE,
             gender: res.data.result[1].GENDER,
+            gradYear: res.data.result[1].GRAD_YEAR ? String(res.data.result[1].GRAD_YEAR) : "",
           },
           {
             role: "Member 2",
@@ -623,6 +632,7 @@ function TeamList() {
             email: res.data.result[2].EMAIL,
             phone: res.data.result[2].PHONE,
             gender: res.data.result[2].GENDER,
+            gradYear: res.data.result[2].GRAD_YEAR ? String(res.data.result[2].GRAD_YEAR) : "",
           },
           {
             role: "Member 3",
@@ -630,6 +640,7 @@ function TeamList() {
             email: res.data.result[3].EMAIL,
             phone: res.data.result[3].PHONE,
             gender: res.data.result[3].GENDER,
+            gradYear: res.data.result[3].GRAD_YEAR ? String(res.data.result[3].GRAD_YEAR) : "",
           },
         ],
       });
@@ -643,7 +654,7 @@ function TeamList() {
   const handleCreateTeam = (e) => {
     e.preventDefault();
 
-    if (e.target[20].innerText == "Update team") {
+    if (!fetched_s) {
       let load = toast.loading("Updating team...");
       axios
         .post(`${URL}/update_team`, {
@@ -659,6 +670,10 @@ function TeamList() {
             setShowCreateTeamModal(false);
             allteams();
           }
+        })
+        .catch((error) => {
+          toast.dismiss(load);
+          toast.error(error.response?.data?.message || "Failed to update team. Please try again.");
         });
     } else {
       const loadingToast = toast.loading("Creating team...");
@@ -707,10 +722,10 @@ function TeamList() {
             setTeamFormData({
               teamName: "",
               members: [
-                { role: "Team Lead", name: "", email: "", phone: "", gender: "" },
-                { role: "Member 1", name: "", email: "", phone: "", gender: "" },
-                { role: "Member 2", name: "", email: "", phone: "", gender: "" },
-                { role: "Member 3", name: "", email: "", phone: "", gender: "" },
+                { role: "Team Lead", name: "", email: "", phone: "", gender: "", gradYear: "" },
+                { role: "Member 1", name: "", email: "", phone: "", gender: "", gradYear: "" },
+                { role: "Member 2", name: "", email: "", phone: "", gender: "", gradYear: "" },
+                { role: "Member 3", name: "", email: "", phone: "", gender: "", gradYear: "" },
               ],
             });
             allteams();
@@ -718,7 +733,8 @@ function TeamList() {
         })
         .catch((error) => {
           toast.dismiss(loadingToast);
-          toast.error("Failed to create team. Please try again.", {
+          toast.dismiss(mailToast);
+          toast.error(error.response?.data?.message || "Failed to create team. Please try again.", {
             duration: 4000,
             position: "top-right",
           });
@@ -748,6 +764,9 @@ function TeamList() {
         });
     }
   };
+
+
+  const { page, setPage, pageItems: pagedTeams, total, totalPages } = usePagination(FullTeam);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -858,12 +877,15 @@ function TeamList() {
                             Edit
                           </th>
                           <th className="px-4 sm:px-6 py-3 text-center text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Password
+                          </th>
+                          <th className="px-4 sm:px-6 py-3 text-center text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">
                             Delete
                           </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {FullTeam.map((team) => (
+                        {pagedTeams.map((team) => (
                           <tr
                             key={team.ID}
                             className="hover:bg-gray-50 transition cursor-pointer"
@@ -904,6 +926,15 @@ function TeamList() {
                             </td>
                             <td className="px-4 sm:px-6 py-3 text-center">
                               <button
+                                onClick={() => setPasswordTeam(team)}
+                                className="inline-flex items-center justify-center rounded-full p-2 bg-orange-50 hover:bg-orange-100 text-[#fc8f00] transition"
+                                title="Change the team's login password"
+                              >
+                                <FiKey />
+                              </button>
+                            </td>
+                            <td className="px-4 sm:px-6 py-3 text-center">
+                              <button
                                 onClick={() => deleteteam(team)}
                                 className="inline-flex items-center justify-center rounded-full p-2 bg-red-50 hover:bg-red-100 text-red-600 transition"
                               >
@@ -914,6 +945,9 @@ function TeamList() {
                         ))}
                       </tbody>
                     </table>
+                    <div className="px-4">
+                      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} label="teams" />
+                    </div>
                   </div>
                 )}
               </div>
@@ -921,6 +955,20 @@ function TeamList() {
           ) : null}
         </AnimatePresence>
       </div>
+
+      {passwordTeam && (
+        <ChangePasswordModal
+          title="Change team login password"
+          subtitle={`${passwordTeam.NAME} · login ${passwordTeam.LEAD_EMAIL}`}
+          emailLabel="Email the new password to the team lead"
+          onSave={async (password, emailUser) => {
+            await axios.post(`${URL}/team_password`, { teamId: passwordTeam.ID, password, emailUser }, { withCredentials: true });
+            toast.success(`Password changed for ${passwordTeam.NAME}${emailUser ? " and emailed to the team lead" : ""}`);
+            setPasswordTeam(null);
+          }}
+          onClose={() => setPasswordTeam(null)}
+        />
+      )}
 
       {/* ===== Modal ===== */}
       {showCreateTeamModal && (
@@ -953,6 +1001,7 @@ function TeamList() {
                         email: "",
                         phone: "",
                         gender: "",
+                        gradYear: "",
                       },
                       {
                         role: "Member 1",
@@ -960,6 +1009,7 @@ function TeamList() {
                         email: "",
                         phone: "",
                         gender: "",
+                        gradYear: "",
                       },
                       {
                         role: "Member 2",
@@ -967,6 +1017,7 @@ function TeamList() {
                         email: "",
                         phone: "",
                         gender: "",
+                        gradYear: "",
                       },
                       {
                         role: "Member 3",
@@ -974,6 +1025,7 @@ function TeamList() {
                         email: "",
                         phone: "",
                         gender: "",
+                        gradYear: "",
                       },
                     ],
                   });
@@ -1103,6 +1155,19 @@ function TeamList() {
                           <option value="Female">Female</option>
                           <option value="Other">Other</option>
                         </select>
+                        <select
+                          value={member.gradYear}
+                          onChange={(e) =>
+                            handleMemberChange(index, "gradYear", e.target.value)
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#fc8f00]"
+                          required
+                        >
+                          <option value="">Graduation year</option>
+                          {GRAD_YEARS.map((year) => (
+                            <option key={year} value={year}>{year}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   ))}
@@ -1125,6 +1190,7 @@ function TeamList() {
                           email: "",
                           phone: "",
                           gender: "",
+                          gradYear: "",
                         },
                         {
                           role: "Member 1",
@@ -1132,6 +1198,7 @@ function TeamList() {
                           email: "",
                           phone: "",
                           gender: "",
+                          gradYear: "",
                         },
                         {
                           role: "Member 2",
@@ -1139,6 +1206,7 @@ function TeamList() {
                           email: "",
                           phone: "",
                           gender: "",
+                          gradYear: "",
                         },
                         {
                           role: "Member 3",
@@ -1146,6 +1214,7 @@ function TeamList() {
                           email: "",
                           phone: "",
                           gender: "",
+                          gradYear: "",
                         },
                       ],
                     });

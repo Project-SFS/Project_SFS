@@ -6,6 +6,8 @@ import SearchBar from "../components/SearchBar";
 import Header from "./Header";
 
 import { URL } from "../Utils";
+import Pagination, { usePagination } from "./common/Pagination";
+import ProblemDetailsFields from "./ProblemDetailsFields";
 
 const fetchProblems = async () => {
   const response = await axios.get(`${URL}/get_problems`, { timeout: 8000 });
@@ -93,6 +95,7 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
   const filteredProblems = problems.filter((problem) =>
     problem.TITLE?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const { page, setPage, pageItems, total, totalPages } = usePagination(filteredProblems, { resetKey: searchQuery });
 
   return (
     <motion.div
@@ -223,7 +226,7 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredProblems.map((p, index) => (
+                    {pageItems.map((p, index) => (
                       <motion.tr
                         key={p.id || p.ID || index}
                         initial={{ opacity: 0, y: 20 }}
@@ -264,6 +267,9 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
                     ))}
                   </tbody>
                 </table>
+                <div className="px-4">
+                  <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} label="problem statements" />
+                </div>
               </motion.div>
             )}
           </section>
@@ -296,19 +302,7 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
                     {selected.DESCRIPTION}
                   </p>
                 </div>
-                {selected.Reference && (
-                  <div>
-                    <strong>Resources:</strong>{" "}
-                    <a
-                      href={selected.Reference}
-                      className="text-blue-600 hover:underline break-all"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {selected.Reference}
-                    </a>
-                  </div>
-                )}
+                <ProblemDetailsFields problem={selected} />
                 <div className="flex justify-end gap-3 mt-4">
                   {allowSubmit && (
                     <button

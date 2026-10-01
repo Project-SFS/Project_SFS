@@ -4,6 +4,7 @@ import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { FiShield, FiBriefcase, FiUserPlus } from "react-icons/fi";
 import { URL } from "../../Utils";
+import PasswordFields, { passwordsReady } from "../../components/PasswordFields";
 
 const ROLES = [
   { value: "ADMIN", label: "Platform Admin", icon: FiShield, hint: "Full access, same as the main admin: approvals, problem statements, evaluating submissions, users." },
@@ -20,17 +21,26 @@ export default function CreateUser() {
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState(null);
+  // "generate": the server creates a secure password; "set": the admin types it twice
+  const [passwordMode, setPasswordMode] = useState("generate");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const passwordOk = passwordMode === "generate" || passwordsReady(form.password, confirmPassword);
 
   const onChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (!passwordOk) {
+      toast.error("Enter a password that meets the rules, and the same password again");
+      return;
+    }
     setBusy(true);
     try {
-      await axios.post(`${URL}/admin/create_user`, { ...form, role });
+      await axios.post(`${URL}/admin/create_user`, { ...form, password: passwordMode === "set" ? form.password : "", role });
       setCreated({ role, email: form.email.trim().toLowerCase(), name: form.name.trim() });
       toast.success("Account created. Login details were emailed to the user.");
       setForm(EMPTY);
+      setConfirmPassword("");
     } catch (err) {
       toast.error(err.response?.data?.message || "Could not create the account");
     } finally {
@@ -114,18 +124,33 @@ export default function CreateUser() {
           )}
 
           <div className="md:col-span-2">
-            <label className={label}>Password</label>
-            <input
-              name="password"
-              type="text"
-              autoComplete="new-password"
-              value={form.password}
-              onChange={onChange}
-              minLength={8}
-              placeholder="Leave empty to generate a secure password"
-              className={input}
-            />
-            <p className="text-xs text-[#718096] mt-1">At least 8 characters. Either way, the password is emailed to the user.</p>
+            <span className={label}>Password</span>
+            <div className="flex flex-wrap gap-4 mb-3">
+              {[["generate", "Generate a secure password"], ["set", "Set a password"]].map(([value, text]) => (
+                <label key={value} className="flex items-center gap-2 text-sm text-[#4A5568] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="passwordMode"
+                    value={value}
+                    checked={passwordMode === value}
+                    onChange={() => setPasswordMode(value)}
+                    className="accent-[#FF9900]"
+                  />
+                  {text}
+                </label>
+              ))}
+            </div>
+            {passwordMode === "set" && (
+              <PasswordFields
+                password={form.password}
+                confirm={confirmPassword}
+                onPasswordChange={(value) => setForm((prev) => ({ ...prev, password: value }))}
+                onConfirmChange={setConfirmPassword}
+                inputClassName={input}
+                labelClassName={label}
+              />
+            )}
+            <p className="text-xs text-[#718096] mt-2">Either way, the password is emailed to the user.</p>
           </div>
         </div>
 
@@ -139,7 +164,7 @@ export default function CreateUser() {
           </button>
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !passwordOk}
             className="px-6 py-2.5 rounded-xl bg-[#FF9900] hover:bg-[#E68500] text-white font-semibold disabled:bg-gray-300"
           >
             {busy ? "Creating..." : `Create ${roleInfo?.label}`}

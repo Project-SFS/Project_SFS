@@ -22,6 +22,8 @@ services:
     restart: unless-stopped
     # database, mail, secrets and CORS_ORIGINS live in backend/.env
     env_file: ./backend/.env
+    # time to finish requests and mails that are still being sent before the container is stopped
+    stop_grace_period: 30s
     environment:
       NODE_ENV: production
       PORT: 9022
