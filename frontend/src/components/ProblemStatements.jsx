@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import {
-  FiSearch, FiCalendar, FiClock, FiTag, FiX, FiLayers, FiCpu, FiTarget, FiList, FiRotateCcw, FiFileText,
+  FiSearch, FiCalendar, FiClock, FiTag, FiX, FiLayers, FiCpu, FiTarget, FiList, FiRotateCcw, FiFileText, FiCode,
 } from "react-icons/fi";
 import Header from "./Header";
 import Footer from "./Footer";
@@ -72,6 +72,7 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
   const setFilter = (key) => (value) => setFilters((prev) => ({ ...prev, [key]: value }));
   const categories = useMemo(() => [...new Set(problems.map((p) => String(p.CATEGORY || "").toLowerCase()).filter(Boolean))].sort(), [problems]);
   const domains = useMemo(() => [...new Set(problems.map((p) => p.DOMAIN).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [problems]);
+  const countCategory = (c) => problems.filter((p) => String(p.CATEGORY || "").toLowerCase() === c).length;
   const openCount = problems.filter((p) => (daysLeft(p.SUB_DEADLINE) ?? 1) >= 0).length;
 
   const visible = useMemo(() => {
@@ -124,22 +125,30 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
           </div>
         )}
 
-        {/* Stats */}
+        {/* Stats: total, hardware, software, open. Hardware / Software also filter the list. */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
-            ["Problem statements", problems.length, FiFileText],
-            ["Open for submissions", openCount, FiClock],
-            ["Categories", categories.length, FiTag],
-            ["Domains", domains.length, FiLayers],
-          ].map(([label, value, Icon]) => (
-            <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-              <div className="bg-orange-50 p-3 rounded-xl"><Icon className="text-[#fc9300] text-lg" /></div>
-              <div>
-                <div className="text-xs text-gray-500">{label}</div>
-                <div className="text-2xl font-bold text-gray-900">{loading ? "–" : value}</div>
-              </div>
-            </div>
-          ))}
+            { label: "Problem statements", value: problems.length, Icon: FiFileText, filter: { category: "all", status: "all" } },
+            { label: "Hardware", value: countCategory("hardware"), Icon: FiCpu, filter: { category: "hardware" } },
+            { label: "Software", value: countCategory("software"), Icon: FiCode, filter: { category: "software" } },
+            { label: "Open for submission", value: openCount, Icon: FiClock, filter: { status: "open" } },
+          ].map(({ label, value, Icon, filter }) => {
+            const active = Object.entries(filter).every(([k, v]) => filters[k] === v) && !(label === "Problem statements" && filtersActive);
+            return (
+              <button
+                type="button"
+                key={label}
+                onClick={() => setFilters((prev) => ({ ...prev, ...filter }))}
+                className={`text-left bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-3 transition hover:border-orange-300 ${active && label !== "Problem statements" ? "border-[#fc9300] ring-2 ring-orange-100" : "border-gray-100"}`}
+              >
+                <div className="bg-orange-50 p-3 rounded-xl"><Icon className="text-[#fc9300] text-lg" /></div>
+                <div>
+                  <div className="text-xs text-gray-500">{label}</div>
+                  <div className="text-2xl font-bold text-gray-900">{loading ? "–" : value}</div>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Toolbar */}
