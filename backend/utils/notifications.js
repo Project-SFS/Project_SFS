@@ -230,14 +230,16 @@ const notifyReviewed = (submissionId) => background("reviewed", async () => {
     const mail = s && REVIEW_MAIL[s.STATUS]
     if (!mail) return
     const changes = s.STATUS === "CHANGES_REQUESTED"
-    const score = s.EVAL_TOTAL != null ? ` (${s.EVAL_TOTAL}/${MARKS_TOTAL})` : ""
+    // marks are only shared for an approved solution, never with changes needed or a rejection
+    const showMarks = s.STATUS === "APPROVED" && s.EVAL_TOTAL != null
+    const score = showMarks ? ` (${s.EVAL_TOTAL}/${MARKS_TOTAL})` : ""
     const details = {
             rows: [
                 ["Status", mail.subject],
                 ["Problem", s.PROBLEM_TITLE],
                 ["Your solution", s.SOL_TITLE || "—"],
-                // the evaluation marks, when they were given with this review
-                ...(s.EVAL_TOTAL != null
+                // the evaluation marks, for an approval only
+                ...(showMarks
                     ? [...CRITERIA.map((c) => [c.label, `${s[c.column] ?? 0} / ${c.max}`]), ["Total", `${s.EVAL_TOTAL} / ${MARKS_TOTAL}`]]
                     : []),
             ],

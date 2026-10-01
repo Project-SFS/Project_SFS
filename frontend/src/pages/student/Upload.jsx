@@ -290,7 +290,7 @@ const Upload = () => {
                                             ) : (
                                                 <p className="mt-3 text-sm text-gray-500">No comment was added.</p>
                                             )}
-                                            <MarksBreakdown row={submission} className="mt-4" />
+                                            {normalizeStatus(submission.STATUS) === "APPROVED" && <MarksBreakdown row={submission} className="mt-4" />}
                                         </div>
                                     </div>
                                 </section>

@@ -3,7 +3,7 @@ import AsyncHandler from "../utils/AsyncHandler.js";
 import connection from "../database/db.js";
 import { today, checkProblemOpen } from "../utils/deadline.js";
 import { notifySubmission, notifyReviewed, loadSubmission, notifySubmissionRemoved } from "../utils/notifications.js";
-import { DECISIONS, CHANGES_REQUESTED, REJECTED, CRITERIA, parseMarks, canTeamEdit, lockedMessage, uploadClosedReason } from "../utils/review.js";
+import { DECISIONS, CHANGES_REQUESTED, APPROVED, REJECTED, CRITERIA, parseMarks, canTeamEdit, lockedMessage, uploadClosedReason } from "../utils/review.js";
 import { isAssignedToTeamOf } from "./TeamProblems.js";
 import { canViewTeamOfLead } from "../utils/teamAccess.js";
 
@@ -220,13 +220,16 @@ const Review_submission = AsyncHandler(async (req, res) => {
     if (comment.length > COMMENT_MAX) {
         return res.status(400).json({ message: `The comment can be at most ${COMMENT_MAX} characters` });
     }
-    const { marks, error: marksError } = parseMarks(req.body.marks);
-    if (marksError) return res.status(400).json({ message: marksError });
-    if (!marks && decision !== CHANGES_REQUESTED) {
-        return res.status(400).json({ message: "Give marks for all five criteria to approve or reject" });
+    // marks belong to an approval only: required to approve, ignored (and cleared) for changes / reject
+    let marks = null;
+    if (decision === APPROVED) {
+        const parsed = parseMarks(req.body.marks);
+        if (parsed.error) return res.status(400).json({ message: parsed.error });
+        if (!parsed.marks) return res.status(400).json({ message: "Give marks for all five criteria to approve" });
+        marks = parsed.marks;
     }
 
-    // the latest review's marks replace the previous ones (none given -> cleared)
+    // the latest review's marks replace the previous ones (not an approval -> cleared)
     const markColumns = [...CRITERIA.map((c) => c.column), "EVAL_TOTAL"];
     const markValues = markColumns.map((col) => (marks ? marks[col] : null));
     const [data] = await connection.query(

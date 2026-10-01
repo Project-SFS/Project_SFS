@@ -9,8 +9,8 @@ import DeleteSubmissionButton from '../../components/DeleteSubmissionButton';
 import { useAdmin, PERMISSION_LABELS } from '../../components/admin/adminAccess';
 import { StatusBadge, normalizeStatus, statusMeta, EVAL_CRITERIA, EVAL_TOTAL_MAX, MarksBreakdown } from '../../submissionStatus';
 
-// The three review decisions. Every decision, its marks and comment are emailed to the team lead and,
-// separately, to their SPOC.
+// The three review decisions. Every decision and its comment are emailed to the team lead and,
+// separately, to their SPOC. Marks are given (and emailed) only with an approval.
 const DECISIONS = [
   {
     value: 'CHANGES_REQUESTED', label: 'Changes needed', result: 'Changes needed', icon: FiEdit3,
@@ -166,10 +166,11 @@ const SubmissionDetail = () => {
   const marksValid = EVAL_CRITERIA.every((c) => marks[c.key] === '' || (Number.isInteger(Number(marks[c.key])) && Number(marks[c.key]) >= 0 && Number(marks[c.key]) <= c.max));
   const allMarks = filledMarks.length === EVAL_CRITERIA.length;
   const marksTotal = EVAL_CRITERIA.reduce((sum, c) => sum + (Number(marks[c.key]) || 0), 0);
-  // marks are required to approve or reject, optional (but all five or none) when asking for changes
-  const marksProblem = !marksValid ? 'Each mark must be a whole number from 0 to 20.'
-    : chosen && chosen.value !== 'CHANGES_REQUESTED' && !allMarks ? 'Give marks for all five criteria to approve or reject.'
-    : filledMarks.length > 0 && !allMarks ? 'Fill in all five marks, or leave them all empty.'
+  // marks only belong to an approval: shown, required and sent only when "Approve" is chosen
+  const isApproval = chosen?.value === 'APPROVED';
+  const marksProblem = !isApproval ? ''
+    : !marksValid ? 'Each mark must be a whole number from 0 to 20.'
+    : !allMarks ? `Give marks for all five criteria to approve (${filledMarks.length}/${EVAL_CRITERIA.length} filled).`
     : '';
 
   const sendReview = async () => {
@@ -181,7 +182,7 @@ const SubmissionDetail = () => {
         subid: submission.submission_id || id,
         decision,
         comment: comment.trim(),
-        marks: allMarks ? Object.fromEntries(EVAL_CRITERIA.map((c) => [c.key, Number(marks[c.key])])) : undefined,
+        marks: isApproval && allMarks ? Object.fromEntries(EVAL_CRITERIA.map((c) => [c.key, Number(marks[c.key])])) : undefined,
       }, { withCredentials: true });
       setMessage({ type: 'success', text: `Saved as "${chosen.result}" and emailed to the team and their SPOC.` });
       setDecision('');
@@ -335,10 +336,11 @@ const SubmissionDetail = () => {
             })}
           </div>
 
+          {isApproval && (
           <div className="mb-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
               <span className="text-sm font-semibold text-[#4A5568]">
-                Evaluation marks {chosen && chosen.value !== 'CHANGES_REQUESTED' ? <span className="text-red-500">*</span> : <span className="font-normal text-[#A0AEC0]">(required to approve or reject)</span>}
+                Evaluation marks <span className="text-red-500">*</span>
               </span>
               <span className="text-sm font-semibold text-[#1A202C]">Total: <span className="text-[#FF9900]">{marksTotal} / {EVAL_TOTAL_MAX}</span></span>
             </div>
@@ -378,6 +380,12 @@ const SubmissionDetail = () => {
               ))}
             </div>
           </div>
+          )}
+          {chosen && !isApproval && (
+            <p className="mb-6 text-sm text-[#718096] bg-[#F7F8FC] border border-[#E2E8F0] rounded-xl px-4 py-3">
+              No marks for this decision. Marks are given only when a solution is approved, and they are not included in this email.
+            </p>
+          )}
 
           <div className="flex justify-between mb-1.5">
             <label htmlFor="review-comment" className="text-sm font-semibold text-[#4A5568]">
@@ -400,7 +408,7 @@ const SubmissionDetail = () => {
               {!chosen ? 'Choose Changes needed, Approve or Reject.'
                 : marksProblem ? <span className="text-red-600">{marksProblem}</span>
                 : commentMissing ? 'A comment is required for this decision.'
-                : `The team lead and their SPOC will receive: ${chosen.result}${allMarks ? ` with ${marksTotal}/${EVAL_TOTAL_MAX} marks` : ''}${comment.trim() ? ' and your comment' : ''}.`}
+                : `The team lead and their SPOC will receive: ${chosen.result}${isApproval && allMarks ? ` with ${marksTotal}/${EVAL_TOTAL_MAX} marks` : ''}${comment.trim() ? ' and your comment' : ''}.`}
             </p>
             <button
               onClick={sendReview}

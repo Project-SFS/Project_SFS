@@ -171,7 +171,7 @@ const Homepage = () => {
       </div>
 
       {/* Professional Hero Section */}
-      <section className="relative bg-gradient-to-br from-orange-100 to-orange-50 min-h-screen flex items-center justify-center px-4 pt-20 md:pt-0 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-orange-100 to-orange-50 lg:min-h-screen flex items-center justify-center px-4 sm:px-6 pt-28 pb-28 md:pb-36 lg:pt-24 overflow-hidden">
         {/* Enhanced Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_25%,rgba(99,102,241,0.15)_0%,transparent_50%)]"></div>
@@ -219,8 +219,8 @@ const Homepage = () => {
           />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="relative z-10 w-full max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
             {/* Left Content */}
             <motion.div
               className="text-center lg:text-left space-y-8"
@@ -231,7 +231,7 @@ const Homepage = () => {
               {/* Main Heading */}
               <div className="space-y-4">
                 <motion.h1
-                  className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight"
+                  className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.2 }}
@@ -245,7 +245,7 @@ const Homepage = () => {
                 </motion.h1>
 
                 <motion.p
-                  className="text-xl md:text-2xl text-gray-700 font-medium max-w-2xl mx-auto lg:mx-0"
+                  className="text-lg sm:text-xl md:text-2xl text-gray-700 font-medium max-w-2xl mx-auto lg:mx-0"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4 }}
@@ -304,7 +304,7 @@ const Homepage = () => {
                 {[
                   { value: stats?.students, label: "Active Students", icon: <FaUsers className="w-6 h-6" />, bg: "from-gray-500 to-gray-600" },
                   { value: stats?.problems, label: "Problem Statements", icon: <FaLightbulb className="w-6 h-6" />, bg: "from-orange-500 to-orange-600" },
-                  { value: stats?.colleges, label: "Colleges Onboarded", icon: <FaUniversity className="w-6 h-6" />, bg: "from-orange-500 to-red-500" },
+                  { value: stats?.colleges, label: "Colleges Collaborated", icon: <FaUniversity className="w-6 h-6" />, bg: "from-orange-500 to-red-500" },
                 ].map((stat, i) => (
                   <motion.div
                     key={stat.label}
@@ -348,7 +348,7 @@ const Homepage = () => {
       </section>
 
       {/* What is Solve for Sakthi */}
-      <section className="py-20 px-4 bg-white relative overflow-hidden">
+      <section className="py-14 md:py-20 px-4 sm:px-6 bg-white relative overflow-hidden">
         <div className="max-w-6xl mx-auto relative z-10">
           <motion.div
             className="text-center max-w-3xl mx-auto mb-14"
@@ -357,7 +357,7 @@ const Homepage = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-orange-600 mb-5">What is Solve for Sakthi?</h2>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 mb-5">What is Solve for Sakthi?</h2>
             <p className="text-lg text-gray-600 leading-relaxed">
               Solve for Sakthi connects students and faculty with real-time industrial challenges from Sakthi Auto,
               enabling them to solve practical problems through industry expert mentorship, collaboration, and innovation.
@@ -387,10 +387,10 @@ const Homepage = () => {
       </section>
 
       {/* Key Features */}
-      <section className="py-20 px-4 bg-gradient-to-br from-background-white via-primary-accent/5 to-background-light relative overflow-hidden">
+      <section className="py-14 md:py-20 px-4 sm:px-6 bg-gradient-to-br from-background-white via-primary-accent/5 to-background-light relative overflow-hidden">
         <div className="max-w-6xl mx-auto relative z-10">
           <motion.h2
-            className="text-3xl md:text-4xl font-bold text-center text-orange-600 mb-14"
+            className="text-2xl sm:text-3xl md:text-4xl font-bold text-center text-orange-600 mb-10 md:mb-14"
             initial={{ opacity: 0, y: 8 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -399,11 +399,11 @@ const Homepage = () => {
             Key Features
           </motion.h2>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 md:gap-8">
             {KEY_FEATURES.map(({ title, text, icon: Icon }, i) => (
               <motion.div
                 key={title}
-                className="text-center p-10 rounded-3xl bg-white shadow-xl transition-all duration-500 group"
+                className="text-center p-7 sm:p-10 rounded-3xl bg-white shadow-xl transition-all duration-500 group"
                 whileHover={{ scale: 1.03, y: -6 }}
                 initial={{ opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -422,7 +422,7 @@ const Homepage = () => {
       </section>
 
       {/* How Solve for Sakthi Works */}
-      <section className="py-20 px-4 bg-gradient-to-br from-primary-accent/5 via-background-white to-background-light relative overflow-hidden">
+      <section className="py-14 md:py-20 px-4 sm:px-6 bg-gradient-to-br from-primary-accent/5 via-background-white to-background-light relative overflow-hidden">
         <div className="max-w-7xl mx-auto relative z-10">
           <motion.div
             className="text-center mb-16"
@@ -431,7 +431,7 @@ const Homepage = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-6 text-orange-600">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-6 text-orange-600">
               How Solve for Sakthi Works?
             </h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
@@ -468,7 +468,7 @@ const Homepage = () => {
       <FAQ />
 
       {/* Call to Action Section */}
-      <section className="py-20 px-4  text-center">
+      <section className="py-14 md:py-20 px-4 sm:px-6 text-center">
         <motion.h2
           className="text-3xl md:text-4xl font-bold mb-8 text-orange-600"
           initial={{ opacity: 0, y: 8 }}

@@ -202,7 +202,7 @@ export default function TeamProblemStatements() {
                       Your solution: <span className="font-medium text-gray-800">{sub.SOL_TITLE || "Untitled"}</span> ({formatDate(sub.SUB_DATE)})
                     </div>
                   )}
-                  {sub && sub.EVAL_TOTAL != null && normalizeStatus(sub.STATUS) !== "PENDING" && (
+                  {sub && sub.EVAL_TOTAL != null && normalizeStatus(sub.STATUS) === "APPROVED" && (
                     <div>
                       Marks: <span className="font-semibold text-gray-900">{sub.EVAL_TOTAL} / 100</span>
                     </div>

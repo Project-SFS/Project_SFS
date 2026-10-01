@@ -10,7 +10,7 @@ import Footer from "./Footer";
 import Pagination, { usePagination } from "./common/Pagination";
 import { URL } from "../Utils";
 
-// Every published problem statement as cards, with search, filters and a details popup.
+// Every published problem statement as a list, with search, filters and a details popup.
 // Used on the public page (showHeader) and inside the SPOC dashboard (showHeader = false).
 const fetchProblems = async () => {
   const response = await axios.get(`${URL}/get_problems`, { timeout: 8000, withCredentials: true });
@@ -184,15 +184,14 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
           </div>
         </div>
 
-        {/* Cards */}
+        {/* List */}
         {loading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse">
+              <div key={i} className="p-5 animate-pulse">
                 <div className="h-3 w-16 bg-gray-200 rounded mb-3" />
-                <div className="h-5 w-3/4 bg-gray-200 rounded mb-3" />
-                <div className="h-3 w-full bg-gray-100 rounded mb-2" />
-                <div className="h-3 w-5/6 bg-gray-100 rounded" />
+                <div className="h-5 w-2/3 bg-gray-200 rounded mb-3" />
+                <div className="h-3 w-full bg-gray-100 rounded" />
               </div>
             ))}
           </div>
@@ -203,40 +202,50 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
             {problems.length ? "No problem statements match your search or filters." : "No problem statements have been published yet."}
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
             {pageItems.map((p, index) => {
               const badge = deadlineBadge(p.SUB_DEADLINE);
               return (
-                <motion.article
+                <motion.li
                   key={p.ID}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(index, 12) * 0.03 }}
-                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-orange-200 transition flex flex-col"
+                  className="group relative hover:bg-orange-50/40 transition"
                 >
-                  <div className="p-5 flex-1 flex flex-col">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-xs font-bold text-[#fc9300]">SFS_{p.ID}</span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${badge.cls}`}>{badge.text}</span>
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#fc9300] opacity-0 group-hover:opacity-100 transition" />
+                  <div className="px-5 py-4 sm:px-6 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="text-xs font-bold text-[#fc9300]">SFS_{p.ID}</span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${badge.cls}`}>{badge.text}</span>
+                        {p.CATEGORY && <span className="px-2.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">{titleCase(p.CATEGORY)}</span>}
+                        {p.DOMAIN && <span className="px-2.5 py-0.5 rounded-full bg-orange-50 text-xs font-medium text-[#c76f00]">{p.DOMAIN}</span>}
+                      </div>
+                      <h3
+                        onClick={() => setSelected(p)}
+                        className="text-base sm:text-lg font-semibold text-gray-900 leading-snug cursor-pointer group-hover:text-[#c76f00] [overflow-wrap:anywhere]"
+                      >
+                        {p.TITLE}
+                      </h3>
+                      {p.DESCRIPTION && <p className="text-sm text-gray-600 mt-1 line-clamp-2 [overflow-wrap:anywhere]">{p.DESCRIPTION}</p>}
+                      {p.TECHNOLOGY && (
+                        <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1.5 min-w-0">
+                          <FiCpu className="shrink-0" /> <span className="truncate" title={p.TECHNOLOGY}>{p.TECHNOLOGY}</span>
+                        </p>
+                      )}
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 leading-snug line-clamp-2 group-hover:text-[#c76f00] [overflow-wrap:anywhere]">{p.TITLE}</h3>
-                    {p.DESCRIPTION && <p className="text-sm text-gray-600 mt-2 line-clamp-3 whitespace-pre-line [overflow-wrap:anywhere]">{p.DESCRIPTION}</p>}
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {p.CATEGORY && <span className="px-2.5 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">{titleCase(p.CATEGORY)}</span>}
-                      {p.DOMAIN && <span className="px-2.5 py-0.5 rounded-full bg-orange-50 text-xs font-medium text-[#c76f00]">{p.DOMAIN}</span>}
-                      {p.TECHNOLOGY && <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-xs font-medium text-blue-700 truncate max-w-[12rem]" title={p.TECHNOLOGY}>{p.TECHNOLOGY}</span>}
+                    <div className="flex items-center justify-between md:justify-end gap-4 shrink-0">
+                      <span className="text-sm text-gray-500 flex items-center gap-1.5 whitespace-nowrap"><FiCalendar /> {readableDate(dayOf(p.SUB_DEADLINE))}</span>
+                      <button onClick={() => setSelected(p)} className="px-3.5 py-1.5 rounded-lg bg-[#fc9300] text-white text-sm font-medium hover:bg-[#e68400] transition whitespace-nowrap">
+                        View details
+                      </button>
                     </div>
                   </div>
-                  <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                    <span className="text-sm text-gray-500 flex items-center gap-1.5"><FiCalendar /> {readableDate(dayOf(p.SUB_DEADLINE))}</span>
-                    <button onClick={() => setSelected(p)} className="px-3.5 py-1.5 rounded-lg bg-[#fc9300] text-white text-sm font-medium hover:bg-[#e68400] transition">
-                      View details
-                    </button>
-                  </div>
-                </motion.article>
+                </motion.li>
               );
             })}
-          </div>
+          </ul>
         )}
         <Pagination page={page} totalPages={totalPages} total={total} onChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} label="problem statements" />
       </div>
