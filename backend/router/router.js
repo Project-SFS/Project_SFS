@@ -9,6 +9,7 @@ import { Verify_OTP, Verify_OTP_Check } from "../controllers/Verify_OTP.js";
 import { requireAuth, optionalAuth, requireRole, requirePermission, requireSuperAdmin } from "../middleware/auth.js";
 import { Post_problem, Get_problems, Get_problem_by_id, Delete_problem, Update_problem } from "../controllers/Problems.js";
 import { Get_cookies } from "../controllers/Cookie.js";
+import { Get_public_stats, Submit_interest } from "../controllers/PublicStats.js";
 import { Import_problems, Problem_import_template, memoryUpload } from "../controllers/ProblemImport.js";
 import { Export_options, Export_data, Export_problem_reports } from "../controllers/Export.js";
 import { Delete_submission, Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email, Review_submission, check_status_submission } from "../controllers/Submission.js";
@@ -31,6 +32,8 @@ router.route("/verify_email/:email").post(Verify_OTP);
 router.route("/checkifemailexist").post(verifyEmail)
 router.route("/verify_otp").post(Verify_OTP_Check);
 router.route("/cookie").get(Get_cookies); // Checks user authentication status
+router.route("/public/stats").get(Get_public_stats); // home page hero numbers (totals only)
+router.route("/public/interest").post(Submit_interest); // "Submit your Interest" form -> Sakthi Auto inbox + confirmation
 
 // --- Admin Routes ---
 // Protected admin/SPOC routes

@@ -3,6 +3,7 @@
  * @description The main landing page of the application, accessible to all users.
  */
 import { useState, useEffect } from "react";
+import axios from "axios";
 import { Link } from "react-router-dom";
 import WaveImage from "../components/WaveImage";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,12 +20,54 @@ import {
   FaGlobe,
   FaAward,
   FaChevronRight,
+  FaUniversity,
+  FaIndustry,
+  FaChalkboardTeacher,
+  FaHandshake,
+  FaSearch,
+  FaHandPointer,
+  FaTools,
+  FaChartLine,
+  FaUserTie,
 } from "react-icons/fa";
 import FAQ from "./FAQ";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { URL } from "../Utils";
+
+const ABOUT_POINTS = [
+  { title: "Live Industry Challenges", text: "Work on real, current problems drawn directly from industrial operations.", icon: FaIndustry },
+  { title: "Mentorship from Industry Experts", text: "Gain practical guidance, insights, and feedback from experienced professionals.", icon: FaChalkboardTeacher },
+  { title: "Industry-Academia Collaboration", text: "Bring together academic talent and industrial expertise to create meaningful solutions.", icon: FaHandshake },
+  { title: "Ideas into Impact", text: "Transform promising ideas into practical solutions with measurable value.", icon: FaRocket },
+];
+
+const KEY_FEATURES = [
+  { title: "Real-Time Industrial Challenges", text: "Problem statements come straight from Sakthi Auto's shop floors and operations, so every solution addresses a real need.", icon: FaLightbulb },
+  { title: "Guidance from Industry Experts", text: "Experienced professionals review your work and share feedback that sharpens your solution.", icon: FaUserTie },
+  { title: "Collaborative Industry Partnerships", text: "Colleges, faculty and Sakthi Auto work together to turn academic ideas into industrial results.", icon: FaHandshake },
+];
+
+const HOW_IT_WORKS = [
+  { title: "Discover", text: "Explore real-time industrial challenges from Sakthi Auto.", icon: FaSearch },
+  { title: "Select", text: "Choose a challenge aligned with your interests and capabilities.", icon: FaHandPointer },
+  { title: "Solve", text: "Develop a practical solution with your team.", icon: FaTools },
+  { title: "Present & Implement", text: "Showcase the solution and take promising ideas toward validation or implementation.", icon: FaChartLine },
+  { title: "Mentor & Refine", text: "Strengthen the solution through guidance from industry experts.", icon: FaChalkboardTeacher },
+];
+
 const Homepage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [stats, setStats] = useState(null);
+
+  // live hero numbers; on failure the cards show 0 rather than a made-up figure
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${URL}/public/stats`)
+      .then((res) => alive && setStats(res.data))
+      .catch(() => alive && setStats({ students: 0, problems: 0, colleges: 0 }));
+    return () => { alive = false; };
+  }, []);
 
   const slides = [
     {
@@ -215,23 +258,17 @@ const Homepage = () => {
 
               {/* Key Benefits */}
               <motion.div
-                className="flex flex-wrap justify-center lg:justify-start gap-4 text-sm font-medium"
+                className="flex flex-wrap justify-center lg:justify-start gap-3 text-sm font-medium"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.6 }}
               >
-                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
-                  <FaCheckCircle className="w-4 h-4 text-orange-600" />
-                  <span className="text-gray-800">Real-world challenges</span>
-                </div>
-                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
-                  <FaCheckCircle className="w-4 h-4 text-orange-600" />
-                  <span className="text-gray-800">Expert mentorship</span>
-                </div>
-                <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
-                  <FaCheckCircle className="w-4 h-4 text-orange-600" />
-                  <span className="text-gray-800">Industry partnerships</span>
-                </div>
+                {KEY_FEATURES.map(({ title }) => (
+                  <div key={title} className="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-full border border-orange-100 shadow-sm">
+                    <FaCheckCircle className="w-4 h-4 text-orange-600" />
+                    <span className="text-gray-800">{title}</span>
+                  </div>
+                ))}
               </motion.div>
 
               {/* CTA Buttons */}
@@ -242,112 +279,55 @@ const Homepage = () => {
                 transition={{ duration: 0.8, delay: 0.8 }}
               >
                 <Link
-                  to="/register"
+                  to="/problemstatements"
                   className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 inline-flex items-center justify-center group"
                 >
-                  Get Started Today
+                  Explore Challenges
                   <FaArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <Link
-                  to="/student"
+                  to="/interest"
                   className="border-2 border-orange-300 hover:border-orange-500 text-orange-700 hover:text-orange-800 font-semibold py-4 px-8 rounded-xl hover:bg-orange-50 transition-all duration-300 inline-flex items-center justify-center"
                 >
-                  View Challenges
+                  Submit your Interest
                 </Link>
               </motion.div>
             </motion.div>
 
-            {/* Right Content - Stats & Visual */}
+            {/* Right Content - live numbers */}
             <motion.div
-              className="space-y-8"
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
             >
-              {/* Statistics Cards */}
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-5">
                 {[
-                  {
-                    number: "500+",
-                    label: "Active Students",
-                    icon: <FaUsers className="w-6 h-6" />,
-                    bgColor: "from-gray-500 to-gray-600",
-                    bgLight: "bg-gray-50",
-                    textColor: "text-gray-600"
-                  },
-                  {
-                    number: "50+",
-                    label: "Problem Statements",
-                    icon: <FaLightbulb className="w-6 h-6" />,
-                    bgColor: "from-orange-500 to-orange-600",
-                    bgLight: "bg-orange-50",
-                    textColor: "text-orange-600"
-                  },
-                  {
-                    number: "25+",
-                    label: "Industry Partners",
-                    icon: <FaGlobe className="w-6 h-6" />,
-                    bgColor: "from-orange-500 to-orange-600",
-                    bgLight: "bg-red-50",
-                    textColor: "text-gray-600"
-                  },
-                  {
-                    number: "100%",
-                    label: "Success Rate",
-                    icon: <FaTrophy className="w-6 h-6" />,
-                    bgColor: "from-gray-500 to-gray-600",
-                    bgLight: "bg-gray-50",
-                    textColor: "text-gray-600"
-                  },
+                  { value: stats?.students, label: "Active Students", icon: <FaUsers className="w-6 h-6" />, bg: "from-gray-500 to-gray-600" },
+                  { value: stats?.problems, label: "Problem Statements", icon: <FaLightbulb className="w-6 h-6" />, bg: "from-orange-500 to-orange-600" },
+                  { value: stats?.colleges, label: "Colleges Onboarded", icon: <FaUniversity className="w-6 h-6" />, bg: "from-orange-500 to-red-500" },
                 ].map((stat, i) => (
                   <motion.div
-                    key={i}
-                    className={`bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-gray-100 hover:border-${stat.textColor.split('-')[1]}-200`}
+                    key={stat.label}
+                    className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-gray-100 hover:border-orange-200"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.8 + i * 0.1 }}
                     whileHover={{ y: -5 }}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 bg-gradient-to-br ${stat.bgColor} rounded-xl text-white shadow-lg`}>
+                    <div className="flex items-center gap-4 sm:flex-col sm:text-center lg:flex-row lg:text-left xl:flex-col xl:text-center">
+                      <div className={`p-3 bg-gradient-to-br ${stat.bg} rounded-xl text-white shadow-lg`}>
                         {stat.icon}
                       </div>
                       <div>
-                        <div className="text-2xl font-bold text-gray-900">{stat.number}</div>
+                        <div className="text-3xl font-bold text-gray-900 tabular-nums">
+                          {stat.value === undefined ? <span className="inline-block w-12 h-7 rounded bg-gray-100 animate-pulse align-middle" /> : stat.value.toLocaleString("en-IN")}
+                        </div>
                         <div className="text-sm text-gray-600">{stat.label}</div>
                       </div>
                     </div>
                   </motion.div>
                 ))}
               </div>
-
-              {/* Trust Indicators */}
-              <motion.div
-                className="bg-gradient-to-r from-white via-gray-50 to-gray-50 p-6 rounded-2xl shadow-lg border-2 border-gray-100"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 1.2 }}
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="flex -space-x-2">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="w-8 h-8 bg-gradient-to-br from-white-500 to-orange-600 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold text-white shadow-lg">
-                        {i}
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">Trusted by Industry Leaders</div>
-                    <div className="text-sm text-gray-600 font-medium">Join 500+ innovators</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <FaStar key={star} className="w-4 h-4 text-yellow-400 fill-current" />
-                  ))}
-                  <span className="ml-2 text-sm text-gray-600 font-medium">4.9/5 rating</span>
-                </div>
-              </motion.div>
             </motion.div>
           </div>
         </div>
@@ -367,25 +347,63 @@ const Homepage = () => {
         </motion.div>
       </section>
 
-      {/* Why Choose Us / Features Section */}
+      {/* What is Solve for Sakthi */}
+      <section className="py-20 px-4 bg-white relative overflow-hidden">
+        <div className="max-w-6xl mx-auto relative z-10">
+          <motion.div
+            className="text-center max-w-3xl mx-auto mb-14"
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-orange-600 mb-5">What is Solve for Sakthi?</h2>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Solve for Sakthi connects students and faculty with real-time industrial challenges from Sakthi Auto,
+              enabling them to solve practical problems through industry expert mentorship, collaboration, and innovation.
+            </p>
+          </motion.div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {ABOUT_POINTS.map(({ title, text, icon: Icon }, i) => (
+              <motion.div
+                key={title}
+                className="p-7 rounded-3xl bg-gradient-to-br from-orange-50 to-white border border-orange-100 shadow-md hover:shadow-xl transition-shadow"
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.08 * i }}
+                whileHover={{ y: -6 }}
+              >
+                <div className="w-12 h-12 mb-5 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white flex items-center justify-center shadow">
+                  <Icon className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">{text}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Key Features */}
       <section className="py-20 px-4 bg-gradient-to-br from-background-white via-primary-accent/5 to-background-light relative overflow-hidden">
-        <div className="absolute inset-0 from-primary-accent/10 via-transparent to-transparent"></div>
         <div className="max-w-6xl mx-auto relative z-10">
           <motion.h2
-            className="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-16 text-primary-accent"
+            className="text-3xl md:text-4xl font-bold text-center text-orange-600 mb-14"
             initial={{ opacity: 0, y: 8 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            Why Choose Solve for Sakthi?
+            Key Features
           </motion.h2>
 
-          <div className="flex flex-col md:flex-row gap-20">
-            {[0, 1, 2].map((i) => (
+          <div className="grid md:grid-cols-3 gap-8">
+            {KEY_FEATURES.map(({ title, text, icon: Icon }, i) => (
               <motion.div
-                key={i}
-                className="text-center p-10 rounded-3xl shadow-card hover:shadow-card-hover transition-all duration-500 shadow-xl hover:scale-105 transform group"
+                key={title}
+                className="text-center p-10 rounded-3xl bg-white shadow-xl transition-all duration-500 group"
                 whileHover={{ scale: 1.03, y: -6 }}
                 initial={{ opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -393,41 +411,18 @@ const Homepage = () => {
                 transition={{ duration: 0.6, delay: 0.12 * i }}
               >
                 <div className="w-20 h-20 mx-auto mb-8 bg-gradient-to-br from-primary-accent to-amber-500 rounded-3xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
-                  {/* icons preserved */}
-                  {i === 0 ? (
-                    <svg className="w-10 h-10 text-background-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  ) : i === 1 ? (
-                    <svg className="w-10 h-10 text-background-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-10 h-10 text-background-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
+                  <Icon className="w-9 h-9 text-white" />
                 </div>
-
-                <h3 className="text-xl font-semibold text-amber-600 mb-6 text-text-primary">
-                  {i === 0 ? "Innovative Challenges" : i === 1 ? "Collaborative Teams" : "Expert Evaluation"}
-                </h3>
-                <p className="text-text-secondary leading-relaxed">
-                  {i === 0
-                    ? "Tackle real-world problems in manufacturing, supply chain, and more with cutting-edge technology."
-                    : i === 1
-                    ? "Form teams, work with mentors, and collaborate with industry experts to bring ideas to life."
-                    : "Get feedback from seasoned evaluators and refine your solutions for maximum impact."}
-                </p>
+                <h3 className="text-xl font-semibold text-amber-600 mb-4">{title}</h3>
+                <p className="text-gray-600 leading-relaxed">{text}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
+      {/* How Solve for Sakthi Works */}
       <section className="py-20 px-4 bg-gradient-to-br from-primary-accent/5 via-background-white to-background-light relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-primary-accent/5 to-transparent"></div>
         <div className="max-w-7xl mx-auto relative z-10">
           <motion.div
             className="text-center mb-16"
@@ -436,74 +431,40 @@ const Homepage = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-6 text-primary-accent">
-              How It Works
+            <h2 className="text-3xl md:text-4xl font-bold mb-6 text-orange-600">
+              How Solve for Sakthi Works?
             </h2>
-            <p className="text-lg text-text-secondary max-w-3xl mx-auto">
-              Our streamlined process takes you from idea to impact in just a
-              few simple steps.
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              From discovering a challenge to taking your solution toward implementation.
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-4 gap-8 ">
-            {[
-              {
-                title: "Register & Join",
-                description:
-                  "Your college SPOC registers, creates your team and gets you started.",
-                icon: <FaUsers className="w-8 h-8 text-primary-accent" />,
-              },
-              {
-                title: "Explore Problems",
-                description:
-                  "Browse real-world challenges from industry partners.",
-                icon: <FaLightbulb className="w-8 h-8 text-primary-accent" />,
-              },
-              {
-                title: "Form Teams & Innovate",
-                description:
-                  "Collaborate with peers to develop creative solutions.",
-                icon: <FaPlay className="w-8 h-8 text-primary-accent" />,
-              },
-              {
-                title: "Submit & Get Evaluated",
-                description:
-                  "Present your solution and receive expert feedback.",
-                icon: <FaTrophy className="w-8 h-8 text-primary-accent" />,
-              },
-            ].map((item, i) => (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            {HOW_IT_WORKS.map(({ title, text, icon: Icon }, i) => (
               <motion.div
-                key={i}
-                className="text-center group shadow-2xl p-10 rounded-3xl bg-background-white  transition-all duration-500 hover:scale-105 transform relative"
+                key={title}
+                className="text-center group shadow-xl p-8 rounded-3xl bg-white transition-all duration-500 hover:scale-105 relative"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
               >
-                <div className="relative mb-6 ">
+                <div className="relative mb-6 w-20 mx-auto">
                   <div className="w-20 h-20 bg-gradient-to-br from-primary-accent to-amber-500 rounded-full flex items-center justify-center mx-auto shadow-lg group-hover:scale-110 transition-transform duration-300">
-                    {item.icon}
+                    <Icon className="w-8 h-8 text-white" />
                   </div>
-                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-primary-accent text-black rounded-full flex items-center justify-center text-xl font-bold">
-                    {item.step}
+                  <div className="absolute -top-1 -right-2 w-8 h-8 bg-gray-800 text-white rounded-full flex items-center justify-center text-sm font-bold ring-4 ring-white">
+                    {i + 1}
                   </div>
                 </div>
-                <h3 className="text-xl font-semibold mb-3 text-text-primary">
-                  {item.title}
-                </h3>
-                <p className="text-text-secondary leading-relaxed">
-                  {item.description}
-                </p>
-                {i < 3 && (
-                  <div className="hidden md:block absolute top-10 left-full w-8 h-0.5 bg-primary-accent transform -translate-x-4"></div>
-                )}
+                <h3 className="text-lg font-semibold mb-3 text-gray-900">{title}</h3>
+                <p className="text-gray-600 text-sm leading-relaxed">{text}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
-            
-      
+
       <FAQ />
 
       {/* Call to Action Section */}
@@ -527,10 +488,16 @@ const Homepage = () => {
           Join our community of innovators and start solving problems that
           matter.
         </motion.p>
-        <div className="flex flex-col sm:flex-row gap-6 justify-center">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center">
+          <Link
+            to="/interest"
+            className="bg-gradient-to-br from-primary-accent to-amber-600 border border-amber-500 text-background-white font-semibold py-4 px-8 rounded-2xl shadow-card hover:shadow-card-hover hover:scale-105 transition-all duration-300 inline-flex items-center"
+          >
+            Submit your Interest
+          </Link>
           <Link
             to="/register"
-            className="bg-gradient-to-br from-primary-accent to-amber-600 border border-amber-500 text-background-white font-semibold py-4 px-8 rounded-2xl shadow-card hover:shadow-card-hover hover:scale-105 transition-all duration-300 inline-flex items-center"
+            className="bg-white shadow-xl border-primary-accent text-primary-accent font-semibold py-4 px-8 rounded-2xl hover:bg-primary-accent hover:text-background-white transition-all duration-300 hover:scale-105 z-1"
           >
             Sign Up Now
           </Link>

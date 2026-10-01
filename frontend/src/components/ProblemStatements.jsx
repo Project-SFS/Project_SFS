@@ -112,7 +112,7 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
             <div className="inline-flex items-center rounded-full border border-[#fc9300]/40 bg-[#fff7ec] px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] text-[#fc9300] mb-3">
               Solve For Sakthi
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">Problem Statements</h1>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">Explore Challenges</h1>
             <p className="text-gray-600 mt-3 max-w-2xl mx-auto">
               Real challenges from Sakthi Auto. Pick the one that matches your team's skills and interests, then request it through your SPOC.
             </p>

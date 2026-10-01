@@ -1,4 +1,22 @@
-import { FaFacebook, FaX, FaInstagram, FaLinkedin } from "react-icons/fa6";
+import { Link } from "react-router-dom";
+import { FaFacebook, FaXTwitter, FaInstagram, FaLinkedin, FaYoutube } from "react-icons/fa6";
+import { FiMail } from "react-icons/fi";
+
+// Official Sakthi Auto Component handles (from the Sakthi Connect 2026 social media launch)
+const SOCIALS = [
+  { name: "YouTube", handle: "@SakthiAutoComponent", url: "https://www.youtube.com/@SakthiAutoComponent", icon: FaYoutube, hover: "hover:text-red-500" },
+  { name: "Instagram", handle: "@sakthiautocomponent", url: "https://www.instagram.com/sakthiautocomponent", icon: FaInstagram, hover: "hover:text-pink-500" },
+  { name: "Facebook", handle: "@SakthiSACL", url: "https://www.facebook.com/SakthiSACL", icon: FaFacebook, hover: "hover:text-blue-400" },
+  { name: "LinkedIn", handle: "sakthi-auto-component-limited", url: "https://www.linkedin.com/company/sakthi-auto-component-limited", icon: FaLinkedin, hover: "hover:text-sky-400" },
+  { name: "X", handle: "@SakthiSACL", url: "https://x.com/SakthiSACL", icon: FaXTwitter, hover: "hover:text-gray-300" },
+];
+
+const LINKS = [
+  { name: "Home", path: "/" },
+  // { name: "About us", path: "/about" },
+  { name: "Explore Challenges", path: "/problemstatements" },
+  { name: "Submit your Interest", path: "/interest" },
+];
 
 const Footer = () => {
   return (
@@ -7,47 +25,52 @@ const Footer = () => {
 
         {/* Social Section */}
         <div className="flex flex-col items-center md:items-start">
-          <div className="flex justify-center md:justify-start gap-6 mb-5">
-            <FaFacebook size={30} className="hover:text-blue-400 cursor-pointer transition-all duration-200" />
-            <FaX size={30} className="hover:text-black cursor-pointer transition-all duration-200" />
-            <FaInstagram size={30} className="hover:text-pink-600 cursor-pointer transition-all duration-200" />
-            <FaLinkedin size={30} className="hover:text-blue-500 cursor-pointer transition-all duration-200" />
+          <span className="uppercase text-xl font-bold mb-3 text-[#fc8f00]">Follow Sakthi Auto</span>
+          <div className="flex flex-wrap justify-center md:justify-start gap-5 mb-5">
+            {SOCIALS.map(({ name, handle, url, icon: Icon, hover }) => (
+              <a
+                key={name}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Sakthi Auto on ${name} (${handle})`}
+                title={`${name}: ${handle}`}
+                className={`transition-all duration-200 hover:scale-110 ${hover}`}
+              >
+                <Icon size={28} />
+              </a>
+            ))}
           </div>
           <p className="text-sm text-gray-300">
             &copy; {new Date().getFullYear()} Solve for Sakthi. All rights reserved.
           </p>
         </div>
 
+        {/* Quick links */}
+        <div className="flex flex-col items-center md:items-start">
+          <span className="uppercase text-xl font-bold mb-3 text-[#fc8f00]">Quick Links</span>
+          <ul className="space-y-1.5">
+            {LINKS.map(({ name, path }) => (
+              <li key={path}>
+                <Link to={path} className="text-gray-200 hover:text-[#fc8f00] transition-colors">{name}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         {/* Contact Section */}
         <div className="flex flex-col items-center md:items-start">
           <span className="uppercase text-xl font-bold mb-3 text-[#fc8f00]">Contact Us</span>
-          <p className="text-base text-gray-200">Email: info@solveforsakthi.com</p>
-          <p className="text-base text-gray-200">Phone: +91 98765 43210</p>
-        </div>
-
-        {/* Newsletter Section */}
-        <div className="flex flex-col items-center md:items-start">
-          <span className="uppercase text-xl font-bold mb-3 text-[#fc8f00]">Stay Updated!</span>
-          <p className="text-sm mb-4 text-gray-300 max-w-[300px]">
-            Join our newsletter for the latest news and updates.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-[350px]">
-            <input
-              type="email"
-              placeholder="Your email address"
-              className="p-2 rounded-md bg-white text-gray-800 border border-gray-400 focus:outline-none focus:border-[#fc8f00] flex-grow"
-            />
-            <button className="bg-[#fc8f00] text-white font-semibold py-2 px-4 rounded-full hover:bg-[#e07c00] transition duration-200">
-              Subscribe
-            </button>
-          </div>
+          <a href="mailto:hr@sakthiauto.com" className="inline-flex items-center gap-2 text-base text-gray-200 hover:text-[#fc8f00] transition-colors">
+            <FiMail /> hr@sakthiauto.com
+          </a>
         </div>
       </div>
 
       {/* Bottom Line for small screens */}
-      <div className="mt-6 border-t border-gray-500 pt-4 text-center text-sm text-gray-400 px-4">
+      {/* <div className="mt-6 border-t border-gray-500 pt-4 text-center text-sm text-gray-400 px-4">
         Designed with ❤️ by Solve for Sakthi Team
-      </div>
+      </div> */}
     </footer>
   );
 };

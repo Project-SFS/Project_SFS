@@ -13,6 +13,7 @@ import Login from "./components/Login";
 import Register from "./components/Register";
 import Homepage from "./pages/Home";
 import About from "./pages/About";
+import SubmitInterest from "./pages/SubmitInterest";
 import FAQ from "./pages/FAQ";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -121,6 +122,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/problemstatements" element={<ProblemStatements />} />
+        <Route path="/interest" element={<SubmitInterest />} />
 
         {/* Student Routes */}
         <Route

@@ -450,4 +450,4 @@ const notifyOwnPasswordChanged = ({ email, name }) => background("own password c
     })
 })
 
-export { notifyOwnPasswordChanged, notifyDeadlineChanged, notifyDeadlineReminder, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected, notifySubmission, notifyReviewed }
+export { deliver, background, notifyOwnPasswordChanged, notifyDeadlineChanged, notifyDeadlineReminder, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected, notifySubmission, notifyReviewed }
