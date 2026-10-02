@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { FileLinks } from "../../submissionFiles";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { URL } from "../../Utils";
@@ -213,9 +214,7 @@ export default function TeamProgress() {
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap">{sub ? formatDate(sub.SUB_DATE) : "—"}</td>
                             <td className="py-2 px-3">
-                              {sub?.FILES && (
-                                <a href={`${URL}/${sub.FILES}`} target="_blank" rel="noreferrer" className="text-blue-600 underline mr-2">PDF</a>
-                              )}
+                              {sub?.files?.length > 0 && <FileLinks files={sub.files} className="mb-1 max-w-[16rem]" />}
                               {sub?.SOL_LINK && (
                                 <a href={sub.SOL_LINK} target="_blank" rel="noreferrer" className="text-blue-600 underline">Link</a>
                               )}

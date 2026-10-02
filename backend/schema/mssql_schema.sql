@@ -260,3 +260,120 @@ GO
 -- admins from before permissions existed keep full access
 UPDATE SolveForSakthi_Users SET ADMIN_PERMISSIONS = 'PROBLEMS,EVALUATE,USERS' WHERE ROLE = 'ADMIN' AND ADMIN_PERMISSIONS IS NULL
 GO
+
+-- Indexes for the columns the app filters, joins and sorts on (primary keys and UNIQUE columns are
+-- indexed already). Long text columns (descriptions, comments, mail bodies) cannot be indexed and are
+-- only read, never searched by the database. Each index is created once; re-running skips it.
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Users_ROLE_STATUS' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Users'))
+    CREATE NONCLUSTERED INDEX IX_Users_ROLE_STATUS ON dbo.SolveForSakthi_Users (ROLE, STATUS) INCLUDE (EMAIL, NAME, COLLEGE)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Users_COLLEGE' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Users'))
+    CREATE NONCLUSTERED INDEX IX_Users_COLLEGE ON dbo.SolveForSakthi_Users (COLLEGE)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Problems_SUB_DEADLINE' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Problems'))
+    CREATE NONCLUSTERED INDEX IX_Problems_SUB_DEADLINE ON dbo.SolveForSakthi_Problems (SUB_DEADLINE)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Problems_CATEGORY' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Problems'))
+    CREATE NONCLUSTERED INDEX IX_Problems_CATEGORY ON dbo.SolveForSakthi_Problems (CATEGORY)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Problems_CREATED_BY' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Problems'))
+    CREATE NONCLUSTERED INDEX IX_Problems_CREATED_BY ON dbo.SolveForSakthi_Problems (CREATED_BY)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Problems_CREATED_AT' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Problems'))
+    CREATE NONCLUSTERED INDEX IX_Problems_CREATED_AT ON dbo.SolveForSakthi_Problems (CREATED_AT)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submissions_PROBLEM_STATUS' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submissions'))
+    CREATE NONCLUSTERED INDEX IX_Submissions_PROBLEM_STATUS ON dbo.SolveForSakthi_Submissions (PROBLEM_ID, STATUS)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submissions_TEAM_EMAIL_PROBLEM' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submissions'))
+    CREATE NONCLUSTERED INDEX IX_Submissions_TEAM_EMAIL_PROBLEM ON dbo.SolveForSakthi_Submissions (TEAM_EMAIL, PROBLEM_ID) INCLUDE (STATUS)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submissions_TEAM_ID' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submissions'))
+    CREATE NONCLUSTERED INDEX IX_Submissions_TEAM_ID ON dbo.SolveForSakthi_Submissions (TEAM_ID)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submissions_STATUS' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submissions'))
+    CREATE NONCLUSTERED INDEX IX_Submissions_STATUS ON dbo.SolveForSakthi_Submissions (STATUS)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submissions_EVALUATED_BY' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submissions'))
+    CREATE NONCLUSTERED INDEX IX_Submissions_EVALUATED_BY ON dbo.SolveForSakthi_Submissions (EVALUATED_BY)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submissions_SUB_DATE' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submissions'))
+    CREATE NONCLUSTERED INDEX IX_Submissions_SUB_DATE ON dbo.SolveForSakthi_Submissions (SUB_DATE)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Team_List_SPOC_GRADUATED' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Team_List'))
+    CREATE NONCLUSTERED INDEX IX_Team_List_SPOC_GRADUATED ON dbo.SolveForSakthi_Team_List (SPOC_ID, GRADUATED_AT)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Team_List_LEAD_EMAIL' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Team_List'))
+    CREATE NONCLUSTERED INDEX IX_Team_List_LEAD_EMAIL ON dbo.SolveForSakthi_Team_List (LEAD_EMAIL)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Team_List_GRADUATED_AT' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Team_List'))
+    CREATE NONCLUSTERED INDEX IX_Team_List_GRADUATED_AT ON dbo.SolveForSakthi_Team_List (GRADUATED_AT)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Team_Members_TEAM_ID' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Team_Members_List'))
+    CREATE NONCLUSTERED INDEX IX_Team_Members_TEAM_ID ON dbo.SolveForSakthi_Team_Members_List (Team_ID) INCLUDE (GRAD_YEAR)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Team_Members_EMAIL' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Team_Members_List'))
+    CREATE NONCLUSTERED INDEX IX_Team_Members_EMAIL ON dbo.SolveForSakthi_Team_Members_List (EMAIL)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Team_Members_SPOC_ID' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Team_Members_List'))
+    CREATE NONCLUSTERED INDEX IX_Team_Members_SPOC_ID ON dbo.SolveForSakthi_Team_Members_List (SPOC_ID)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Team_Problems_PROBLEM_STATUS' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Team_Problems'))
+    CREATE NONCLUSTERED INDEX IX_Team_Problems_PROBLEM_STATUS ON dbo.SolveForSakthi_Team_Problems (PROBLEM_ID, STATUS)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Team_Problems_STATUS' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Team_Problems'))
+    CREATE NONCLUSTERED INDEX IX_Team_Problems_STATUS ON dbo.SolveForSakthi_Team_Problems (STATUS)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submission_Reviews_SUBMISSION' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submission_Reviews'))
+    CREATE NONCLUSTERED INDEX IX_Submission_Reviews_SUBMISSION ON dbo.SolveForSakthi_Submission_Reviews (SUBMISSION_ID)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submission_Reviews_REVIEWED_BY' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submission_Reviews'))
+    CREATE NONCLUSTERED INDEX IX_Submission_Reviews_REVIEWED_BY ON dbo.SolveForSakthi_Submission_Reviews (REVIEWED_BY)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Mail_Log_SENT_AT' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Mail_Log'))
+    CREATE NONCLUSTERED INDEX IX_Mail_Log_SENT_AT ON dbo.SolveForSakthi_Mail_Log (SENT_AT)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Mail_Log_STATUS' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Mail_Log'))
+    CREATE NONCLUSTERED INDEX IX_Mail_Log_STATUS ON dbo.SolveForSakthi_Mail_Log (STATUS)
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Deadline_Reminders_PROBLEM' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Deadline_Reminders'))
+    CREATE NONCLUSTERED INDEX IX_Deadline_Reminders_PROBLEM ON dbo.SolveForSakthi_Deadline_Reminders (PROBLEM_ID)
+GO
+
+-- Solution files: a submission has 1-3 files (PDF or PowerPoint .pptx, each up to UPLOAD_MAX_MB).
+-- FILES on the submission keeps the first file's path for older code paths.
+IF OBJECT_ID(N'dbo.SolveForSakthi_Submission_Files', N'U') IS NULL
+CREATE TABLE SolveForSakthi_Submission_Files (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    SUBMISSION_ID INT NOT NULL,
+    FILE_PATH VARCHAR(256) NOT NULL,
+    ORIGINAL_NAME NVARCHAR(255) NULL,
+    KIND VARCHAR(10) NOT NULL,
+    SIZE_BYTES INT NULL,
+    SORT_ORDER INT NOT NULL CONSTRAINT DF_SolveForSakthi_Submission_Files_SORT DEFAULT 0,
+    UPLOADED_AT DATETIME2 NOT NULL CONSTRAINT DF_SolveForSakthi_Submission_Files_AT DEFAULT SYSUTCDATETIME()
+)
+GO
+
+-- submissions from the single-PDF era get their file listed once
+INSERT INTO SolveForSakthi_Submission_Files (SUBMISSION_ID, FILE_PATH, ORIGINAL_NAME, KIND, SORT_ORDER)
+SELECT s.ID, s.FILES, N'solution.pdf', 'PDF', 0
+FROM SolveForSakthi_Submissions s
+WHERE s.FILES IS NOT NULL AND s.FILES <> ''
+  AND NOT EXISTS (SELECT 1 FROM SolveForSakthi_Submission_Files f WHERE f.SUBMISSION_ID = s.ID)
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submission_Files_SUBMISSION' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submission_Files'))
+    CREATE NONCLUSTERED INDEX IX_Submission_Files_SUBMISSION ON dbo.SolveForSakthi_Submission_Files (SUBMISSION_ID, SORT_ORDER)
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Submission_Files_PATH' AND object_id = OBJECT_ID(N'dbo.SolveForSakthi_Submission_Files'))
+    CREATE NONCLUSTERED INDEX IX_Submission_Files_PATH ON dbo.SolveForSakthi_Submission_Files (FILE_PATH)
+GO
+
+-- A SPOC removing a team that has submitted a solution does not delete it: the team is archived like a
+-- graduated team (GRADUATED_AT = archived time, so the SPOC no longer sees it and its login is closed) and
+-- REMOVED_AT / REMOVED_BY record that it was removed rather than graduated. Admins keep the full record.
+IF COL_LENGTH(N'dbo.SolveForSakthi_Team_List', N'REMOVED_AT') IS NULL
+    ALTER TABLE SolveForSakthi_Team_List ADD REMOVED_AT DATETIME2 NULL, REMOVED_BY INT NULL
+GO

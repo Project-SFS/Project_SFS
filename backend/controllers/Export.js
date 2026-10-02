@@ -12,6 +12,9 @@ const day = (value) => (value ? (value instanceof Date ? value.toISOString().sli
 const asDate = (value) => (value ? new Date(value) : null);
 const statusOf = (status) => (String(status || "PENDING").toUpperCase() === "ACCEPTED" ? "APPROVED" : String(status || "PENDING").toUpperCase());
 const label = (status) => DECISION_LABELS[statusOf(status)] || status;
+// Active, Graduated (archived after the last member's year) or Removed (archived when the SPOC removed it)
+const teamStatusOf = (t) => (t.REMOVED_AT ? "Removed" : t.GRADUATED_AT ? "Graduated" : "Active");
+const matchesTeamStatus = (t, status) => !status || status === "all" || teamStatusOf(t).toLowerCase() === status;
 const list = (value) => (Array.isArray(value) ? value.map(String).filter(Boolean) : []);
 const inList = (allowed, value) => allowed.length === 0 || allowed.includes(String(value ?? ""));
 
@@ -23,11 +26,12 @@ const loadSubmissions = async () => {
                s.EVALUATION_COMMENT, s.EVALUATED_AT, s.EVALUATED_BY,
                s.EVAL_UNDERSTANDING, s.EVAL_SOLUTION, s.EVAL_TOOLS, s.EVAL_PRESENTATION, s.EVAL_ACCEPTANCE, s.EVAL_TOTAL,
                p.TITLE AS PROBLEM_TITLE, p.CATEGORY, p.DOMAIN, p.SUB_DEADLINE,
-               t.ID AS TEAM_ID, t.NAME AS TEAM_NAME, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.GRADUATED_AT,
+               t.ID AS TEAM_ID, t.NAME AS TEAM_NAME, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.GRADUATED_AT, t.REMOVED_AT,
                COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
                spoc.ID AS SPOC_ID, spoc.NAME AS SPOC_NAME, spoc.EMAIL AS SPOC_EMAIL, spoc.PHONE AS SPOC_PHONE, spoc.COLLEGE, spoc.COLLEGE_CODE,
                ev.EMAIL AS REVIEWER_EMAIL, ev.NAME AS REVIEWER_NAME,
-               (SELECT COUNT(*) FROM SolveForSakthi_Submission_Reviews r WHERE r.SUBMISSION_ID = s.ID) AS REVIEW_COUNT
+               (SELECT COUNT(*) FROM SolveForSakthi_Submission_Reviews r WHERE r.SUBMISSION_ID = s.ID) AS REVIEW_COUNT,
+               (SELECT COUNT(*) FROM SolveForSakthi_Submission_Files sf WHERE sf.SUBMISSION_ID = s.ID) AS FILE_COUNT
         FROM SolveForSakthi_Submissions s
         LEFT JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID
         LEFT JOIN SolveForSakthi_Team_List t ON t.LEAD_EMAIL = s.TEAM_EMAIL
@@ -39,7 +43,7 @@ const loadSubmissions = async () => {
 
 const loadTeams = async () => {
     const [teams] = await connection.query(`
-        SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.CREATED_AT, t.GRADUATED_AT, t.SPOC_ID,
+        SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.CREATED_AT, t.GRADUATED_AT, t.REMOVED_AT, t.SPOC_ID,
                COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
                spoc.NAME AS SPOC_NAME, spoc.EMAIL AS SPOC_EMAIL, spoc.COLLEGE, spoc.COLLEGE_CODE
         FROM SolveForSakthi_Team_List t
@@ -72,7 +76,8 @@ const loadSpocs = async () => {
     const [rows] = await connection.query(`
         SELECT u.ID, u.NAME, u.EMAIL, u.PHONE, u.COLLEGE, u.COLLEGE_CODE, u.STATUS, u.DATE,
                (SELECT COUNT(*) FROM SolveForSakthi_Team_List t WHERE t.SPOC_ID = u.ID AND t.GRADUATED_AT IS NULL) AS ACTIVE_TEAMS,
-               (SELECT COUNT(*) FROM SolveForSakthi_Team_List t WHERE t.SPOC_ID = u.ID AND t.GRADUATED_AT IS NOT NULL) AS GRADUATED_TEAMS,
+               (SELECT COUNT(*) FROM SolveForSakthi_Team_List t WHERE t.SPOC_ID = u.ID AND t.GRADUATED_AT IS NOT NULL AND t.REMOVED_AT IS NULL) AS GRADUATED_TEAMS,
+               (SELECT COUNT(*) FROM SolveForSakthi_Team_List t WHERE t.SPOC_ID = u.ID AND t.REMOVED_AT IS NOT NULL) AS REMOVED_TEAMS,
                (SELECT COUNT(*) FROM SolveForSakthi_Submissions s JOIN SolveForSakthi_Team_List t ON t.LEAD_EMAIL = s.TEAM_EMAIL WHERE t.SPOC_ID = u.ID) AS SUBMISSIONS,
                (SELECT COUNT(*) FROM SolveForSakthi_Submissions s JOIN SolveForSakthi_Team_List t ON t.LEAD_EMAIL = s.TEAM_EMAIL WHERE t.SPOC_ID = u.ID AND s.STATUS IN ('APPROVED', 'ACCEPTED')) AS APPROVED,
                (SELECT COUNT(*) FROM SolveForSakthi_Submissions s JOIN SolveForSakthi_Team_List t ON t.LEAD_EMAIL = s.TEAM_EMAIL WHERE t.SPOC_ID = u.ID AND s.STATUS = 'PENDING') AS AWAITING
@@ -90,7 +95,7 @@ const SUBMISSION_COLUMNS = [
     { key: "solTitle", header: "Solution title", group: "Submission", width: 32, value: (r) => r.SOL_TITLE },
     { key: "solDescription", header: "Solution description", group: "Submission", width: 45, value: (r) => r.SOL_DESCRIPTION },
     { key: "solLink", header: "Solution link", group: "Submission", width: 32, value: (r) => r.SOL_LINK },
-    { key: "file", header: "PDF on file", group: "Submission", width: 12, value: (r) => (r.FILES ? "Yes" : "No") },
+    { key: "file", header: "Files attached", group: "Submission", width: 12, type: "number", value: (r) => Number(r.FILE_COUNT) || 0 },
     { key: "submittedOn", header: "Submitted on", group: "Submission", width: 14, type: "date", value: (r) => asDate(day(r.SUB_DATE)) },
     { key: "status", header: "Status", group: "Submission", width: 17, value: (r) => label(r.STATUS) },
     { key: "problemId", header: "Problem ID", group: "Problem", width: 12, value: (r) => (r.PROBLEM_ID ? `SFS_${r.PROBLEM_ID}` : "") },
@@ -104,7 +109,7 @@ const SUBMISSION_COLUMNS = [
     { key: "leadPhone", header: "Team lead phone", group: "Team", width: 15, value: (r) => r.LEAD_PHONE },
     { key: "mentor", header: "Mentor", group: "Team", width: 28, value: (r) => [r.MENTOR_NAME, r.MENTOR_EMAIL].filter(Boolean).join(" · ") },
     { key: "graduationYear", header: "Graduation year", group: "Team", width: 14, type: "number", value: (r) => r.GRADUATION_YEAR },
-    { key: "teamStatus", header: "Team status", group: "Team", width: 12, value: (r) => (r.TEAM_ID ? (r.GRADUATED_AT ? "Graduated" : "Active") : "Deleted") },
+    { key: "teamStatus", header: "Team status", group: "Team", width: 12, value: (r) => (r.TEAM_ID ? teamStatusOf(r) : "Deleted") },
     { key: "college", header: "College", group: "College & SPOC", width: 26, value: (r) => r.COLLEGE },
     { key: "collegeCode", header: "College code", group: "College & SPOC", width: 13, value: (r) => r.COLLEGE_CODE },
     { key: "spocName", header: "SPOC name", group: "College & SPOC", width: 20, value: (r) => r.SPOC_NAME },
@@ -121,8 +126,8 @@ const SUBMISSION_COLUMNS = [
 const TEAM_COLUMNS = [
     { key: "id", header: "Team ID", group: "Team", width: 9, type: "number", value: (t) => t.ID },
     { key: "name", header: "Team name", group: "Team", width: 22, value: (t) => t.NAME },
-    { key: "status", header: "Status", group: "Team", width: 12, value: (t) => (t.GRADUATED_AT ? "Graduated" : "Active") },
-    { key: "graduationYear", header: "Graduation year", group: "Team", width: 14, type: "number", value: (t) => t.GRADUATION_YEAR },
+    { key: "status", header: "Status", group: "Team", width: 12, value: (t) => teamStatusOf(t) },
+    { key: "graduationYear", header: "Graduation year (last member)", group: "Team", width: 16, type: "number", value: (t) => t.GRADUATION_YEAR },
     { key: "registered", header: "Registered on", group: "Team", width: 14, type: "date", value: (t) => asDate(day(t.CREATED_AT)) },
     { key: "leadEmail", header: "Team lead email", group: "Team", width: 28, value: (t) => t.LEAD_EMAIL },
     { key: "leadPhone", header: "Team lead phone", group: "Team", width: 15, value: (t) => t.LEAD_PHONE },
@@ -155,6 +160,7 @@ const SPOC_COLUMNS = [
     { key: "collegeCode", header: "College code", group: "College", width: 13, value: (u) => u.COLLEGE_CODE },
     { key: "activeTeams", header: "Active teams", group: "Activity", width: 12, type: "number", value: (u) => u.ACTIVE_TEAMS },
     { key: "graduatedTeams", header: "Graduated teams", group: "Activity", width: 14, type: "number", value: (u) => u.GRADUATED_TEAMS },
+    { key: "removedTeams", header: "Removed teams", group: "Activity", width: 14, type: "number", value: (u) => u.REMOVED_TEAMS },
     { key: "submissions", header: "Submissions", group: "Activity", width: 12, type: "number", value: (u) => u.SUBMISSIONS },
     { key: "awaiting", header: "Awaiting review", group: "Activity", width: 13, type: "number", value: (u) => u.AWAITING },
     { key: "approved", header: "Approved", group: "Activity", width: 11, type: "number", value: (u) => u.APPROVED },
@@ -177,18 +183,34 @@ const filterSubmissions = (rows, f = {}) => {
         && (!f.reviewedTo || (r.EVALUATED_AT && day(r.EVALUATED_AT) <= f.reviewedTo))
         && (min === null || (r.EVAL_TOTAL != null && r.EVAL_TOTAL >= min))
         && (max === null || (r.EVAL_TOTAL != null && r.EVAL_TOTAL <= max))
-        && (!f.teamStatus || f.teamStatus === "all" || (f.teamStatus === "graduated" ? Boolean(r.GRADUATED_AT) : !r.GRADUATED_AT))
+        && matchesTeamStatus(r, f.teamStatus)
         && (!q || [r.TEAM_NAME, r.TEAM_EMAIL, r.SOL_TITLE, r.PROBLEM_TITLE, r.COLLEGE].some((v) => String(v || "").toLowerCase().includes(q))));
+};
+
+// Members graduate in different years. A team's graduation year is its LAST member's year (the team closes
+// after it). graduationMatch says how a year filter is read:
+//   upto   - every member graduates by that year (team year <= year)   [default]
+//   exact  - the team closes in exactly that year (last member graduates then)
+//   member - at least one member graduates in that year
+const GRADUATION_MATCH = { upto: "Every member graduates by", exact: "Team closes in (last member graduates)", member: "At least one member graduates in" };
+const matchesGraduation = (t, f) => {
+    if (!f.graduationYear) return true;
+    const year = Number(f.graduationYear);
+    const mode = GRADUATION_MATCH[f.graduationMatch] ? f.graduationMatch : "upto";
+    if (mode === "member") return (t.members || []).some((m) => Number(m.GRAD_YEAR) === year);
+    const teamYear = Number(t.GRADUATION_YEAR);
+    if (!teamYear) return false;
+    return mode === "exact" ? teamYear === year : teamYear <= year;
 };
 
 const filterTeams = (teams, f = {}) => {
     const q = String(f.search || "").trim().toLowerCase();
     return teams.filter((t) =>
         inList(list(f.colleges), t.COLLEGE)
-        && (!f.teamStatus || f.teamStatus === "all" || (f.teamStatus === "graduated" ? Boolean(t.GRADUATED_AT) : !t.GRADUATED_AT))
+        && matchesTeamStatus(t, f.teamStatus)
         && (!f.submissions || f.submissions === "all" || (f.submissions === "with" ? t.SUBMISSIONS > 0 : t.SUBMISSIONS === 0))
         && (list(f.problemIds).length === 0 || t.assigned.some((a) => list(f.problemIds).includes(String(a.PROBLEM_ID))))
-        && (!f.graduationYear || String(t.GRADUATION_YEAR) === String(f.graduationYear))
+        && matchesGraduation(t, f)
         && (!q || [t.NAME, t.LEAD_EMAIL, t.COLLEGE, t.SPOC_NAME].some((v) => String(v || "").toLowerCase().includes(q))));
 };
 
@@ -266,9 +288,9 @@ const describeFilters = (type, f = {}, lookups) => {
     if (f.reviewedFrom || f.reviewedTo) out.push(["Reviewed between", `${f.reviewedFrom || "start"} and ${f.reviewedTo || "today"}`]);
     if (f.marksMin !== undefined && f.marksMin !== "" && f.marksMin !== null) out.push(["Total marks at least", String(f.marksMin)]);
     if (f.marksMax !== undefined && f.marksMax !== "" && f.marksMax !== null) out.push(["Total marks at most", String(f.marksMax)]);
-    if (f.teamStatus && f.teamStatus !== "all") out.push(["Teams", f.teamStatus === "graduated" ? "Graduated only" : "Active only"]);
+    if (f.teamStatus && f.teamStatus !== "all") out.push(["Teams", { graduated: "Graduated only", removed: "Removed by SPOC only" }[f.teamStatus] || "Active only"]);
     if (f.submissions && f.submissions !== "all") out.push(["Teams", f.submissions === "with" ? "With submissions" : "Without submissions"]);
-    if (f.graduationYear) out.push(["Graduation year", String(f.graduationYear)]);
+    if (f.graduationYear) out.push(["Graduation year", `${GRADUATION_MATCH[f.graduationMatch] || GRADUATION_MATCH.upto} ${f.graduationYear}`]);
     if (list(f.spocStatuses).length) out.push(["SPOC status", list(f.spocStatuses).join(", ")]);
     if (f.hasTeams && f.hasTeams !== "all") out.push(["SPOCs", f.hasTeams === "with" ? "With teams" : "Without teams"]);
     if (f.search) out.push(["Search", f.search]);
@@ -566,4 +588,19 @@ const Export_problem_reports = AsyncHandler(async (req, res) => {
     zip.generateNodeStream({ type: "nodebuffer", streamFiles: true, compression: "DEFLATE" }).pipe(res);
 });
 
-export { Export_options, Export_data, Export_problem_reports };
+// GET /admin/submissions/all: every submission for the admin Submissions page (evaluators), newest first.
+// Only the fields the list needs, never the description or files.
+const List_all_submissions = AsyncHandler(async (req, res) => {
+    const rows = await loadSubmissions();
+    const out = rows
+        .map((r) => ({
+            ID: r.ID, PROBLEM_ID: r.PROBLEM_ID, PROBLEM_TITLE: r.PROBLEM_TITLE, CATEGORY: r.CATEGORY, SUB_DEADLINE: day(r.SUB_DEADLINE),
+            SOL_TITLE: r.SOL_TITLE, SUB_DATE: day(r.SUB_DATE), STATUS: statusOf(r.STATUS),
+            TEAM_ID: r.TEAM_ID, TEAM_NAME: r.TEAM_NAME, TEAM_EMAIL: r.TEAM_EMAIL, COLLEGE: r.COLLEGE,
+            EVAL_TOTAL: r.EVAL_TOTAL, EVALUATED_AT: r.EVALUATED_AT, REVIEWER_EMAIL: r.REVIEWER_EMAIL, REVIEW_COUNT: Number(r.REVIEW_COUNT) || 0,
+        }))
+        .sort((a, b) => b.ID - a.ID);
+    res.json({ submissions: out });
+});
+
+export { Export_options, Export_data, Export_problem_reports, List_all_submissions };

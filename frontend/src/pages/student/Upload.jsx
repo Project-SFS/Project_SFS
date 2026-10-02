@@ -10,8 +10,9 @@ import Header from '../../components/Header'
 import Footer from '../../components/Footer'
 import { URL } from '../../Utils'
 import { StatusBadge, normalizeStatus, statusMeta, EVAL_CRITERIA, MarksBreakdown } from '../../submissionStatus'
+import { MAX_FILES, MAX_FILE_MB, ACCEPT, kindOf, KIND_LABEL, FileLinks } from '../../submissionFiles'
 
-const MAX_MB = 20
+const MAX_MB = MAX_FILE_MB
 const TITLE_MAX = 100
 const DESCRIPTION_MAX = 1000
 
@@ -55,7 +56,7 @@ const Upload = () => {
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
     const [link, setLink] = useState('')
-    const [file, setFile] = useState(null)
+    const [files, setFiles] = useState([]) // chosen files, 1-3 (PDF / PPTX)
     const [fileError, setFileError] = useState('')
     const [dragActive, setDragActive] = useState(false)
     const [touched, setTouched] = useState(false)
@@ -98,23 +99,30 @@ const Upload = () => {
         setLink((l) => l || submission.SOL_LINK || '')
     }, [submission, replacing])
 
-    const pickFile = (candidate) => {
-        if (!candidate) return
-        if (candidate.type !== 'application/pdf' && !candidate.name.toLowerCase().endsWith('.pdf')) {
-            setFileError('Only PDF files can be uploaded.')
-            return
+    // adds chosen / dropped files (up to MAX_FILES, PDF or PPTX, each up to MAX_MB); problems are listed together
+    const pickFiles = (list) => {
+        const incoming = Array.from(list || [])
+        if (!incoming.length) return
+        const errors = []
+        const next = [...files]
+        for (const f of incoming) {
+            if (!kindOf(f.name)) { errors.push(`"${f.name}" is not a PDF or PowerPoint (.pptx) file.`); continue }
+            if (f.size > MAX_MB * 1024 * 1024) { errors.push(`"${f.name}" is ${formatSize(f.size)}. The maximum is ${MAX_MB} MB per file.`); continue }
+            if (next.some((x) => x.name === f.name && x.size === f.size)) continue
+            if (next.length >= MAX_FILES) { errors.push(`You can attach at most ${MAX_FILES} files.`); break }
+            next.push(f)
         }
-        if (candidate.size > MAX_MB * 1024 * 1024) {
-            setFileError(`This file is ${formatSize(candidate.size)}. The maximum is ${MAX_MB} MB.`)
-            return
-        }
+        setFiles(next)
+        setFileError(errors.join(' '))
+    }
+    const removeFile = (index) => {
+        setFiles((prev) => prev.filter((_, i) => i !== index))
         setFileError('')
-        setFile(candidate)
     }
 
     const titleError = !title.trim() ? 'Please give your solution a title.' : ''
     const linkError = link.trim() && !isValidUrl(link.trim()) ? 'Enter a full link starting with https://' : ''
-    const missingFile = !file ? 'Please choose your solution PDF.' : ''
+    const missingFile = files.length === 0 ? 'Please attach at least one file (PDF or PowerPoint).' : ''
     const formValid = !titleError && !linkError && !missingFile
 
     const startSubmit = (e) => {
@@ -138,7 +146,7 @@ const Upload = () => {
         form.append('description', description.trim())
         form.append('link', link.trim())
         form.append('problemId', probId)
-        form.append('files', file)
+        files.forEach((f) => form.append('files', f))
 
         axios.post(`${URL}/upload_files`, form, {
             withCredentials: true,
@@ -147,7 +155,7 @@ const Upload = () => {
             .then((res) => {
                 setDone({ replaced: Boolean(res.data?.replaced) })
                 toast.success(res.data?.replaced ? 'Your solution was updated' : 'Your solution was submitted')
-                setFile(null)
+                setFiles([])
                 setTouched(false)
                 loadProblem()
             })
@@ -316,7 +324,8 @@ const Upload = () => {
                                             <FiInfo className="text-[#fc9300] text-lg shrink-0 mt-0.5" />
                                             <div>
                                                 You already submitted <b>"{submission.SOL_TITLE || 'Untitled'}"</b> on {formatDate(submission.SUB_DATE)}.
-                                                Submitting again <b>replaces</b> it.
+                                                Submitting again <b>replaces</b> it, including all its files.
+                                                {submission.files?.length > 0 && <FileLinks files={submission.files} className="mt-2" />}
                                             </div>
                                         </div>
                                     )}
@@ -372,29 +381,34 @@ const Upload = () => {
                                         </div>
 
                                         <div>
-                                            <span className="text-sm font-semibold text-gray-700 block mb-1.5">Solution PDF <span className="text-red-500">*</span></span>
-                                            {file ? (
-                                                <div className="flex items-center gap-4 p-4 rounded-xl border border-green-200 bg-green-50">
-                                                    <div className="w-11 h-11 rounded-lg bg-white border border-green-200 flex items-center justify-center shrink-0">
-                                                        <FiFileText className="text-xl text-red-500" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-sm font-medium text-gray-900 truncate">{file.name}</div>
-                                                        <div className="text-xs text-gray-500">{formatSize(file.size)} · PDF</div>
-                                                    </div>
-                                                    <button type="button" onClick={() => inputRef.current?.click()} className="text-sm font-medium text-[#fc9300] hover:underline">
-                                                        Change
-                                                    </button>
-                                                    <button type="button" onClick={() => setFile(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-white" aria-label="Remove file">
-                                                        <FiX />
-                                                    </button>
-                                                </div>
-                                            ) : (
+                                            <div className="flex items-baseline justify-between mb-1.5">
+                                                <span className="text-sm font-semibold text-gray-700">Solution files <span className="text-red-500">*</span></span>
+                                                <span className="text-xs text-gray-400">{files.length}/{MAX_FILES} · PDF or PowerPoint, up to {MAX_MB} MB each</span>
+                                            </div>
+                                            {files.length > 0 && (
+                                                <ul className="space-y-2 mb-3">
+                                                    {files.map((f, i) => (
+                                                        <li key={`${f.name}-${f.size}`} className="flex items-center gap-4 p-3 rounded-xl border border-green-200 bg-green-50">
+                                                            <div className="w-10 h-10 rounded-lg bg-white border border-green-200 flex items-center justify-center shrink-0">
+                                                                <FiFileText className={`text-xl ${kindOf(f.name) === 'PPTX' ? 'text-orange-600' : 'text-red-500'}`} />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-sm font-medium text-gray-900 truncate" title={f.name}>{f.name}</div>
+                                                                <div className="text-xs text-gray-500">{formatSize(f.size)} · {KIND_LABEL[kindOf(f.name)]}</div>
+                                                            </div>
+                                                            <button type="button" onClick={() => removeFile(i)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-white" aria-label={`Remove ${f.name}`}>
+                                                                <FiX />
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {files.length < MAX_FILES && (
                                                 <div
                                                     onDrop={(e) => {
                                                         e.preventDefault()
                                                         setDragActive(false)
-                                                        if (canSubmit && !uploading) pickFile(e.dataTransfer.files?.[0])
+                                                        if (canSubmit && !uploading) pickFiles(e.dataTransfer.files)
                                                     }}
                                                     onDragOver={(e) => {
                                                         e.preventDefault()
@@ -410,25 +424,28 @@ const Upload = () => {
                                                     }}
                                                     role="button"
                                                     tabIndex={canSubmit ? 0 : -1}
-                                                    className={`h-48 rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-center px-6 transition ${
+                                                    className={`${files.length ? 'h-28' : 'h-48'} rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-center px-6 transition ${
                                                         !canSubmit ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
                                                             : dragActive ? 'border-[#fc9300] bg-orange-50 cursor-copy'
                                                             : touched && missingFile ? 'border-red-300 bg-red-50/40 cursor-pointer'
                                                             : 'border-gray-200 bg-white hover:border-[#fc9300] hover:bg-orange-50/40 cursor-pointer'
                                                     }`}
                                                 >
-                                                    <FiUploadCloud className="text-4xl text-[#fc9300] mb-2" />
-                                                    <div className="text-sm text-gray-700"><b>Click to choose</b> or drag and drop your PDF here</div>
-                                                    <div className="text-xs text-gray-400 mt-1">One PDF file, up to {MAX_MB} MB</div>
+                                                    <FiUploadCloud className="text-3xl text-[#fc9300] mb-2" />
+                                                    <div className="text-sm text-gray-700">
+                                                        <b>{files.length ? 'Add another file' : 'Click to choose'}</b> or drag and drop {files.length ? 'it' : 'your files'} here
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 mt-1">Up to {MAX_FILES} files · PDF or PowerPoint (.pptx) · {MAX_MB} MB each</div>
                                                 </div>
                                             )}
                                             <input
                                                 ref={inputRef}
                                                 type="file"
-                                                accept="application/pdf,.pdf"
+                                                multiple
+                                                accept={ACCEPT}
                                                 className="hidden"
                                                 onChange={(e) => {
-                                                    pickFile(e.target.files?.[0])
+                                                    pickFiles(e.target.files)
                                                     e.target.value = null
                                                 }}
                                             />
@@ -469,7 +486,7 @@ const Upload = () => {
                                 <h2 className="font-semibold text-gray-900 mb-3">Before you submit</h2>
                                 <ul className="space-y-2.5 text-sm text-gray-600">
                                     {[
-                                        `Upload one PDF, up to ${MAX_MB} MB.`,
+                                        `Attach up to ${MAX_FILES} files: PDF or PowerPoint (.pptx), up to ${MAX_MB} MB each.`,
                                         'You can replace your solution until it is reviewed or the deadline passes.',
                                         "You get a confirmation email now, and the evaluator's decision and comment by email after the review.",
                                     ].map((text) => (
@@ -482,7 +499,7 @@ const Upload = () => {
 
                             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                                 <h2 className="font-semibold text-gray-900 mb-1">How review works</h2>
-                                <p className="text-xs text-gray-500 mb-3">An evaluator scores your solution on the five criteria below and gives one of three decisions, with a comment. You receive the decision, comment and marks by email.</p>
+                                <p className="text-xs text-gray-500 mb-3">An evaluator scores your solution on the five criteria below and gives one of three decisions, with a comment. You receive the decision and comment by email, and your marks when the solution is approved.</p>
                                 <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Evaluation criteria (100 marks)</div>
                                 <div className="space-y-1.5 mb-4">
                                     {EVAL_CRITERIA.map((c) => (
@@ -510,16 +527,42 @@ const Upload = () => {
             {confirmReplace && (
                 <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-                        <h2 className="text-lg font-semibold text-gray-900">Replace your submission?</h2>
+                        <h2 className="text-lg font-semibold text-gray-900">
+                            {changesRequested ? 'Send your revised solution?' : 'Replace your submission?'}
+                        </h2>
                         <p className="text-sm text-gray-600 mt-2">
-                            Your current solution <b>"{submission?.SOL_TITLE || 'Untitled'}"</b> will be replaced by <b>{file?.name}</b>. This cannot be undone.
+                            {changesRequested
+                                ? 'Your revised solution replaces the current one and goes back to the evaluator for review.'
+                                : 'Your new solution replaces the current one. The current version cannot be restored.'}
                         </p>
+                        {/* what changes: the title is whatever is typed in the form, the files are the newly chosen ones */}
+                        <div className="mt-4 rounded-xl border border-gray-200 overflow-hidden text-sm">
+                            <div className="grid grid-cols-[5.5rem_1fr_1fr] bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                <span className="px-3 py-2" />
+                                <span className="px-3 py-2">Current</span>
+                                <span className="px-3 py-2">{changesRequested ? 'Revised' : 'New'}</span>
+                            </div>
+                            <div className="grid grid-cols-[5.5rem_1fr_1fr] border-t border-gray-100">
+                                <span className="px-3 py-2 text-gray-500">Title</span>
+                                <span className="px-3 py-2 text-gray-700 [overflow-wrap:anywhere]">{submission?.SOL_TITLE || 'Untitled'}</span>
+                                <span className="px-3 py-2 font-medium text-gray-900 [overflow-wrap:anywhere]">{title.trim() || 'Untitled'}</span>
+                            </div>
+                            <div className="grid grid-cols-[5.5rem_1fr_1fr] border-t border-gray-100">
+                                <span className="px-3 py-2 text-gray-500">Files</span>
+                                <span className="px-3 py-2 text-gray-700 [overflow-wrap:anywhere]">
+                                    {submission?.files?.length ? submission.files.map((f) => <div key={f.ID}>{f.NAME}</div>) : 'Your current file'}
+                                </span>
+                                <span className="px-3 py-2 font-medium text-gray-900 [overflow-wrap:anywhere]">
+                                    {files.map((f) => <div key={`${f.name}-${f.size}`}>{f.name}</div>)}
+                                </span>
+                            </div>
+                        </div>
                         <div className="flex justify-end gap-3 mt-6">
                             <button onClick={() => setConfirmReplace(false)} className="px-4 py-2 rounded-xl bg-gray-100 text-gray-800 text-sm hover:bg-gray-200 transition">
                                 Keep current
                             </button>
                             <button onClick={upload} className="px-4 py-2 rounded-xl bg-[#fc9300] text-white text-sm font-medium hover:bg-[#e68400] transition">
-                                Replace
+                                {changesRequested ? 'Send revised solution' : 'Replace'}
                             </button>
                         </div>
                     </div>

@@ -3,15 +3,17 @@ import multer from "multer";
 import connection from "../database/db.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import { notifyProblemsPublished } from "../utils/notifications.js";
+import { CATEGORIES, CATEGORY_CHOICES, parseCategory } from "../utils/categories.js";
 
 // Excel import of problem statements. The sheet always follows this template (first row = headers):
-//   S.No | Problem Title | Problem Description | Domain | Expected Outcomes | Requirements | Technology
-// Any other column (e.g. an old "Upload Document" column) is ignored.
-// The deadline and category are chosen once in the import form and apply to every row.
+//   S.No | Problem Title | Category | Problem Description | Domain | Expected Outcomes | Requirements | Technology
+// Any other column (e.g. an old "Upload Document" column) is ignored. Category is per row (Software,
+// Hardware or Combined); the deadline is chosen once in the import form and applies to every row.
 
 export const TEMPLATE_COLUMNS = [
     { key: "sno", header: "S.No", width: 8 },
     { key: "title", header: "Problem Title", width: 40 },
+    { key: "category", header: "Category", width: 16 },
     { key: "description", header: "Problem Description", width: 60 },
     { key: "domain", header: "Domain", width: 22 },
     { key: "outcomes", header: "Expected Outcomes", width: 45 },
@@ -19,7 +21,6 @@ export const TEMPLATE_COLUMNS = [
     { key: "technology", header: "Technology", width: 28 },
 ];
 
-const CATEGORIES = ["software", "hardware"];
 const MAX_ROWS = 500;
 const LIMITS = { title: 300, domain: 200, technology: 500 };
 
@@ -32,6 +33,7 @@ const headerKey = (text) => {
     if (h.includes("title")) return "title";
     if (h.includes("description")) return "description";
     if (h.includes("domain")) return "domain";
+    if (h.includes("category") || h === "type") return "category";
     if (h.includes("outcome")) return "outcomes";
     if (h.includes("requirement")) return "requirements";
     if (h.includes("technolog") || h.includes("techstack")) return "technology";
@@ -97,6 +99,9 @@ const validateRows = async (rows) => {
         if (!r.title) errors.push("Problem Title is empty");
         else if (r.title.length > LIMITS.title) errors.push(`Problem Title is longer than ${LIMITS.title} characters`);
         if (!r.description) errors.push("Problem Description is empty");
+        const categoryKey = parseCategory(r.category);
+        if (!r.category) errors.push("Category is empty (Software, Hardware or Combined)");
+        else if (!categoryKey) errors.push(`Category "${r.category}" is not valid: use Software, Hardware or Combined`);
         if (r.domain.length > LIMITS.domain) errors.push(`Domain is longer than ${LIMITS.domain} characters`);
         if (r.technology.length > LIMITS.technology) errors.push(`Technology is longer than ${LIMITS.technology} characters`);
 
@@ -112,7 +117,8 @@ const validateRows = async (rows) => {
             }
         }
         if (key && !seen.has(key)) seen.set(key, r.row);
-        return { ...r, status, messages: errors };
+        // categoryLabel: shown in the preview, so the admin sees how a typed value was understood
+        return { ...r, category: categoryKey || r.category, categoryLabel: categoryKey ? CATEGORIES[categoryKey] : r.category, status, messages: errors };
     });
 };
 
@@ -141,7 +147,7 @@ const memoryUpload = multer({
     },
 }).single("file");
 
-// POST /admin/problems/import (multipart: file, deadline, category, dryRun)
+// POST /admin/problems/import (multipart: file, deadline, dryRun); the category comes from each row
 //   dryRun=true  -> only checks the file and returns every row with its status (nothing is saved)
 //   dryRun=false -> also adds the ready rows as problem statements
 const Import_problems = AsyncHandler(async (req, res) => {
@@ -149,13 +155,9 @@ const Import_problems = AsyncHandler(async (req, res) => {
         return res.status(400).json({ message: "Choose the filled-in Excel template (.xlsx) to import" });
     }
     const deadline = String(req.body.deadline || "").trim();
-    const category = String(req.body.category || "").trim().toLowerCase();
     const dryRun = String(req.body.dryRun) !== "false";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || Number.isNaN(new Date(deadline).getTime())) {
         return res.status(400).json({ message: "Choose a submission deadline for the imported problem statements" });
-    }
-    if (!CATEGORIES.includes(category)) {
-        return res.status(400).json({ message: "Choose a category (Software or Hardware)" });
     }
 
     const parsed = await readSheet(req.file.buffer);
@@ -176,7 +178,7 @@ const Import_problems = AsyncHandler(async (req, res) => {
 
     const created = [];
     for (const r of importable) {
-        const id = await insertProblem({ ...r, deadline, category }, req.user.ID);
+        const id = await insertProblem({ ...r, deadline }, req.user.ID);
         created.push({ id, title: r.title, row: r.row });
     }
     if (created.length) notifyProblemsPublished(created.map((c) => c.title));
@@ -194,7 +196,16 @@ const Problem_import_template = AsyncHandler(async (req, res) => {
     header.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFC9300" } };
     header.alignment = { vertical: "middle", wrapText: true };
     header.height = 28;
-    for (let r = 2; r <= 200; r++) sheet.getRow(r).alignment = { vertical: "top", wrapText: true };
+    const categoryCol = TEMPLATE_COLUMNS.findIndex((c) => c.key === "category") + 1;
+    for (let r = 2; r <= 500; r++) {
+        sheet.getRow(r).alignment = { vertical: "top", wrapText: true };
+        // Category: a dropdown with the allowed values
+        sheet.getCell(r, categoryCol).dataValidation = {
+            type: "list", allowBlank: false, formulae: [`"${CATEGORY_CHOICES.join(",")}"`],
+            showErrorMessage: true, errorStyle: "warning", errorTitle: "Category",
+            error: "Choose Software, Hardware or Combined",
+        };
+    }
 
     const help = workbook.addWorksheet("Instructions");
     help.columns = [{ width: 28 }, { width: 90 }];
@@ -203,14 +214,15 @@ const Problem_import_template = AsyncHandler(async (req, res) => {
         ["", "Add one problem statement per row in the \"Problem Statements\" sheet. Keep the header row unchanged."],
         ["S.No", "Optional running number (1, 2, 3...)."],
         ["Problem Title", "Required. Up to 300 characters. Titles must be unique: rows whose title already exists are skipped."],
+        ["Category", "Required. Pick from the dropdown: Software, Hardware or Combined (needs both hardware and software)."],
         ["Problem Description", "Required. The full problem statement."],
         ["Domain", "Optional. e.g. Automotive, Manufacturing, Energy."],
         ["Expected Outcomes", "Optional. What a good solution should deliver."],
         ["Requirements", "Optional. Constraints, data or skills needed."],
         ["Technology", "Optional. e.g. IoT, Machine Learning, Embedded C."],
         ["", ""],
-        ["Deadline and category", "Chosen in the admin panel when importing; they apply to every row of the file."],
-        ["Example row", "1 | Smart energy monitoring | Monitor energy use per machine... | Manufacturing | Live dashboard... | Sensor data access | IoT"],
+        ["Deadline", "Chosen in the admin panel when importing; it applies to every row of the file."],
+        ["Example row", "1 | Smart energy monitoring | Combined | Monitor energy use per machine... | Manufacturing | Live dashboard... | Sensor data access | IoT"],
     ].forEach((row, i) => {
         const added = help.addRow(row);
         added.alignment = { vertical: "top", wrapText: true };

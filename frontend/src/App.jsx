@@ -41,6 +41,7 @@ import ProblemStatementCreate from "./pages/Admin/ProblemStatementCreate.jsx";
 import ProblemImport from "./pages/Admin/ProblemImport.jsx";
 import Exports from "./pages/Admin/Exports.jsx";
 import { RequirePermission } from "./components/admin/adminAccess.jsx";
+import AdminSubmissions from "./pages/Admin/Submissions.jsx";
 import ProblemStatementEdit from "./pages/Admin/ProblemStatementEdit.jsx";
 import ProblemStatementDetail from "./pages/Admin/ProblemStatementDetail.jsx";
 import SubmissionDetail from "./pages/Admin/SubmissionDetail.jsx";
@@ -202,6 +203,7 @@ function App() {
           <Route path="exports" element={<Exports />} />
           <Route path="spoc-approvals" element={<Navigate to="/admin/approvals" replace />} />
           <Route path="problems/:id/details" element={<ProblemStatementDetail />} />
+          <Route path="submissions" element={<RequirePermission permission="EVALUATE"><AdminSubmissions /></RequirePermission>} />
           <Route path="submissions/:id/details" element={<SubmissionDetail />} />
 
           {/* Problem Statement Management (CRUD) */}

@@ -11,8 +11,12 @@ import {
   FiFileText,
   FiArrowLeft,
   FiTrash2,
-  FiEdit2
+  FiEdit2,
+  FiLink,
+  FiChevronUp,
+  FiChevronDown
 } from 'react-icons/fi';
+import { copyText } from '../../submissionFiles';
 import { URL } from '../../Utils';
 import { StatusBadge, normalizeStatus } from '../../submissionStatus';
 import Pagination, { usePagination } from '../../components/common/Pagination';
@@ -23,10 +27,16 @@ const ProblemStatementDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const [linkCopied, setLinkCopied] = useState(false);
   const [problem, setProblem] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [collegeFilter, setCollegeFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('newest');
+  // the information card can be folded away to get to the submissions faster (remembered per browser)
+  const [infoOpen, setInfoOpen] = useState(() => { try { return localStorage.getItem('sfs_problem_info_open') !== '0'; } catch { return true; } });
+  const toggleInfo = () => setInfoOpen((open) => { try { localStorage.setItem('sfs_problem_info_open', open ? '0' : '1'); } catch { /* private mode */ } return !open; });
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -88,7 +98,10 @@ const ProblemStatementDetail = () => {
         const normalized = res.data.map(s => ({
           
           id: String(s.submission_id ?? ''),
-          team_name: s.team_name || 'N/A',
+          // a team deleted before teams were archived has no name any more: show its lead email
+          team_name: s.team_name || s.TEAM_EMAIL || 'N/A',
+          team_note: !s.team_name ? 'team deleted' : s.REMOVED_AT ? 'removed by SPOC' : s.GRADUATED_AT ? 'graduated' : '',
+          college: s.college_name || '',
           title: s.SOL_TITLE || 'No Title',
           status: normalizeStatus(s.STATUS),
           comment: s.EVALUATION_COMMENT || '',
@@ -149,16 +162,25 @@ const ProblemStatementDetail = () => {
 
     const matchesSearch =
       (sub.team_name || '').toLowerCase().includes(search) ||
+      (sub.college || '').toLowerCase().includes(search) ||
       (sub.title || '').toLowerCase().includes(search);
 
     const matchesFilter = statusFilter === 'all' || sub.status === statusFilter;
+    const matchesCollege = collegeFilter === 'all' || sub.college === collegeFilter;
 
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesFilter && matchesCollege;
+  }).sort((a, b) => {
+    if (sortOrder === 'oldest') return Number(a.id) - Number(b.id);
+    if (sortOrder === 'marks') return (b.total ?? -1) - (a.total ?? -1) || Number(b.id) - Number(a.id);
+    if (sortOrder === 'team') return String(a.team_name).localeCompare(String(b.team_name));
+    return Number(b.id) - Number(a.id);
   });
+  const colleges = [...new Set(submissions.map((s) => s.college).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const filtersActive = searchTerm || statusFilter !== 'all' || collegeFilter !== 'all' || sortOrder !== 'newest';
 
   // hooks stay above the loading / not-found returns below
   const { page, setPage, pageItems, total, totalPages } = usePagination(filteredSubmissions, {
-    resetKey: `${searchTerm}|${statusFilter}`
+    resetKey: `${searchTerm}|${statusFilter}|${collegeFilter}|${sortOrder}`
   });
 
   // teams the problem is assigned to (falls back to distinct submitting teams)
@@ -203,9 +225,21 @@ const ProblemStatementDetail = () => {
   return (
     <div className="min-h-screen bg-[#F7F8FC] px-6 py-8 transition-all duration-300">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
           <Breadcrumb />
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-3">
+            {/* public link to this problem (opens its details on the Explore Challenges page, on this site's domain) */}
+            <Button
+              onClick={async () => {
+                const link = `${window.location.origin}/problemstatements?problem=${id}`;
+                if (await copyText(link)) { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 3000); }
+              }}
+              title={`${window.location.origin}/problemstatements?problem=${id}`}
+              className="!bg-white border border-[#E2E8F0] !text-[#4A5568] hover:!bg-[#F7F8FC] px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm transition-all duration-200"
+            >
+              <FiLink className="w-5 h-5" />
+              <span>{linkCopied ? 'Link copied' : 'Copy public link'}</span>
+            </Button>
             {can('PROBLEMS') && (<>
             <Button
               onClick={() => navigate(`/admin/problems/edit/${id}`)}
@@ -234,7 +268,21 @@ const ProblemStatementDetail = () => {
         
         {/* Problem Statement Information Table */}
         <div className="bg-white shadow-sm rounded-2xl p-6 border border-[#E2E8F0] mb-8">
-          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">Problem Statement Information</h2>
+          <button
+            type="button"
+            onClick={toggleInfo}
+            aria-expanded={infoOpen}
+            className={`w-full flex items-center justify-between gap-3 text-left ${infoOpen ? 'mb-4' : ''}`}
+          >
+            <span className="min-w-0">
+              <span className="block text-xl font-semibold text-[#1A202C]">Problem Statement Information</span>
+              {!infoOpen && <span className="block text-sm text-[#718096] truncate">SFS_{problem.id} · {problem.title}</span>}
+            </span>
+            <span className="shrink-0 p-2 rounded-full border border-[#E2E8F0] text-[#4A5568] hover:bg-[#F7F8FC]" title={infoOpen ? 'Minimise' : 'Expand'}>
+              {infoOpen ? <FiChevronUp className="w-5 h-5" /> : <FiChevronDown className="w-5 h-5" />}
+            </span>
+          </button>
+          {infoOpen && (
           <table className="w-full text-left border-collapse border border-[#E2E8F0] rounded-xl overflow-hidden">
             <tbody>
               <tr className="border-b border-[#E2E8F0]">
@@ -295,6 +343,7 @@ const ProblemStatementDetail = () => {
               </tr>
             </tbody>
           </table>
+          )}
         </div>
         
 
@@ -323,11 +372,11 @@ const ProblemStatementDetail = () => {
         </div>
 
         {/* Search Bar and Filter */}
-        <div className="flex justify-center items-center space-x-4 mb-6">
-          <div className="relative w-full md:w-1/2">
+        <div className="flex flex-wrap justify-center items-center gap-3 mb-6">
+          <div className="relative w-full md:w-96">
             <input
               type="text"
-              placeholder="Search With SPOC ID or Team Name"
+              placeholder="Search team, college or solution title"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full border border-[#E2E8F0] rounded-full py-3 pl-6 pr-12 focus:ring-2 focus:ring-[#FF9900]/20 text-lg bg-white text-[#1A202C] placeholder-[#A0AEC0]"
@@ -350,6 +399,38 @@ const ProblemStatementDetail = () => {
               <option value="REJECTED">Rejected</option>
             </select>
           </label>
+          <select
+            aria-label="College"
+            value={collegeFilter}
+            onChange={(e) => setCollegeFilter(e.target.value)}
+            className="border border-[#E2E8F0] rounded-xl px-3 py-2.5 bg-white text-sm text-[#1A202C] focus:ring-2 focus:ring-[#FF9900]/20 outline-none max-w-[14rem]"
+          >
+            <option value="all">All colleges</option>
+            {colleges.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select
+            aria-label="Sort"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="border border-[#E2E8F0] rounded-xl px-3 py-2.5 bg-white text-sm text-[#1A202C] focus:ring-2 focus:ring-[#FF9900]/20 outline-none"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="marks">Highest marks first</option>
+            <option value="team">Team name A–Z</option>
+          </select>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => { setSearchTerm(''); setStatusFilter('all'); setCollegeFilter('all'); setSortOrder('newest'); }}
+              className="text-sm font-medium text-[#FF9900] hover:underline"
+            >
+              Clear
+            </button>
+          )}
+          <span className="w-full text-center text-sm text-[#718096]">
+            {filteredSubmissions.length === submissions.length ? `${submissions.length} submissions` : `${filteredSubmissions.length} of ${submissions.length} submissions match`}
+          </span>
         </div>
 
         {/* Submission List Table */}
@@ -358,6 +439,7 @@ const ProblemStatementDetail = () => {
             <thead className="bg-[#F7F8FC] text-[#4A5568]">
               <tr>
                 <th className="p-4 font-semibold">Team Name</th>
+                <th className="p-4 font-semibold">College</th>
                 <th className="p-4 font-semibold">Title</th>
                 <th className='p-4 font-semibold'>Review</th>
                 <th className="p-4 font-semibold">Status</th>
@@ -372,7 +454,11 @@ const ProblemStatementDetail = () => {
                   key={sub.id}
                   className="hover:bg-[#F9FAFB] border-t border-[#E2E8F0] transition-all"
                 >
-                  <td className="p-4 text-[#1A202C] font-medium">{sub.team_name}</td>
+                  <td className="p-4 text-[#1A202C] font-medium">
+                    <div className="break-all">{sub.team_name}</div>
+                    {sub.team_note && <div className="text-xs font-normal text-[#A0AEC0]">{sub.team_note}</div>}
+                  </td>
+                  <td className="p-4 text-[#4A5568]">{sub.college || <span className="text-[#A0AEC0]">—</span>}</td>
                   <td className="p-4">
                     <span
                       className="text-[#2B6CB0] font-bold"

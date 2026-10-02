@@ -178,9 +178,9 @@ const ProblemStatementForm = ({ editId }) => {
                 required
               >
                 <option value="">Select Category</option>
-                <option value="hardware">Hardware</option>
                 <option value="software">Software</option>
-               
+                <option value="hardware">Hardware</option>
+                <option value="combined">Combined (Hardware + Software)</option>
 
               </select>
             </div>

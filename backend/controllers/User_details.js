@@ -141,6 +141,9 @@ const login = async (req, res) => {
     if (response && rs === "GRADUATED") {
         return res.status(403).json({ data: "GRADUATED", message: "Your team has graduated, so this account is closed. Congratulations, and thank you for taking part!" });
     }
+    if (response && rs === "REMOVED" && user.ROLE === "STUDENT") {
+        return res.status(403).json({ data: "REMOVED", message: "Your SPOC removed this team, so this account is closed. Contact your SPOC if this is a mistake." });
+    }
     if (response && user.ROLE === "EVALUATOR") {
         return res.status(403).json({ data: "REMOVED", message: "Evaluator accounts are no longer used. Please contact the platform admin." });
     }
@@ -374,7 +377,7 @@ const Set_team_password = AsyncHandler(async (req, res) => {
     if (Number.isNaN(teamId)) return res.status(400).json({ message: "Invalid team id" });
     const weak = passwordError(password);
     if (weak) return res.status(400).json({ message: weak });
-    const [teams] = await connection.query("SELECT ID, SPOC_ID, LEAD_EMAIL, GRADUATED_AT FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
+    const [teams] = await connection.query("SELECT ID, SPOC_ID, LEAD_EMAIL, GRADUATED_AT, REMOVED_AT FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
     const team = teams[0];
     if (!team) return res.status(404).json({ message: "Team not found" });
     if (req.user.ROLE !== "ADMIN" && team.SPOC_ID !== req.user.ID) {
@@ -383,7 +386,7 @@ const Set_team_password = AsyncHandler(async (req, res) => {
     if (req.user.ROLE === "ADMIN" && !req.user.IS_SUPER_ADMIN && !req.user.PERMISSIONS?.includes("USERS")) {
         return res.status(403).json({ message: `You need the "${PERMISSIONS.USERS}" permission for this` });
     }
-    if (team.GRADUATED_AT) return res.status(400).json({ message: "This team has graduated and its login is closed" });
+    if (team.GRADUATED_AT) return res.status(400).json({ message: team.REMOVED_AT ? "This team was removed and its login is closed" : "This team has graduated and its login is closed" });
     const [users] = await connection.query("SELECT ID, EMAIL, NAME, ROLE FROM SolveForSakthi_Users WHERE EMAIL = ? AND ROLE = 'STUDENT'", [team.LEAD_EMAIL]);
     if (!users[0]) return res.status(404).json({ message: "This team has no login yet" });
     await setPassword(users[0], password, { emailUser: Boolean(emailUser), changedBy: req.user.ROLE === "ADMIN" ? "a platform admin" : "your SPOC" });
@@ -415,7 +418,7 @@ const Get_profile = AsyncHandler(async (req, res) => {
         const [counts] = await connection.query(`
             SELECT
               (SELECT COUNT(*) FROM SolveForSakthi_Team_List WHERE SPOC_ID = ? AND GRADUATED_AT IS NULL) AS ACTIVE_TEAMS,
-              (SELECT COUNT(*) FROM SolveForSakthi_Team_List WHERE SPOC_ID = ? AND GRADUATED_AT IS NOT NULL) AS GRADUATED_TEAMS,
+              (SELECT COUNT(*) FROM SolveForSakthi_Team_List WHERE SPOC_ID = ? AND GRADUATED_AT IS NOT NULL AND REMOVED_AT IS NULL) AS GRADUATED_TEAMS,
               (SELECT COUNT(*) FROM SolveForSakthi_Submissions s JOIN SolveForSakthi_Team_List t ON t.LEAD_EMAIL = s.TEAM_EMAIL WHERE t.SPOC_ID = ?) AS SUBMISSIONS,
               (SELECT COUNT(*) FROM SolveForSakthi_Submissions s JOIN SolveForSakthi_Team_List t ON t.LEAD_EMAIL = s.TEAM_EMAIL WHERE t.SPOC_ID = ? AND s.STATUS IN ('APPROVED', 'ACCEPTED')) AS APPROVED`,
             [user.ID, user.ID, user.ID, user.ID]);

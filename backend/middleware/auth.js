@@ -15,7 +15,7 @@ const sessionUser = async (req) => {
     return null;
   }
   const [rows] = await connection.query("SELECT STATUS, ROLE, PASSWORD_CHANGED_AT, IS_SUPER_ADMIN, ADMIN_PERMISSIONS FROM SolveForSakthi_Users WHERE ID = ?", [payload.ID]);
-  if (rows.length === 0 || ["REJECTED", "GRADUATED"].includes(rows[0].STATUS) || rows[0].ROLE === "EVALUATOR") return null;
+  if (rows.length === 0 || ["REJECTED", "GRADUATED", "REMOVED"].includes(rows[0].STATUS) || rows[0].ROLE === "EVALUATOR") return null;
   // the token carries the user's row as it was at login, including PASSWORD_CHANGED_AT; once an admin or
   // SPOC changes the password the stored value differs, so logins from before the change stop working
   const stamp = (value) => (value ? new Date(value).getTime() : 0);

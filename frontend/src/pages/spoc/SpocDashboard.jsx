@@ -232,7 +232,7 @@ const SpocDashboard = () => {
                                                     </>
                                                 )}
                     {activeView === 'problems' && <ProblemStatements showHeader={false} allowSubmit={false} />}
-                    {activeView === 'teamdetails' && <TeamList data={data} />}
+                    {activeView === 'teamdetails' && <TeamList data={data} embedded />}
                     {activeView === 'progress' && <TeamProgress />}
                 </main>
             </div>

@@ -21,7 +21,7 @@ const SPOC_STATUSES = [["ACTIVE", "Active"], ["PENDING", "Awaiting approval"], [
 
 const EMPTY = {
   submissions: { problemIds: [], statuses: [], colleges: [], reviewers: [], submittedFrom: "", submittedTo: "", reviewedFrom: "", reviewedTo: "", marksMin: "", marksMax: "", teamStatus: "all", search: "" },
-  teams: { colleges: [], teamStatus: "all", submissions: "all", problemIds: [], graduationYear: "", search: "" },
+  teams: { colleges: [], teamStatus: "all", submissions: "all", problemIds: [], graduationMatch: "upto", graduationYear: "", search: "" },
   spocs: { spocStatuses: [], colleges: [], hasTeams: "all", search: "" },
 };
 const DEFAULT_SHEETS = { summary: true, byProblem: true, all: true, reviewHistory: false, members: false, includeEmptyProblems: true };
@@ -213,7 +213,7 @@ const Exports = () => {
                     <MultiSelect label="Status" options={STATUSES} value={f.statuses} onChange={setF("statuses")} placeholder="Every status" />
                     <MultiSelect label="Colleges" options={collegeOptions} value={f.colleges} onChange={setF("colleges")} placeholder="All colleges" />
                     <MultiSelect label="Reviewed by" options={(options.reviewers || []).map((r) => [r, r])} value={f.reviewers} onChange={setF("reviewers")} placeholder="Anyone (or not reviewed)" />
-                    <Select label="Teams" value={f.teamStatus} onChange={setF("teamStatus")} options={[["all", "Active and graduated"], ["active", "Active teams only"], ["graduated", "Graduated teams only"]]} />
+                    <Select label="Teams" value={f.teamStatus} onChange={setF("teamStatus")} options={[["all", "Every team"], ["active", "Active teams only"], ["graduated", "Graduated teams only"], ["removed", "Teams removed by SPOC"]]} />
                     <div className="grid grid-cols-2 gap-2">
                       <label className="block"><span className={lbl}>Marks from</span><input type="number" min="0" max="100" value={f.marksMin} onChange={(e) => setF("marksMin")(e.target.value)} className={field} placeholder="0" /></label>
                       <label className="block"><span className={lbl}>Marks to</span><input type="number" min="0" max="100" value={f.marksMax} onChange={(e) => setF("marksMax")(e.target.value)} className={field} placeholder="100" /></label>
@@ -230,10 +230,25 @@ const Exports = () => {
 
                   {tab === "teams" && (<>
                     <MultiSelect label="Colleges" options={collegeOptions} value={f.colleges} onChange={setF("colleges")} placeholder="All colleges" />
-                    <Select label="Team status" value={f.teamStatus} onChange={setF("teamStatus")} options={[["all", "Active and graduated"], ["active", "Active only"], ["graduated", "Graduated only"]]} />
+                    <Select label="Team status" value={f.teamStatus} onChange={setF("teamStatus")} options={[["all", "Every team"], ["active", "Active only"], ["graduated", "Graduated only"], ["removed", "Removed by SPOC"]]} />
                     <Select label="Submissions" value={f.submissions} onChange={setF("submissions")} options={[["all", "All teams"], ["with", "Has submissions"], ["without", "No submissions"]]} />
                     <MultiSelect label="Assigned problem" options={problemOptions} value={f.problemIds} onChange={setF("problemIds")} placeholder="Any problem" />
-                    <Select label="Graduation year" value={f.graduationYear} onChange={setF("graduationYear")} options={[["", "Any year"], ...(options.graduationYears || []).map((y) => [String(y), String(y)])]} />
+                    {/* members graduate in different years, so the admin chooses how the year is matched */}
+                    <div className="sm:col-span-2">
+                      <span className={lbl}>Graduation year</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_9rem] gap-2">
+                        <select aria-label="How to match the graduation year" value={f.graduationMatch} onChange={(e) => setF("graduationMatch")(e.target.value)} className={field}>
+                          <option value="upto">Every member graduates by (up to)</option>
+                          <option value="exact">Team closes in (last member graduates)</option>
+                          <option value="member">At least one member graduates in</option>
+                        </select>
+                        <select aria-label="Graduation year" value={f.graduationYear} onChange={(e) => setF("graduationYear")(e.target.value)} className={field}>
+                          <option value="">Any year</option>
+                          {(options.graduationYears || []).map((y) => <option key={y} value={String(y)}>{y}</option>)}
+                        </select>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">A team's graduation year is its last member's year; the team closes after it.</p>
+                    </div>
                   </>)}
 
                   {tab === "spocs" && (<>

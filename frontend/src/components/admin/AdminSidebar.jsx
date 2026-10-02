@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiFileText, FiUsers, FiCheckSquare, FiX, FiUserPlus, FiDownload } from 'react-icons/fi';
+import { FiHome, FiFileText, FiUsers, FiCheckSquare, FiX, FiUserPlus, FiDownload, FiInbox } from 'react-icons/fi';
 import { useAdmin } from './adminAccess';
 import yourLogo from '../../assets/image.png';
 
@@ -33,6 +33,7 @@ const NavItem = ({ to, icon, children, isExpanded, onClick }) => (
 const NAV = [
   { to: "/admin/dashboard", label: "Dashboard", icon: FiHome },
   { to: "/admin/problems", label: "Problem Statements", icon: FiFileText },
+  { to: "/admin/submissions", label: "Submissions", icon: FiInbox, permission: "EVALUATE" },
   { to: "/admin/users", label: "Users", icon: FiUsers, permission: "USERS" },
   { to: "/admin/users/create", label: "Create User", icon: FiUserPlus, permission: "USERS" },
   { to: "/admin/approvals", label: "Approvals", icon: FiCheckSquare, permission: "USERS" },

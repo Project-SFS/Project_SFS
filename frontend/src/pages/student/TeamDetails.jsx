@@ -1,180 +1,129 @@
 import axios from "axios";
-import  { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { FiUsers, FiHash, FiBookOpen, FiUserCheck, FiMail, FiPhone, FiUser, FiAward, FiInfo, FiStar } from "react-icons/fi";
 import { URL } from "../../Utils";
 
-const TeamIcon = () => (
-  <svg className="w-8 h-8 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
+// The team lead's view of their own team: team facts on top, one card per member below.
+// Changes to the team are made by the SPOC, so this page is read-only.
+const Fact = ({ icon: Icon, label, value, sub }) => (
+  <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3 min-w-0">
+    <div className="shrink-0 rounded-lg bg-orange-50 p-2 text-[#fc9300]"><Icon /></div>
+    <div className="min-w-0">
+      <div className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="font-semibold text-gray-900 [overflow-wrap:anywhere]">{value || "—"}</div>
+      {sub && <div className="text-xs text-gray-500 [overflow-wrap:anywhere]">{sub}</div>}
+    </div>
+  </div>
 );
-
-const UserIcon = () => (
-  <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-    <path
-      fillRule="evenodd"
-      d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-
-const IdIcon = () => (
-  <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-    <path
-      fillRule="evenodd"
-      d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-
-const CollegeIcon = () => (
-  <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-    <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.84L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.84l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
-  </svg>
-);
-
-const MentorIcon = () => (
-  <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-    <path
-      fillRule="evenodd"
-      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-
-const EmailIcon = () => (
-  <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-  </svg>
-);
-
-const PhoneIcon = () => (
-  <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-  </svg>
-);
-
-const GenderIcon = () => (
-  <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-    <path
-      fillRule="evenodd"
-      d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
-
 
 const TeamDetails = () => {
-  const [Team_data1, setTeam_data1] = useState([]);
-  const [Team_data2, setTeam_data2] = useState({});
-  const [Team_id, setTeam_id] = useState(null);
-  const [Lead_data, setLead_data] = useState(null);
+  const [team, setTeam] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [college, setCollege] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    axios
-      .get(`${URL}/cookie`, { withCredentials: true })
-      .then((res) => {
-        setLead_data(res.data);
-        axios.post(`${URL}/fetch_team_id_email`, { email: res.data.EMAIL })
-      .then((res) => {
-        if (res.data?.[0]?.ID) setTeam_id(res.data[0].ID);
-      })
-      .catch(console.error)
-  })
+    let alive = true;
+    (async () => {
+      try {
+        const me = await axios.get(`${URL}/cookie`, { withCredentials: true });
+        if (!alive) return;
+        setCollege(me.data?.COLLEGE || "");
+        const ids = await axios.post(`${URL}/fetch_team_id_email`, { email: me.data?.EMAIL }, { withCredentials: true });
+        const teamId = ids.data?.[0]?.ID;
+        if (!teamId) throw new Error("no team");
+        const [m, t] = await Promise.all([
+          axios.post(`${URL}/fetch_team_members`, { id: teamId }, { withCredentials: true }),
+          axios.post(`${URL}/fetch_team_for_students`, { id: teamId }, { withCredentials: true }),
+        ]);
+        if (!alive) return;
+        // team lead first, then the members in the order they were added
+        const list = [...(m.data?.result || [])].sort((a, b) =>
+          a.ROLE === "Team Lead" ? -1 : b.ROLE === "Team Lead" ? 1 : a.ID - b.ID);
+        setMembers(list);
+        setTeam(t.data?.[0] || null);
+      } catch {
+        if (alive) setError("Your team details could not be loaded. Please refresh the page or contact your SPOC.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
   }, []);
 
-  useEffect(() => {
-    if (!Team_id) return;
-
-    axios
-      .post(`${URL}/fetch_team_members`, { id: Team_id })
-      .then((res) => setTeam_data1(res.data))
-      .catch(console.error);
-
-    axios
-      .post(`${URL}/fetch_team_for_students`, { id: Team_id })
-      .then((res) => setTeam_data2(res.data[0] || {}))
-      .catch(console.error);
-  }, [Team_id]);
-
-  const team_leader = Team_data1?.result?.[0]?.NAME;
-  const members = Team_data1?.result || [];
-  const college = Lead_data?.COLLEGE
-
-  
-  const metaDetails = [
-    { label: "Team Name", value: Team_data2?.NAME, icon: <TeamIcon /> },
-    { label: "Team Leader", value: team_leader, icon: <UserIcon /> },
-    { label: "Team ID", value: "TID_" + (Team_data2?.ID || ""), icon: <IdIcon /> },
-    { label: "College", value: college , icon: <CollegeIcon /> },
-    { label: "Mentor", value: Team_data2?.MENTOR_NAME, icon: <MentorIcon /> },
-  ];
-
-  return (
-    <div className="min-h-screen bg-white/50 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-
-          <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Team Information</h2>
-
-            <div className="space-y-4">
-              {metaDetails.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4
-                             bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-100"
-                >
-                  <div className="flex items-center gap-3">{item.icon}
-                    <span className="text-sm font-medium text-gray-600 uppercase tracking-wide">
-                      {item.label}
-                    </span>
-                  </div>
-
-                  <span className="text-base sm:text-lg font-semibold text-gray-800">
-                    {item.value || "—"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-          <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mt-1 w-max">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Member Overview</h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
-              {members.map((m) => (
-                <div
-                  key={m.ID}
-                  className="backdrop-blur-xl bg-white/70 border border-gray-200 rounded-xl shadow-lg 
-                             hover:shadow-2xl transition-all duration-300 p-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-orange-400 text-white flex items-center justify-center text-lg font-bold">
-                      {m.NAME?.[0]}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900">{m.NAME}</p>
-                      <p className="text-sm text-gray-600">{m.ROLE}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 space-y-2 text-xs text-gray-700">
-                    <div className="flex items-center gap-2"><EmailIcon /><span>{m.EMAIL}</span></div>
-                    <div className="flex items-center gap-2"><PhoneIcon /><span>{m.PHONE}</span></div>
-                    <div className="flex items-center gap-2"><GenderIcon /><span>{m.GENDER}</span></div>
-                    {m.GRAD_YEAR && <div className="flex items-center gap-2"><span className="font-semibold">Graduating</span><span>{m.GRAD_YEAR}</span></div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
+  if (loading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="h-32 rounded-2xl bg-gray-100" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => <div key={i} className="h-40 rounded-2xl bg-gray-100" />)}
         </div>
       </div>
+    );
+  }
+  if (error) return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700">{error}</div>;
+
+  const lead = members.find((m) => m.ROLE === "Team Lead") || members[0];
+  const gradYear = team?.GRADUATION_YEAR || Math.max(0, ...members.map((m) => Number(m.GRAD_YEAR) || 0)) || null;
+
+  return (
+    <div className="space-y-6">
+      {/* Team summary */}
+      <section className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-[#494949] to-[#5c5c5c] px-5 sm:px-6 py-5 text-white flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="rounded-xl bg-[#fc9300] p-3 shrink-0"><FiUsers className="text-xl" /></div>
+            <div className="min-w-0">
+              <div className="text-xs uppercase tracking-wider text-white/70">Your team</div>
+              <h2 className="text-xl sm:text-2xl font-bold [overflow-wrap:anywhere]">{team?.NAME || "—"}</h2>
+            </div>
+          </div>
+          <span className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">TID_{team?.ID}</span>
+        </div>
+        <div className="grid gap-3 p-5 sm:p-6 sm:grid-cols-2 lg:grid-cols-4">
+          <Fact icon={FiStar} label="Team lead" value={lead?.NAME} sub={lead?.EMAIL} />
+          <Fact icon={FiBookOpen} label="College" value={college} />
+          <Fact icon={FiUserCheck} label="Mentor" value={team?.MENTOR_NAME} sub={team?.MENTOR_EMAIL} />
+          <Fact icon={FiAward} label="Final graduation year" value={gradYear} sub={`${members.length} member${members.length === 1 ? "" : "s"}`} />
+        </div>
+      </section>
+
+      {/* Members */}
+      <section>
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">Team members</h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {members.map((m) => {
+            const isLead = m.ROLE === "Team Lead";
+            return (
+              <article key={m.ID} className={`rounded-2xl border bg-white p-5 shadow-sm transition hover:shadow-md ${isLead ? "border-orange-200 ring-1 ring-orange-100" : "border-gray-200"}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`h-12 w-12 shrink-0 rounded-full flex items-center justify-center text-lg font-bold text-white ${isLead ? "bg-[#fc9300]" : "bg-gray-500"}`}>
+                    {(m.NAME || "?").trim().charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate" title={m.NAME}>{m.NAME || "—"}</p>
+                    <span className={`inline-block mt-0.5 rounded-full px-2 py-0.5 text-xs font-medium ${isLead ? "bg-orange-100 text-[#c76f00]" : "bg-gray-100 text-gray-700"}`}>
+                      {m.ROLE}
+                    </span>
+                  </div>
+                </div>
+                <dl className="mt-4 space-y-2 text-sm text-gray-700">
+                  <div className="flex items-center gap-2 min-w-0"><FiMail className="shrink-0 text-gray-400" /><span className="truncate" title={m.EMAIL}>{m.EMAIL || "—"}</span></div>
+                  <div className="flex items-center gap-2"><FiPhone className="shrink-0 text-gray-400" /><span>{m.PHONE || "—"}</span></div>
+                  <div className="flex items-center gap-2"><FiUser className="shrink-0 text-gray-400" /><span>{m.GENDER || "—"}</span></div>
+                  <div className="flex items-center gap-2"><FiHash className="shrink-0 text-gray-400" /><span>Graduating {m.GRAD_YEAR || "—"}</span></div>
+                </dl>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <p className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+        <FiInfo className="mt-0.5 shrink-0 text-gray-400" />
+        Something wrong or a member changed? Ask your SPOC to update the team. Your login email is the team lead's email.
+      </p>
     </div>
   );
 };

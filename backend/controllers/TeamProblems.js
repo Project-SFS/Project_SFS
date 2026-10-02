@@ -1,4 +1,5 @@
 import connection from "../database/db.js";
+import { loadFiles } from "../utils/submissionFiles.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import { today, checkProblemOpen } from "../utils/deadline.js";
 import { notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected } from "../utils/notifications.js";
@@ -25,8 +26,10 @@ const loadSubmissions = async (leadEmails) => {
         FROM SolveForSakthi_Submissions
         WHERE TEAM_EMAIL IN (${placeholders})
         ORDER BY ID DESC`, leadEmails);
+    const files = await loadFiles(rows.map((r) => r.ID));
     const latest = new Map();
     for (const row of rows) {
+        row.files = files.get(Number(row.ID)) || [];
         const key = `${String(row.TEAM_EMAIL).toLowerCase()}|${row.PROBLEM_ID}`;
         if (!latest.has(key)) latest.set(key, row);
     }
@@ -81,14 +84,14 @@ const loadOwnedTeam = async (req, res, teamId) => {
         res.status(403).json({ message: 'You need the "Manage users" permission for this' });
         return null;
     }
-    const [rows] = await connection.query("SELECT ID, SPOC_ID, LEAD_EMAIL, GRADUATED_AT FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
+    const [rows] = await connection.query("SELECT ID, SPOC_ID, LEAD_EMAIL, GRADUATED_AT, REMOVED_AT FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
     const team = rows[0];
     if (!team) {
         res.status(404).json({ message: "Team not found" });
         return null;
     }
     if (team.GRADUATED_AT) {
-        res.status(400).json({ message: "This team has graduated; its records are read-only" });
+        res.status(400).json({ message: team.REMOVED_AT ? "This team was removed; its records are read-only" : "This team has graduated; its records are read-only" });
         return null;
     }
     if (!isAdmin(req) && team.SPOC_ID !== req.user.ID) {

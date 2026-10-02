@@ -54,7 +54,8 @@ const Header = () => {
     { name: 'Home', path: '/' },
     // { name: 'About us', path: '/about' },
     { name: "Explore Challenges", path: "/problemstatements" },
-    { name: "Submit your Interest", path: "/interest" },
+    // only for visitors: people who are logged in already take part
+    ...(userRole ? [] : [{ name: "Submit your Interest", path: "/interest" }]),
   ];
 
   // A reusable NavLink component for both mobile and desktop

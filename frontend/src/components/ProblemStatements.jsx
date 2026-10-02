@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import {
-  FiSearch, FiCalendar, FiClock, FiTag, FiX, FiLayers, FiCpu, FiTarget, FiList, FiRotateCcw, FiFileText, FiCode,
+  FiSearch, FiCalendar, FiClock, FiTag, FiX, FiLayers, FiCpu, FiTarget, FiList, FiRotateCcw, FiFileText, FiCode, FiLink,
 } from "react-icons/fi";
 import Header from "./Header";
 import Footer from "./Footer";
 import Pagination, { usePagination } from "./common/Pagination";
 import { URL } from "../Utils";
+import { copyText } from "../submissionFiles";
 
 // Every published problem statement as a list, with search, filters and a details popup.
 // Used on the public page (showHeader) and inside the SPOC dashboard (showHeader = false).
@@ -54,6 +55,20 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [selected, setSelected] = useState(null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [copied, setCopied] = useState(false);
+
+  // shareable link: /problemstatements?problem=133 opens that problem's details (on any domain)
+  const problemLink = (p) => `${window.location.origin}/problemstatements?problem=${p.ID}`;
+  const openProblem = (p) => {
+    setSelected(p);
+    if (showHeader) setSearchParams((prev) => { const next = new URLSearchParams(prev); next.set("problem", p.ID); return next; }, { replace: true });
+  };
+  const closeProblem = () => {
+    setSelected(null);
+    setCopied(false);
+    if (showHeader && searchParams.get("problem")) setSearchParams((prev) => { const next = new URLSearchParams(prev); next.delete("problem"); return next; }, { replace: true });
+  };
 
   useEffect(() => {
     fetchProblems()
@@ -62,9 +77,17 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
       .finally(() => setLoading(false));
   }, []);
 
+  // open the problem named in the link once the list has loaded
+  useEffect(() => {
+    const wanted = searchParams.get("problem");
+    if (!wanted || !problems.length || selected) return;
+    const match = problems.find((p) => String(p.ID) === String(wanted).replace(/^SFS_/i, ""));
+    if (match) setSelected(match);
+  }, [problems, searchParams, selected]);
+
   useEffect(() => {
     if (!selected) return undefined;
-    const onKey = (e) => e.key === "Escape" && setSelected(null);
+    const onKey = (e) => e.key === "Escape" && closeProblem();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [selected]);
@@ -125,12 +148,13 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
           </div>
         )}
 
-        {/* Stats: total, hardware, software, open. Hardware / Software also filter the list. */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Stats: total, per category, open. The category cards also filter the list. */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
           {[
             { label: "Problem statements", value: problems.length, Icon: FiFileText, filter: { category: "all", status: "all" } },
             { label: "Hardware", value: countCategory("hardware"), Icon: FiCpu, filter: { category: "hardware" } },
             { label: "Software", value: countCategory("software"), Icon: FiCode, filter: { category: "software" } },
+            { label: "Combined", value: countCategory("combined"), Icon: FiLayers, filter: { category: "combined" } },
             { label: "Open for submission", value: openCount, Icon: FiClock, filter: { status: "open" } },
           ].map(({ label, value, Icon, filter }) => {
             const active = Object.entries(filter).every(([k, v]) => filters[k] === v) && !(label === "Problem statements" && filtersActive);
@@ -232,7 +256,7 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
                         {p.DOMAIN && <span className="px-2.5 py-0.5 rounded-full bg-orange-50 text-xs font-medium text-[#c76f00]">{p.DOMAIN}</span>}
                       </div>
                       <h3
-                        onClick={() => setSelected(p)}
+                        onClick={() => openProblem(p)}
                         className="text-base sm:text-lg font-semibold text-gray-900 leading-snug cursor-pointer group-hover:text-[#c76f00] [overflow-wrap:anywhere]"
                       >
                         {p.TITLE}
@@ -246,7 +270,7 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
                     </div>
                     <div className="flex items-center justify-between md:justify-end gap-4 shrink-0">
                       <span className="text-sm text-gray-500 flex items-center gap-1.5 whitespace-nowrap"><FiCalendar /> {readableDate(dayOf(p.SUB_DEADLINE))}</span>
-                      <button onClick={() => setSelected(p)} className="px-3.5 py-1.5 rounded-lg bg-[#fc9300] text-white text-sm font-medium hover:bg-[#e68400] transition whitespace-nowrap">
+                      <button onClick={() => openProblem(p)} className="px-3.5 py-1.5 rounded-lg bg-[#fc9300] text-white text-sm font-medium hover:bg-[#e68400] transition whitespace-nowrap">
                         View details
                       </button>
                     </div>
@@ -264,7 +288,7 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
       {/* Details */}
       <AnimatePresence>
         {selected && (
-          <motion.div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelected(null)}>
+          <motion.div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeProblem}>
             <motion.div
               className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col"
               initial={{ y: 24, opacity: 0 }}
@@ -280,7 +304,7 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
                   </div>
                   <h2 className="text-xl font-bold text-gray-900 [overflow-wrap:anywhere]">{selected.TITLE}</h2>
                 </div>
-                <button onClick={() => setSelected(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100" aria-label="Close"><FiX size={20} /></button>
+                <button onClick={closeProblem} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100" aria-label="Close"><FiX size={20} /></button>
               </div>
 
               <div className="px-6 py-5 overflow-y-auto space-y-5 text-sm text-gray-700">
@@ -309,8 +333,15 @@ const ProblemStatements = ({ showHeader = true, allowSubmit = true }) => {
                 ))}
               </div>
 
-              <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-                <button onClick={() => setSelected(null)} className="px-4 py-2 rounded-xl bg-gray-100 text-gray-800 text-sm hover:bg-gray-200">Close</button>
+              <div className="px-6 py-4 border-t border-gray-100 flex flex-wrap justify-end gap-3">
+                <button
+                  onClick={async () => { if (await copyText(problemLink(selected))) { setCopied(true); setTimeout(() => setCopied(false), 3000); } }}
+                  className="mr-auto inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-sm hover:bg-gray-50"
+                  title={problemLink(selected)}
+                >
+                  <FiLink /> {copied ? "Link copied" : "Copy link"}
+                </button>
+                <button onClick={closeProblem} className="px-4 py-2 rounded-xl bg-gray-100 text-gray-800 text-sm hover:bg-gray-200">Close</button>
                 {allowSubmit && (daysLeft(selected.SUB_DEADLINE) ?? 1) >= 0 && (
                   <button
                     onClick={() => navigate(`/student/submit-solution?${new URLSearchParams({ problemId: selected.ID })}`)}

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link, useSearchParams } from "react-router-dom";
-import { FiSearch, FiUsers, FiUpload, FiCheckCircle, FiClipboard, FiX, FiRotateCcw, FiAward, FiMail, FiChevronDown, FiChevronUp, FiKey } from "react-icons/fi";
+import { FiSearch, FiUsers, FiUpload, FiCheckCircle, FiClipboard, FiX, FiRotateCcw, FiAward, FiMail, FiChevronDown, FiChevronUp, FiKey, FiArchive } from "react-icons/fi";
 import { URL } from "../../Utils";
 import Pagination, { usePagination } from "../../components/common/Pagination";
 import { StatusBadge } from "../../submissionStatus";
@@ -28,7 +28,10 @@ const STATUS_FILTERS = [
   ["all", "All teams"],
   ["active", "Active"],
   ["graduated", "Graduated (archived)"],
+  ["removed", "Removed by SPOC (archived)"],
 ];
+// Active, graduated (archived after the last member's year) or removed by the SPOC (archived, records kept)
+const teamState = (t) => (t.REMOVED_AT ? "removed" : t.GRADUATED_AT ? "graduated" : "active");
 const SORTS = [
   ["newest", "Newest first"],
   ["oldest", "Oldest first"],
@@ -146,7 +149,7 @@ const TeamsSection = () => {
     return teams
       .filter((t) => !q || [t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.SPOC_NAME, t.SPOC_EMAIL, t.COLLEGE, t.COLLEGE_CODE, t.ID]
         .some((v) => String(v ?? "").toLowerCase().includes(q)))
-      .filter((t) => filters.status === "all" || (filters.status === "graduated" ? Boolean(t.GRADUATED_AT) : !t.GRADUATED_AT))
+      .filter((t) => filters.status === "all" || teamState(t) === filters.status)
       .filter((t) => filters.college === "all" || t.COLLEGE === filters.college)
       .filter((t) => filters.submissions === "all"
         || (filters.submissions === "with" ? t.SUBMISSION_COUNT > 0 : t.SUBMISSION_COUNT === 0))
@@ -166,6 +169,10 @@ const TeamsSection = () => {
   }, [teams, filters]);
 
   const { page, setPage, pageItems, total, totalPages } = usePagination(filtered, { resetKey: JSON.stringify(filters) });
+  // the open team's lists in the popup, 25 per page each (back to page 1 for another team)
+  const problemPages = usePagination(selected?.problems || [], { resetKey: selected?.ID });
+  const historyPages = usePagination(history?.submissions || [], { resetKey: selected?.ID });
+  const mailPages = usePagination(history?.mails || [], { resetKey: selected?.ID });
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
 
   const stats = [
@@ -173,13 +180,14 @@ const TeamsSection = () => {
     ["With a problem assigned", teams.filter((t) => t.ASSIGNED_COUNT > 0).length, FiClipboard],
     ["Have submitted", teams.filter((t) => t.SUBMISSION_COUNT > 0).length, FiUpload],
     ["Reviewed", teams.filter((t) => t.EVALUATED_COUNT > 0).length, FiCheckCircle],
-    ["Graduated (archived)", teams.filter((t) => t.GRADUATED_AT).length, FiAward],
+    ["Graduated (archived)", teams.filter((t) => teamState(t) === "graduated").length, FiAward],
+    ["Removed by SPOC", teams.filter((t) => teamState(t) === "removed").length, FiArchive],
   ];
 
   return (
     <div>
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
         {stats.map(([label, value, Icon]) => (
           <div key={label} className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-4 flex items-center gap-3">
             <div className="bg-[#FFF4E5] p-3 rounded-xl">
@@ -276,7 +284,11 @@ const TeamsSection = () => {
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    {t.GRADUATED_AT ? (
+                    {t.REMOVED_AT ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700 whitespace-nowrap" title={`Removed ${formatDate(t.REMOVED_AT)}`}>
+                        <FiArchive /> Removed{t.GRADUATION_YEAR ? ` · ${t.GRADUATION_YEAR}` : ""}
+                      </span>
+                    ) : t.GRADUATED_AT ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 whitespace-nowrap">
                         <FiAward /> Graduated {t.GRADUATION_YEAR}
                       </span>
@@ -319,7 +331,11 @@ const TeamsSection = () => {
               <div>
                 <h2 className="text-xl font-semibold text-[#1A202C]">{selected.NAME}</h2>
                 <p className="text-sm text-[#718096]">{selected.COLLEGE || "No college"} · Team ID {selected.ID}</p>
-                {selected.GRADUATED_AT && (
+                {selected.REMOVED_AT ? (
+                  <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                    <FiArchive /> Removed by {selected.REMOVED_BY_EMAIL || "the SPOC"} on {formatDate(selected.REMOVED_AT)} · records kept · read-only
+                  </span>
+                ) : selected.GRADUATED_AT && (
                   <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                     <FiAward /> Graduated {selected.GRADUATION_YEAR} · archived {formatDate(selected.GRADUATED_AT)} · read-only
                   </span>
@@ -336,7 +352,7 @@ const TeamsSection = () => {
                   {[
                     ["Team lead", selected.LEAD_EMAIL],
                     ["Lead phone", selected.LEAD_PHONE],
-                    ["Team login", selected.GRADUATED_AT ? "Closed (graduated)" : selected.HAS_LOGIN ? "Created" : "Not created yet"],
+                    ["Team login", selected.REMOVED_AT ? "Closed (team removed)" : selected.GRADUATED_AT ? "Closed (graduated)" : selected.HAS_LOGIN ? "Created" : "Not created yet"],
                     ["Graduation year", selected.GRADUATION_YEAR ? `${selected.GRADUATION_YEAR} (highest member year)` : "Not set"],
                     ["Mentor", [selected.MENTOR_NAME, selected.MENTOR_EMAIL].filter(Boolean).join(" · ")],
                     ["SPOC", [selected.SPOC_NAME, selected.SPOC_EMAIL].filter(Boolean).join(" · ")],
@@ -390,7 +406,7 @@ const TeamsSection = () => {
                   <p className="text-sm text-[#A0AEC0]">No problem statement requested or assigned yet.</p>
                 ) : (
                   <div className="border border-[#E2E8F0] rounded-xl divide-y divide-[#E2E8F0]">
-                    {selected.problems.map((p) => (
+                    {problemPages.pageItems.map((p) => (
                       <div key={p.PROBLEM_ID} className="px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
                         <div className="min-w-0">
                           <Link to={`/admin/problems/${p.PROBLEM_ID}/details`} className="font-medium text-[#2B6CB0] hover:underline">
@@ -416,6 +432,7 @@ const TeamsSection = () => {
                     ))}
                   </div>
                 )}
+                <Pagination page={problemPages.page} totalPages={problemPages.totalPages} total={problemPages.total} onChange={problemPages.setPage} label="problem statements" />
               </div>
 
               <div>
@@ -426,7 +443,7 @@ const TeamsSection = () => {
                   <p className="text-sm text-[#A0AEC0]">No submissions.</p>
                 ) : (
                   <div className="space-y-3">
-                    {history.submissions.map((sub) => (
+                    {historyPages.pageItems.map((sub) => (
                       <div key={sub.ID} className="border border-[#E2E8F0] rounded-xl p-4 text-sm">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -455,6 +472,7 @@ const TeamsSection = () => {
                         )}
                       </div>
                     ))}
+                    <Pagination page={historyPages.page} totalPages={historyPages.totalPages} total={historyPages.total} onChange={historyPages.setPage} label="submissions" />
                   </div>
                 )}
               </div>
@@ -467,9 +485,12 @@ const TeamsSection = () => {
                 ) : history.mails.length === 0 ? (
                   <p className="text-sm text-[#A0AEC0]">No emails on record.</p>
                 ) : (
-                  <div className="border border-[#E2E8F0] rounded-xl divide-y divide-[#E2E8F0] max-h-96 overflow-y-auto">
-                    {history.mails.map((m) => <MailItem key={m.ID} mail={m} />)}
-                  </div>
+                  <>
+                    <div className="border border-[#E2E8F0] rounded-xl divide-y divide-[#E2E8F0]">
+                      {mailPages.pageItems.map((m) => <MailItem key={m.ID} mail={m} />)}
+                    </div>
+                    <Pagination page={mailPages.page} totalPages={mailPages.totalPages} total={mailPages.total} onChange={mailPages.setPage} label="emails" />
+                  </>
                 )}
               </div>
             </div>

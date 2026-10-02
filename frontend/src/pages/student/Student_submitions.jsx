@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { URL } from "../../Utils";
-import { HiOutlineEye, HiOutlineExternalLink } from "react-icons/hi";
+import { HiOutlineExternalLink } from "react-icons/hi";
 import SubmissionStatus from "./SubmissionStatus";
 import DeleteSubmissionButton from "../../components/DeleteSubmissionButton";
 import Pagination, { usePagination } from "../../components/common/Pagination";
 import { Link } from "react-router-dom";
 import { normalizeStatus, statusMeta, MarksBreakdown } from "../../submissionStatus";
+import { FileLinks } from "../../submissionFiles";
 
 const formatDate = (value) => (value ? String(value).split("T")[0] : "—");
 
@@ -46,7 +47,6 @@ export default function Student_submitions() {
     <div className="space-y-4">
       {pageItems.map((s) => {
         const status = normalizeStatus(s.STATUS);
-        const pdfUrl = s.FILES ? `${URL}/${s.FILES}` : null;
         return (
           <div key={s.ID} className="border border-gray-200 rounded-lg p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -63,6 +63,12 @@ export default function Student_submitions() {
             </div>
 
             {s.SOL_DESCRIPTION && <p className="mt-3 text-sm text-gray-700 whitespace-pre-line">{s.SOL_DESCRIPTION}</p>}
+            {s.files?.length > 0 && (
+              <div className="mt-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Files</div>
+                <FileLinks files={s.files} />
+              </div>
+            )}
 
             {status !== "PENDING" && (
               <div className={`mt-4 rounded-md border-l-4 ${statusMeta(status).border} bg-gray-50 px-4 py-3`}>
@@ -89,16 +95,6 @@ export default function Student_submitions() {
                   confirmText="Withdraw this submission? You can submit again before the deadline."
                   onDeleted={() => setSubmissions((prev) => prev.filter((x) => x.ID !== s.ID))}
                 />
-              )}
-              {pdfUrl && (
-                <a
-                  href={pdfUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium text-white bg-[#fc9300] hover:bg-[#e08300]"
-                >
-                  <HiOutlineEye /> View PDF
-                </a>
               )}
               {s.SOL_LINK && (
                 <a

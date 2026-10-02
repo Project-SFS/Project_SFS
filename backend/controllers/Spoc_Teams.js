@@ -29,7 +29,7 @@ const Fetch_Team_Members = AsyncHandler(async (req, res) => {
     if (!(await loadTeamFor(req, res, parsedId))) return;
 
     // use parameterized query to avoid SQL injection
-    const [result, err1] = await connection.query("select * from SolveForSakthi_Team_Members_List where Team_ID = ?", [parsedId]);
+    const [result, err1] = await connection.query("select * from SolveForSakthi_Team_Members_List where Team_ID = ? order by ID", [parsedId]);
     const [mentor, err2] = await connection.query("select MENTOR_NAME, MENTOR_EMAIL from SolveForSakthi_Team_List where ID = ?", [parsedId]);
 
     // console.log(result)
@@ -38,10 +38,32 @@ const Fetch_Team_Members = AsyncHandler(async (req, res) => {
 
 const Delete_team = AsyncHandler(async (req, res) => {
     const { id } = req.body;
-    if (!(await loadTeamFor(req, res, id, { manage: true }))) return;
+    const team = await loadTeamFor(req, res, id, { manage: true });
+    if (!team) return;
+
+    // A team that has submitted a solution is never erased: it is archived (hidden from the SPOC, login
+    // closed) and admins keep its details, members, problems, submissions, reviews and emails.
+    const [[{ submitted }]] = await connection.query(
+        "SELECT COUNT(*) AS submitted FROM SolveForSakthi_Submissions WHERE TEAM_EMAIL = ?", [team.LEAD_EMAIL || ""])
+    if (submitted > 0) {
+        await connection.query(
+            "UPDATE SolveForSakthi_Team_List SET REMOVED_AT = SYSUTCDATETIME(), REMOVED_BY = ?, GRADUATED_AT = COALESCE(GRADUATED_AT, SYSUTCDATETIME()) WHERE ID = ?",
+            [req.user.ID, team.ID])
+        if (team.LEAD_EMAIL) await connection.query("UPDATE SolveForSakthi_Users SET STATUS = 'REMOVED' WHERE EMAIL = ? AND ROLE = 'STUDENT'", [team.LEAD_EMAIL])
+        return res.json({ archived: true, affectedRows: 1, message: "Team removed. It has submitted solutions, so its records are kept for the admins." })
+    }
+
+    // never submitted anything: removed completely
     await connection.query("DELETE FROM SolveForSakthi_Team_Problems WHERE TEAM_ID = ?", [id])
     await connection.query("DELETE FROM SolveForSakthi_Team_Members_List WHERE Team_ID = ?", [id])
     const [result] = await connection.query("DELETE FROM SolveForSakthi_Team_List WHERE ID = ?", [id])
+    // the team's login goes with it, so the lead's email can be used for a new team later
+    if (team.LEAD_EMAIL) {
+        await connection.query(
+            "DELETE FROM SolveForSakthi_Users WHERE EMAIL = ? AND ROLE = 'STUDENT' AND NOT EXISTS (SELECT 1 FROM SolveForSakthi_Team_List WHERE LEAD_EMAIL = ?)",
+            [team.LEAD_EMAIL, team.LEAD_EMAIL]
+        )
+    }
     res.send(result)
 })
 
@@ -68,12 +90,13 @@ const fetch_team_id_email = AsyncHandler(async (req, res) => {
 const Admin_list_teams = AsyncHandler(async (req, res) => {
     const [teams] = await connection.query(`
         SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.CREATED_AT, t.SPOC_ID,
-               t.GRADUATED_AT, COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
+               t.GRADUATED_AT, t.REMOVED_AT, rb.EMAIL AS REMOVED_BY_EMAIL, COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
                spoc.NAME AS SPOC_NAME, spoc.EMAIL AS SPOC_EMAIL, spoc.COLLEGE, spoc.COLLEGE_CODE,
                (SELECT COUNT(*) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID) AS MEMBER_COUNT,
                CASE WHEN EXISTS (SELECT 1 FROM SolveForSakthi_Users u WHERE u.EMAIL = t.LEAD_EMAIL AND u.ROLE = 'STUDENT') THEN 1 ELSE 0 END AS HAS_LOGIN
         FROM SolveForSakthi_Team_List t
         LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
+        LEFT JOIN SolveForSakthi_Users rb ON rb.ID = t.REMOVED_BY
         ORDER BY t.ID DESC`);
 
     const [assignments] = await connection.query(`

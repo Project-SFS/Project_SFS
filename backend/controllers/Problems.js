@@ -3,6 +3,8 @@ import connection from "../database/db.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import { insertProblem } from "./ProblemImport.js";
 import { notifyDeadlineChanged } from "../utils/notifications.js";
+import { filePathsOf, unlinkAll } from "../utils/submissionFiles.js";
+import { parseCategory } from "../utils/categories.js";
 
 // Problem statements are public, but who created them (an admin's name and email) is only for admins
 const withoutCreatorForPublic = (req, problem) => {
@@ -46,11 +48,14 @@ const Post_problem = AsyncHandler(async (req, res) => {
     if (String(title).trim().length > 300) {
         return res.status(400).json({ message: 'The title can be at most 300 characters' });
     }
+    if (!parseCategory(category)) {
+        return res.status(400).json({ message: 'Choose a category: Software, Hardware or Combined' });
+    }
     const text = (value) => (value == null ? null : String(value).trim() || null);
 
     // the creating admin and the time are recorded so the admin panel can show who added it
     const insertId = await insertProblem({
-        title: String(title).trim(), description: text(description), deadline: sub_date, category: text(category),
+        title: String(title).trim(), description: text(description), deadline: sub_date, category: parseCategory(category),
         domain: text(domain), outcomes: text(outcomes), requirements: text(requirements), technology: text(technology),
     }, req.user.ID);
 
@@ -71,12 +76,14 @@ const Delete_problem = AsyncHandler(async (req, res) => {
     }
 
     // a problem's submissions (and their PDFs) go with it, so no orphaned rows are left behind
-    const [submissions] = await connection.query("SELECT FILES FROM SolveForSakthi_Submissions WHERE PROBLEM_ID = ?", [id]);
+    const [submissions] = await connection.query("SELECT ID, FILES FROM SolveForSakthi_Submissions WHERE PROBLEM_ID = ?", [id]);
+    const storedPaths = await filePathsOf(submissions.map((s) => s.ID));
     await connection.query("DELETE FROM SolveForSakthi_Submission_Reviews WHERE SUBMISSION_ID IN (SELECT ID FROM SolveForSakthi_Submissions WHERE PROBLEM_ID = ?)", [id]);
+    await connection.query("DELETE FROM SolveForSakthi_Submission_Files WHERE SUBMISSION_ID IN (SELECT ID FROM SolveForSakthi_Submissions WHERE PROBLEM_ID = ?)", [id]);
     const [deleted] = await connection.query("DELETE FROM SolveForSakthi_Submissions WHERE PROBLEM_ID = ?", [id]);
     await connection.query("DELETE FROM SolveForSakthi_Team_Problems WHERE PROBLEM_ID = ?", [id]);
     await connection.execute("DELETE FROM SolveForSakthi_Problems WHERE ID = ?", [id]);
-    submissions.filter((s) => s.FILES).forEach((s) => fs.unlink(s.FILES, () => {}));
+    unlinkAll([...new Set([...storedPaths, ...submissions.map((s) => s.FILES)])]);
 
     res.status(200).json({ message: 'Problem deleted successfully', deletedSubmissions: deleted.affectedRows });
 })
@@ -95,6 +102,9 @@ const Update_problem = AsyncHandler(async (req, res) => {
     if (String(title).trim().length > 300) {
         return res.status(400).json({ message: "The title can be at most 300 characters" });
     }
+    if (!parseCategory(category)) {
+        return res.status(400).json({ message: "Choose a category: Software, Hardware or Combined" });
+    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(sub_date)) || Number.isNaN(new Date(sub_date).getTime())) {
         return res.status(400).json({ message: "Choose a valid deadline" });
     }
@@ -109,7 +119,7 @@ const Update_problem = AsyncHandler(async (req, res) => {
          SET TITLE = ?, DESCRIPTION = ?, SUB_DEADLINE = ?, CATEGORY = ?, DEPT = ?, DOMAIN = ?,
              EXPECTED_OUTCOMES = ?, REQUIREMENTS = ?, TECHNOLOGY = ?
          WHERE ID = ?`,
-        [String(title).trim(), text(description), sub_date, text(category), (dom || "CSE").slice(0, 50), dom,
+        [String(title).trim(), text(description), sub_date, parseCategory(category), (dom || "CSE").slice(0, 50), dom,
             text(outcomes), text(requirements), text(technology), id]
     );
 

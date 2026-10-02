@@ -6,25 +6,24 @@ import { notifySubmission } from "../utils/notifications.js";
 import { isAssignedToTeamOf } from "./TeamProblems.js";
 import multer from "multer"
 import { canTeamEdit, lockedMessage, uploadClosedReason } from "../utils/review.js";
+import { MAX_FILES, MAX_FILE_MB, KINDS, kindFromName, contentMatches, filePathsOf, unlinkAll } from "../utils/submissionFiles.js";
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, 'uploads')
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-        cb(null, file.fieldname + '-' + uniqueSuffix+".pdf")
+        cb(null, `files-${uniqueSuffix}${KINDS[kindFromName(file.originalname)]?.ext || ".bin"}`)
     }
 })
 
-const maxUploadMb = Number(process.env.UPLOAD_MAX_MB) || 20
-
-// Submissions are stored and displayed as PDFs, so reject anything else up front
+// 1-3 files, each a PDF or PowerPoint (.pptx) up to MAX_FILE_MB
 const upload = multer({
     storage: storage,
-    limits: { fileSize: maxUploadMb * 1024 * 1024, files: 1 },
+    limits: { fileSize: MAX_FILE_MB * 1024 * 1024, files: MAX_FILES },
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === "application/pdf") return cb(null, true)
-        cb(new multer.MulterError("LIMIT_UNEXPECTED_FILE", "Only PDF files are allowed"))
+        if (kindFromName(file.originalname)) return cb(null, true)
+        cb(new multer.MulterError("LIMIT_UNEXPECTED_FILE", "Only PDF and PowerPoint (.pptx) files are allowed"))
     }
 })
 
@@ -38,7 +37,17 @@ const uploadFiles = AsyncHandler(async(req, res) => {
     const email = req.user.ROLE === "STUDENT" ? req.user.EMAIL : req.body.email
 
     if (files.length === 0) {
-        return res.status(400).json({ message: "A PDF file is required" });
+        return res.status(400).json({ message: "Attach at least one file (PDF or PowerPoint)" });
+    }
+    if (files.length > MAX_FILES) {
+        removeUploaded(files);
+        return res.status(400).json({ message: `You can attach at most ${MAX_FILES} files` });
+    }
+    // the content has to match the extension (a renamed file is refused)
+    const bad = files.find((f) => !contentMatches(f.path, kindFromName(f.originalname)));
+    if (bad) {
+        removeUploaded(files);
+        return res.status(400).json({ message: `"${bad.originalname}" is not a valid ${kindFromName(bad.originalname) === "PPTX" ? "PowerPoint (.pptx)" : "PDF"} file` });
     }
     if (Number.isNaN(problemId) || !email || !title) {
         removeUploaded(files);
@@ -79,7 +88,16 @@ const uploadFiles = AsyncHandler(async(req, res) => {
         throw error;
     }
 
-    if (previous?.FILES) removeUploaded([{ path: previous.FILES }]);
+    // the new set of files replaces the previous one
+    const oldPaths = previous ? await filePathsOf([previous.ID]) : [];
+    if (previous) await connection.query("DELETE FROM SolveForSakthi_Submission_Files WHERE SUBMISSION_ID = ?", [previous.ID]);
+    for (const [i, f] of files.entries()) {
+        await connection.query(
+            "INSERT INTO SolveForSakthi_Submission_Files (SUBMISSION_ID, FILE_PATH, ORIGINAL_NAME, KIND, SIZE_BYTES, SORT_ORDER) VALUES (?, ?, ?, ?, ?, ?)",
+            [submissionId, f.path, String(f.originalname).slice(0, 255), kindFromName(f.originalname), f.size, i]
+        );
+    }
+    unlinkAll([...new Set([...oldPaths, previous?.FILES])].filter((p) => p && !files.some((f) => f.path === p)));
     notifySubmission(submissionId, Boolean(previous));
     res.json({ replaced: Boolean(previous) });
 })

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { FiArrowLeft, FiEdit3, FiCheckCircle, FiXCircle, FiSend, FiClock } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit3, FiCheckCircle, FiXCircle, FiSend, FiClock, FiShare2, FiMonitor, FiFileText } from 'react-icons/fi';
+import { fileHref, createShareLink, copyText, isPublicSite, officeViewerUrl, formatSize } from '../../submissionFiles';
 import axios from 'axios';
 import { URL } from '../../Utils';
 import Button from '../../components/common/button';
@@ -8,6 +9,7 @@ import Breadcrumb from '../../components/common/Breadcrumb';
 import DeleteSubmissionButton from '../../components/DeleteSubmissionButton';
 import { useAdmin, PERMISSION_LABELS } from '../../components/admin/adminAccess';
 import { StatusBadge, normalizeStatus, statusMeta, EVAL_CRITERIA, EVAL_TOTAL_MAX, MarksBreakdown } from '../../submissionStatus';
+import Pagination, { usePagination } from '../../components/common/Pagination';
 
 // The three review decisions. Every decision and its comment are emailed to the team lead and,
 // separately, to their SPOC. Marks are given (and emailed) only with an approval.
@@ -38,7 +40,7 @@ const COMMENT_MAX = 5000;
 
 // Loads the (login-protected) PDF itself so a missing or inaccessible file gets a clear message
 // instead of the browser's generic "cannot embed" fallback
-const PDFViewer = ({ url }) => {
+const PDFViewer = ({ url, name = 'solution.pdf', actions = null }) => {
   const [state, setState] = useState({ status: url ? 'loading' : 'none', blobUrl: null, message: '' });
 
   useEffect(() => {
@@ -75,9 +77,10 @@ const PDFViewer = ({ url }) => {
   return (
     <div className="w-full bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
       <div className="flex justify-between items-center bg-[#F7F8FC] px-4 py-3 border-b border-[#E2E8F0]">
-        <span className="text-[#1A202C] font-medium">Document Preview</span>
+        <span className="text-[#1A202C] font-medium truncate mr-3" title={name}>{name}</span>
         {ready && (
-          <div className="space-x-3">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            {actions}
             <a
               href={state.blobUrl}
               target="_blank"
@@ -88,7 +91,7 @@ const PDFViewer = ({ url }) => {
             </a>
             <a
               href={state.blobUrl}
-              download="solution.pdf"
+              download={name}
               className="px-4 py-2 text-sm font-medium text-white bg-[#FF9900] rounded-xl hover:bg-[#e68900] transition-colors"
             >
               Download
@@ -103,11 +106,127 @@ const PDFViewer = ({ url }) => {
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-500 px-6 text-center">
             {state.status === 'loading' && <p>Loading document...</p>}
-            {state.status === 'none' && <p>This submission has no PDF document.</p>}
+            {state.status === 'none' && <p>This submission has no file.</p>}
             {state.status === 'error' && <p className="text-red-600">{state.message}</p>}
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+// "Copy share link": a signed link to the file that works without login for a few days
+const ShareButton = ({ file }) => {
+  const [state, setState] = useState('');
+  const share = async () => {
+    setState('working');
+    try {
+      const { url, days } = await createShareLink(file.ID);
+      const ok = await copyText(url);
+      setState(ok ? `Link copied · valid ${days} days` : url);
+    } catch (err) {
+      setState(err.response?.data?.message || 'Could not create a link');
+    }
+    setTimeout(() => setState(''), 6000);
+  };
+  return (
+    <button type="button" onClick={share} disabled={state === 'working'} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#4A5568] border border-[#E2E8F0] rounded-xl hover:bg-white disabled:opacity-60">
+      <FiShare2 /> {state === 'working' ? 'Creating link…' : state || 'Copy share link'}
+    </button>
+  );
+};
+
+// A PowerPoint file: browsers cannot show .pptx themselves, so it is downloaded, or opened in Microsoft's
+// online viewer when the site runs on a public domain (the viewer has to be able to fetch the file)
+const PptxCard = ({ file }) => {
+  const [busy, setBusy] = useState('');
+  const publicSite = isPublicSite();
+  const download = async () => {
+    setBusy('download');
+    try {
+      const res = await fetch(fileHref(file), { credentials: 'include' });
+      if (!res.ok) throw new Error(res.status === 404 ? 'The file could not be found on the server.' : 'You do not have access to this file.');
+      const blobUrl = window.URL.createObjectURL(await res.blob());
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = file.NAME || 'solution.pptx';
+      a.click();
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setBusy('');
+    }
+  };
+  const openViewer = async () => {
+    setBusy('viewer');
+    try {
+      const { url } = await createShareLink(file.ID);
+      window.open(officeViewerUrl(url), '_blank', 'noopener');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not open the viewer');
+    } finally {
+      setBusy('');
+    }
+  };
+  return (
+    <div className="w-full bg-white rounded-xl border border-[#E2E8F0] overflow-hidden">
+      <div className="flex flex-wrap justify-between items-center gap-2 bg-[#F7F8FC] px-4 py-3 border-b border-[#E2E8F0]">
+        <span className="text-[#1A202C] font-medium truncate" title={file.NAME}>{file.NAME}</span>
+        <ShareButton file={file} />
+      </div>
+      <div className="flex flex-col items-center justify-center text-center gap-4 px-6 py-12 bg-gray-50">
+        <FiMonitor className="text-5xl text-orange-500" />
+        <div>
+          <div className="font-semibold text-[#1A202C]">PowerPoint presentation{file.SIZE_BYTES ? ` · ${formatSize(file.SIZE_BYTES)}` : ''}</div>
+          <p className="text-sm text-[#718096] mt-1 max-w-md">
+            {publicSite
+              ? 'Open it in the online viewer, or download it to view in PowerPoint.'
+              : 'Download it to view in PowerPoint. The online preview works once the site runs on a public domain.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-3">
+          {publicSite && (
+            <button type="button" onClick={openViewer} disabled={Boolean(busy)} className="px-4 py-2 text-sm font-medium text-[#FF9900] border border-[#FF9900] rounded-xl hover:bg-[#FF9900] hover:text-white transition-colors disabled:opacity-60">
+              {busy === 'viewer' ? 'Opening…' : 'Open in online viewer'}
+            </button>
+          )}
+          <button type="button" onClick={download} disabled={Boolean(busy)} className="px-4 py-2 text-sm font-medium text-white bg-[#FF9900] rounded-xl hover:bg-[#e68900] transition-colors disabled:opacity-60">
+            {busy === 'download' ? 'Downloading…' : 'Download'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Every file of the submission: one tab each, PDFs shown inline
+const SolutionFiles = ({ files }) => {
+  const [active, setActive] = useState(0);
+  if (!files.length) return <p className="text-sm text-[#A0AEC0]">This submission has no files.</p>;
+  const file = files[Math.min(active, files.length - 1)];
+  return (
+    <div>
+      {files.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-3" role="tablist">
+          {files.map((f, i) => (
+            <button
+              key={f.ID}
+              type="button"
+              role="tab"
+              aria-selected={i === active}
+              onClick={() => setActive(i)}
+              className={`inline-flex items-center gap-2 max-w-xs px-3 py-2 rounded-xl border text-sm transition ${i === active ? 'border-[#FF9900] bg-[#FFF7EC] text-[#1A202C] font-medium' : 'border-[#E2E8F0] text-[#4A5568] hover:bg-[#F7F8FC]'}`}
+            >
+              {f.KIND === 'PPTX' ? <FiMonitor className="shrink-0 text-orange-500" /> : <FiFileText className="shrink-0 text-red-500" />}
+              <span className="truncate">{i + 1}. {f.NAME}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {file.KIND === 'PPTX'
+        ? <PptxCard key={file.ID} file={file} />
+        : <PDFViewer key={file.ID} url={fileHref(file)} name={file.NAME} actions={<ShareButton file={file} />} />}
     </div>
   );
 };
@@ -194,6 +313,9 @@ const SubmissionDetail = () => {
       setSaving(false);
     }
   };
+
+  // review history, 25 per page (hook kept above the early returns)
+  const reviewPages = usePagination(submission?.reviews || [], { resetKey: id });
 
   if (loading) {
     return (
@@ -296,8 +418,10 @@ const SubmissionDetail = () => {
 
         {/* Solution document */}
         <div className="bg-white rounded-2xl shadow-sm p-6 sm:p-8 border border-[#E2E8F0]">
-          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">Solution Document</h2>
-          <PDFViewer url={submission.solution_document ? `${URL}/${submission.solution_document}` : null} />
+          <h2 className="text-xl font-semibold mb-4 text-[#1A202C]">
+            Solution Files <span className="text-sm font-normal text-[#718096]">({(submission.files || []).length})</span>
+          </h2>
+          <SolutionFiles files={submission.files || []} />
         </div>
 
         {/* Review (needs the Evaluate submissions permission) */}
@@ -433,7 +557,7 @@ const SubmissionDetail = () => {
             <p className="text-sm text-[#A0AEC0]">No reviews yet.</p>
           ) : (
             <ol className="relative border-l-2 border-[#E2E8F0] ml-2 space-y-6">
-              {reviews.map((r) => {
+              {reviewPages.pageItems.map((r) => {
                 const meta = statusMeta(r.DECISION);
                 return (
                   <li key={r.ID} className="ml-5">
@@ -455,6 +579,7 @@ const SubmissionDetail = () => {
               })}
             </ol>
           )}
+          <Pagination page={reviewPages.page} totalPages={reviewPages.totalPages} total={reviewPages.total} onChange={reviewPages.setPage} label="reviews" />
         </div>
       </div>
     </div>

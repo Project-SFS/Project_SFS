@@ -2,6 +2,7 @@ import connection from "../database/db.js"
 import { sendMail, trackMailWork } from "./mailer.js"
 import { CRITERIA, MARKS_TOTAL } from "./review.js"
 import { currentOrigin } from "./requestContext.js"
+import { hasPermission, parsePermissions } from "./permissions.js"
 
 // Transactional emails. Every function is fire-and-forget: it never throws into the request
 // that triggered it, so a mail outage cannot break submitting, scoring or approving.
@@ -119,23 +120,69 @@ const notifyAccountDecision = (userId, approved) => background("account decision
 })
 
 // SPOC assigned a problem statement to one of their teams (directly, or by approving the team's request)
+// Short text for an email (problem fields can be long)
+const clip = (value, max = 600) => {
+    const text = String(value ?? "").trim()
+    return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text
+}
+const paragraph = (value) => escapeHtml(value).replace(/\n/g, "<br>")
+
+// A problem statement was assigned to a team (directly or by approving its request). The team lead and each
+// member get their own email explaining, in simple words, what kind of solution is expected.
 const notifyTeamAssigned = (teamId, problemId, approvedRequest = false) => background("team assigned", async () => {
     const [rows] = await connection.query(`
-        SELECT t.NAME AS TEAM_NAME, t.LEAD_EMAIL, p.TITLE, p.CATEGORY, p.SUB_DEADLINE
+        SELECT t.NAME AS TEAM_NAME, t.LEAD_EMAIL, p.ID AS PROBLEM_ID, p.TITLE, p.CATEGORY, p.SUB_DEADLINE,
+               p.DESCRIPTION, p.EXPECTED_OUTCOMES, p.REQUIREMENTS, p.TECHNOLOGY, p.DOMAIN
         FROM SolveForSakthi_Team_List t, SolveForSakthi_Problems p
         WHERE t.ID = ? AND p.ID = ?`, [teamId, problemId])
     const row = rows[0]
     if (!row) return
-    deliver("team assigned", {
-        to: row.LEAD_EMAIL,
-        subject: approvedRequest ? `Request approved: ${row.TITLE}` : `New problem statement for your team: ${row.TITLE}`,
-        html: layout({
-            heading: approvedRequest ? "Your SPOC approved your request" : "Your SPOC assigned a problem statement to your team",
-            intro: `Team <b>${escapeHtml(row.TEAM_NAME)}</b> can now submit a solution for this problem statement.`,
-            rows: [["Problem", row.TITLE], ["Category", row.CATEGORY || "—"], ["Submission deadline", formatDate(row.SUB_DEADLINE)]],
-            linkPath: "/student", linkLabel: "Open team portal",
-        }),
-    })
+    const [members] = await connection.query("SELECT NAME, EMAIL FROM SolveForSakthi_Team_Members_List WHERE Team_ID = ?", [teamId])
+
+    const box = (title, body) => body ? `<div style="margin:0 0 14px;"><div style="font-weight:bold;color:#2f3640;margin-bottom:4px;">${title}</div><div>${body}</div></div>` : ""
+    const steps = [
+        ["Understand the problem", "Explain the problem in your own words: who faces it and why it matters."],
+        ["Your solution and idea", "Describe how you will solve it and what makes your idea new or better."],
+        ["Tools and technology", "List the tools, software, hardware or methods you use, and why."],
+        ["Clear presentation", "Make simple slides or a document with diagrams, screenshots or photos."],
+        ["Useful for industry", "Show that it can really be used: benefits, rough cost and how to put it in place."],
+    ]
+    const outro = `
+        ${box("About this problem", paragraph(clip(row.DESCRIPTION)))}
+        ${box("What we expect from your solution", paragraph(clip(row.EXPECTED_OUTCOMES)))}
+        ${box("Requirements", paragraph(clip(row.REQUIREMENTS)))}
+        ${box("Suggested technology", paragraph(clip(row.TECHNOLOGY, 300)))}
+        <div style="margin:0 0 14px;padding:14px 16px;background:#fff7ec;border-left:4px solid #fc9300;border-radius:6px;">
+          <div style="font-weight:bold;color:#2f3640;margin-bottom:8px;">How to prepare your solution (simple checklist)</div>
+          <ol style="margin:0;padding-left:20px;">
+            ${steps.map(([title, text]) => `<li style="margin:0 0 6px;"><b>${title}:</b> ${text}</li>`).join("")}
+          </ol>
+          <div style="margin-top:8px;font-size:13px;color:#4a5568;">Each point carries 20 marks (100 in total).</div>
+        </div>
+        ${box("What to upload", `Up to <b>3 files</b>, each a <b>PDF</b> or <b>PowerPoint (.pptx)</b> of at most <b>20 MB</b>, for example your slides and a short report. A video or Google Drive link to a demo is optional. Submit before <b>${escapeHtml(formatDate(row.SUB_DEADLINE))}</b>; you can replace your files until they are reviewed.`)}`
+
+    const recipients = new Map()
+    const add = (email, name, isLead = false) => { const key = String(email || "").trim().toLowerCase(); if (key && !recipients.has(key)) recipients.set(key, { email: String(email).trim(), name, isLead }) }
+    const leadMember = members.find((m) => String(m.EMAIL || "").trim().toLowerCase() === String(row.LEAD_EMAIL || "").trim().toLowerCase())
+    add(row.LEAD_EMAIL, leadMember?.NAME || "", true)
+    members.forEach((m) => add(m.EMAIL, m.NAME))
+
+    for (const r of recipients.values()) {
+        deliver("team assigned", {
+            to: r.email,
+            subject: approvedRequest ? `Request approved: ${row.TITLE}` : `New problem statement for your team: ${row.TITLE}`,
+            html: layout({
+                heading: approvedRequest ? "Your SPOC approved your request" : "Your SPOC assigned a problem statement to your team",
+                intro: `${r.name ? `Hello ${escapeHtml(r.name)}, t` : "T"}eam <b>${escapeHtml(row.TEAM_NAME)}</b> can now work on <b>SFS_${row.PROBLEM_ID} · ${escapeHtml(row.TITLE)}</b>. Here is what kind of solution we expect.`,
+                rows: [["Problem", `SFS_${row.PROBLEM_ID} · ${row.TITLE}`], ["Category", row.CATEGORY || "—"], ["Domain", row.DOMAIN || "—"], ["Submission deadline", formatDate(row.SUB_DEADLINE)]],
+                outro,
+                // only the lead's email is the team login; members get the public problem page
+                ...(r.isLead
+                    ? { linkPath: `/student/submit-solution?problemId=${row.PROBLEM_ID}`, linkLabel: "Open the problem and submit" }
+                    : { linkPath: `/problemstatements?problem=${row.PROBLEM_ID}`, linkLabel: "View the problem statement" }),
+            }),
+        })
+    }
 })
 
 // Team + problem + the team's SPOC, for request mails
@@ -182,14 +229,21 @@ const notifyRequestRejected = (teamId, problemId) => background("request rejecte
 })
 
 // A team submitted (or replaced) a solution: tell the platform admins (they evaluate), and confirm to the team lead
+// Active admins allowed to evaluate submissions
+const evaluatorAdmins = async () => {
+    const [admins] = await connection.query("SELECT EMAIL, IS_SUPER_ADMIN, ADMIN_PERMISSIONS FROM SolveForSakthi_Users WHERE ROLE = 'ADMIN' AND STATUS = 'ACTIVE'")
+    return admins.filter((a) => a.EMAIL && hasPermission({ ROLE: "ADMIN", IS_SUPER_ADMIN: a.IS_SUPER_ADMIN, PERMISSIONS: parsePermissions(a.ADMIN_PERMISSIONS) }, "EVALUATE"))
+}
+
 const notifySubmission = (submissionId, replaced) => background("submission", async () => {
     const s = await loadSubmission(submissionId)
     if (!s) return
     const college = s.COLLEGE || "a college"
     const rows = [["Problem", s.PROBLEM_TITLE], ["Team", s.TEAM_NAME || s.TEAM_EMAIL], ["College", college], ["Solution title", s.SOL_TITLE || "—"], ["Submitted on", formatDate(s.SUB_DATE)]]
 
-    const [admins] = await connection.query("SELECT EMAIL FROM SolveForSakthi_Users WHERE ROLE = 'ADMIN' AND STATUS = 'ACTIVE'")
-    // one email per admin, so no admin sees the others' addresses
+    // only admins who can evaluate (the main admin, or the "Evaluate submissions" permission) are told;
+    // one email each, so no admin sees the others' addresses
+    const admins = await evaluatorAdmins()
     for (const admin of admins) {
         deliver("submission -> admin", {
             to: admin.EMAIL,
@@ -378,6 +432,22 @@ const notifyPasswordChanged = ({ email, name, role, password, changedBy }) => ba
     })
 })
 
+// A SPOC created a team: the team lead gets the team's login (the account the whole team uses)
+const notifyTeamLogin = ({ email, name, teamName, password }) => background("team login", async () => {
+    deliver("team login", {
+        sensitive: true,
+        to: email,
+        subject: "Your Solve For Sakthi team login",
+        html: layout({
+            heading: "Your team account is ready",
+            intro: `Hello ${escapeHtml(name || "")}, your SPOC created team <b>${escapeHtml(teamName)}</b> on Solve For Sakthi with you as the team lead. Log in with the details below to request problem statements and submit your team's solutions.`,
+            rows: [["Team", teamName], ["Login email", email], ["Password", password]],
+            outro: "Please keep these details private. If you forget the password, ask your SPOC to set a new one.",
+            linkPath: "/login", linkLabel: "Log in",
+        }),
+    })
+})
+
 const dayText = (value) => (value ? formatDate(value) : "not set")
 
 // An admin moved a problem's deadline: each assigned team lead, and each of their SPOCs in a separate email
@@ -452,4 +522,4 @@ const notifyOwnPasswordChanged = ({ email, name }) => background("own password c
     })
 })
 
-export { deliver, background, notifyOwnPasswordChanged, notifyDeadlineChanged, notifyDeadlineReminder, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected, notifySubmission, notifyReviewed }
+export { evaluatorAdmins, deliver, background, notifyTeamLogin, notifyOwnPasswordChanged, notifyDeadlineChanged, notifyDeadlineReminder, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected, notifySubmission, notifyReviewed }

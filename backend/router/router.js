@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 // Controller Imports
-import { Add_Team_Members, Update_team } from "../controllers/Team_members.js";
+import { Add_Team_Members, Update_team, Check_team_members } from "../controllers/Team_members.js";
 import { Fetch_Teams, Fetch_Team_Members, Delete_team, Fetch_Team_For_Students, fetch_team_id_email, Admin_list_teams, Admin_team_history } from "../controllers/Spoc_Teams.js";
 import { login, logout, signup, GetAllUsers, verifyEmail, UpdateUser, Admin_create_user, Admin_delete_user, Admin_set_password, Set_team_password, Get_profile, Update_profile, Change_own_password, Admin_set_permissions, Admin_permission_list } from "../controllers/User_details.js";
 import { Verify_OTP, Verify_OTP_Check } from "../controllers/Verify_OTP.js";
@@ -11,8 +11,8 @@ import { Post_problem, Get_problems, Get_problem_by_id, Delete_problem, Update_p
 import { Get_cookies } from "../controllers/Cookie.js";
 import { Get_public_stats, Submit_interest } from "../controllers/PublicStats.js";
 import { Import_problems, Problem_import_template, memoryUpload } from "../controllers/ProblemImport.js";
-import { Export_options, Export_data, Export_problem_reports } from "../controllers/Export.js";
-import { Delete_submission, Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email, Review_submission, check_status_submission } from "../controllers/Submission.js";
+import { Export_options, Export_data, Export_problem_reports, List_all_submissions } from "../controllers/Export.js";
+import { Share_submission_file, Delete_submission, Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email, Review_submission, check_status_submission } from "../controllers/Submission.js";
 // import { Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email,check_status_submission } from "../controllers/Submission.js";
 import { handleSpocApprove, Spoc_approve } from "../controllers/Spoc.js";
 import { sendMailToSpoc } from "../controllers/SendMail.js";
@@ -47,6 +47,7 @@ router.route("/profile").get(requireAuth, Get_profile).put(requireAuth, requireR
 router.route("/profile/password").post(requireAuth, requireRole(['SPOC', 'ADMIN']), Change_own_password); // own password
 router.route("/admin/set_password").post(requireAuth, requireRole(['ADMIN']), requirePermission('USERS'), Admin_set_password); // new password for any account
 router.route("/team_password").post(requireAuth, requireRole(['SPOC', 'ADMIN']), Set_team_password); // new password for a team login
+router.route("/admin/submissions/all").get(requireAuth, requireRole(['ADMIN']), requirePermission('EVALUATE'), List_all_submissions); // admin Submissions page (evaluators)
 router.route("/admin/export/options").get(requireAuth, requireRole(['ADMIN']), Export_options); // filters + columns for the export screen
 router.route("/admin/export/problem-reports").post(requireAuth, requireRole(['ADMIN']), Export_problem_reports); // ZIP: one report per problem
 router.route("/admin/export/:type").post(requireAuth, requireRole(['ADMIN']), Export_data); // Excel export (preview=true -> count)
@@ -66,6 +67,7 @@ router.route("/fetch_teams/:id").post(requireAuth, Fetch_Teams);
 router.route("/fetch_team_members").post(requireAuth, Fetch_Team_Members);
 router.route("/add_members/:id").post(requireAuth, Add_Team_Members);
 router.route("/update_team").post(requireAuth, Update_team);
+router.route("/check_team_members").post(requireAuth, requireRole(['SPOC', 'ADMIN']), Check_team_members); // email checks before saving a team
 router.route("/delete_team").post(requireAuth, Delete_team);
 router.route("/send_mail_to_spoc").post(requireAuth, requireRole(['ADMIN']), requirePermission('PROBLEMS'), sendMailToSpoc);
 // SPOC assigns problem statements to their teams and tracks their progress
@@ -99,6 +101,7 @@ router.put("/update-user", requireAuth, UpdateUser);
 router.post("/delete_problem", requireAuth, requireRole(['ADMIN']), requirePermission('PROBLEMS'), Delete_problem);
 
 router.route("/upload_files").post(requireAuth, upload.any(), uploadFiles)
+router.route("/submission_files/:id/share").post(requireAuth, Share_submission_file); // signed link to one solution file
 router.route("/delete_submission").post(requireAuth, requireRole(['ADMIN', 'STUDENT']), Delete_submission)
 router.route("/review_submission").post(requireAuth, requireRole(['ADMIN']), requirePermission('EVALUATE'), Review_submission) // Changes needed / Approve / Reject + comment
 

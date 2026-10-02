@@ -10,7 +10,7 @@ import Pagination, { usePagination } from "../../components/common/Pagination";
 
 // Admin: add many problem statements at once from the Excel template.
 // Step 1 checks the file (nothing is saved), step 2 imports the rows that passed.
-const TEMPLATE_HEADERS = ["S.No", "Problem Title", "Problem Description", "Domain", "Expected Outcomes", "Requirements", "Technology"];
+const TEMPLATE_HEADERS = ["S.No", "Problem Title", "Category", "Problem Description", "Domain", "Expected Outcomes", "Requirements", "Technology"];
 
 const STATUS = {
   ready: { label: "Ready", cls: "bg-green-100 text-green-800", icon: FiCheckCircle },
@@ -34,7 +34,6 @@ const ProblemImport = () => {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [deadline, setDeadline] = useState("");
-  const [category, setCategory] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [checking, setChecking] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -69,12 +68,11 @@ const ProblemImport = () => {
     const form = new FormData();
     form.append("file", file);
     form.append("deadline", deadline);
-    form.append("category", category);
     form.append("dryRun", String(dryRun));
     return axios.post(`${URL}/admin/problems/import`, form, { withCredentials: true });
   };
 
-  const canCheck = file && deadline && category && !checking && !importing;
+  const canCheck = file && deadline && !checking && !importing;
 
   const checkFile = async (e) => {
     e.preventDefault();
@@ -115,6 +113,7 @@ const ProblemImport = () => {
     return all;
   }, [preview, view]);
   const { page, setPage, pageItems, total, totalPages } = usePagination(rows, { resetKey: view });
+  const createdPages = usePagination(result?.created || [], { resetKey: result?.created?.length });
 
   const summary = preview?.summary;
   const input = "w-full px-4 py-3 border border-[#E2E8F0] rounded-xl bg-white text-[#1A202C] focus:ring-2 focus:ring-[#FF9900]/30 focus:border-[#FF9900] outline-none";
@@ -155,15 +154,16 @@ const ProblemImport = () => {
                     Import another file
                   </button>
                 </div>
-                {result.created.length > 0 && (
-                  <ul className="mt-4 text-sm text-green-900 space-y-1 max-h-48 overflow-y-auto">
-                    {result.created.map((c) => (
+                {result.created.length > 0 && (<>
+                  <ul className="mt-4 text-sm text-green-900 space-y-1">
+                    {createdPages.pageItems.map((c) => (
                       <li key={c.id}>
                         <Link to={`/admin/problems/${c.id}/details`} className="hover:underline">SFS_{c.id} · {c.title}</Link>
                       </li>
                     ))}
                   </ul>
-                )}
+                  <Pagination page={createdPages.page} totalPages={createdPages.totalPages} total={createdPages.total} onChange={createdPages.setPage} label="created problems" />
+                </>)}
               </div>
             </div>
           </div>
@@ -179,7 +179,8 @@ const ProblemImport = () => {
               {TEMPLATE_HEADERS.map((h) => (
                 <li key={h}>
                   {h}
-                  {(h === "Problem Title" || h === "Problem Description") && <span className="text-red-500"> *</span>}
+                  {["Problem Title", "Category", "Problem Description"].includes(h) && <span className="text-red-500"> *</span>}
+                  {h === "Category" && <span className="text-xs text-[#A0AEC0]"> (Software, Hardware or Combined)</span>}
                 </li>
               ))}
             </ol>
@@ -231,21 +232,11 @@ const ProblemImport = () => {
             )}
             <input ref={inputRef} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={(e) => { pickFile(e.target.files?.[0]); e.target.value = null; }} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="block">
-                <span className="text-sm font-semibold text-[#4A5568]">Submission deadline <span className="text-red-500">*</span></span>
-                <input type="date" min={todayIso()} value={deadline} onChange={(e) => { setDeadline(e.target.value); setPreview(null); }} className={`${input} mt-1.5`} required />
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-[#4A5568]">Category <span className="text-red-500">*</span></span>
-                <select value={category} onChange={(e) => { setCategory(e.target.value); setPreview(null); }} className={`${input} mt-1.5`} required>
-                  <option value="">Select category</option>
-                  <option value="software">Software</option>
-                  <option value="hardware">Hardware</option>
-                </select>
-              </label>
-            </div>
-            <p className="text-xs text-[#718096] -mt-2">The deadline and category apply to every problem statement in this file.</p>
+            <label className="block max-w-sm">
+              <span className="text-sm font-semibold text-[#4A5568]">Submission deadline <span className="text-red-500">*</span></span>
+              <input type="date" min={todayIso()} value={deadline} onChange={(e) => { setDeadline(e.target.value); setPreview(null); }} className={`${input} mt-1.5`} required />
+            </label>
+            <p className="text-xs text-[#718096] -mt-2">The deadline applies to every problem statement in this file. The category comes from each row's Category column.</p>
 
             {error && (
               <div className="flex gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -316,6 +307,7 @@ const ProblemImport = () => {
                     <th className="text-left py-3 px-3 font-semibold">Row</th>
                     <th className="text-left py-3 px-3 font-semibold">S.No</th>
                     <th className="text-left py-3 px-3 font-semibold">Problem title</th>
+                    <th className="text-left py-3 px-3 font-semibold">Category</th>
                     <th className="text-left py-3 px-3 font-semibold">Domain</th>
                     <th className="text-left py-3 px-3 font-semibold">Technology</th>
                     <th className="text-left py-3 px-3 font-semibold">Status</th>
@@ -323,7 +315,7 @@ const ProblemImport = () => {
                 </thead>
                 <tbody>
                   {pageItems.length === 0 ? (
-                    <tr><td colSpan="6" className="py-6 text-center text-[#A0AEC0] italic">No rows in this view.</td></tr>
+                    <tr><td colSpan="7" className="py-6 text-center text-[#A0AEC0] italic">No rows in this view.</td></tr>
                   ) : pageItems.map((r) => {
                     const st = STATUS[r.status];
                     const open = expanded === r.row;
@@ -336,6 +328,7 @@ const ProblemImport = () => {
                             <div className="font-medium text-[#1A202C] [overflow-wrap:anywhere]">{r.title || <span className="text-red-500">(no title)</span>}</div>
                             {r.description && <div className="text-xs text-[#718096] line-clamp-1 max-w-md">{r.description}</div>}
                           </td>
+                          <td className="py-3 px-3 text-[#4A5568] whitespace-nowrap">{r.categoryLabel || <span className="text-red-500">—</span>}</td>
                           <td className="py-3 px-3 text-[#4A5568]">{r.domain || "—"}</td>
                           <td className="py-3 px-3 text-[#4A5568]">{r.technology || "—"}</td>
                           <td className="py-3 px-3">
@@ -347,7 +340,7 @@ const ProblemImport = () => {
                         </tr>
                         {open && (
                           <tr className="bg-[#F7F8FC]">
-                            <td colSpan="6" className="px-6 py-4 max-w-0">
+                            <td colSpan="7" className="px-6 py-4 max-w-0">
                               <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                 {[
                                   ["Problem Description", r.description],

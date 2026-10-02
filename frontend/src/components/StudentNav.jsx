@@ -122,16 +122,7 @@ const StudentNav = () => {
                 exit="exit"
                 transition={{ duration: 0.25 }}
               >
-                <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6 w-max mx-auto">
-                  <div className="flex flex-col gap-1 mb-4 text-center sm:text-left">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      Team Details
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      View your team members, their roles, and key information
-                      for this submission.
-                    </p>
-                  </div>
+                <div className="max-w-5xl mx-auto">
                   <TeamDetails />
                 </div>
               </motion.div>

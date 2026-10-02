@@ -519,6 +519,13 @@ import Pagination, { usePagination } from "../../components/common/Pagination";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { FiKey } from "react-icons/fi";
 
+// A team is the team lead plus 1-4 members (2-5 people); the lead's email is the team's login
+const MIN_TEAM = 2;
+const MAX_TEAM = 5;
+const roleFor = (i) => (i === 0 ? "Team Lead" : `Member ${i}`);
+const newMember = (i) => ({ role: roleFor(i), name: "", email: "", phone: "", gender: "", gradYear: "" });
+const emptyTeam = () => ({ teamName: "", members: [newMember(0), newMember(1)] });
+
 // a member can graduate this year or up to ten years ahead (e.g. 2026-2036); the team leaves the SPOC list after its last member graduates
 const GRAD_YEARS = Array.from({ length: 11 }, (_, i) => new Date().getFullYear() + i);
 import { useNavigate } from "react-router-dom";
@@ -527,7 +534,8 @@ import toast, { Toaster } from "react-hot-toast";
 import { IoTrashBinOutline } from "react-icons/io5";
 import { FaRegEdit } from "react-icons/fa";
 
-function TeamList() {
+// embedded: shown inside the SPOC dashboard, which already has its own toast area
+function TeamList({ embedded = false }) {
   const [FullTeam, setFullTeam] = useState([]);
   const [passwordTeam, setPasswordTeam] = useState(null); // team whose login password is being changed
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -543,15 +551,10 @@ function TeamList() {
 
   const navigate = useNavigate();
 
-  const [teamFormData, setTeamFormData] = useState({
-    teamName: "",
-    members: [
-      { role: "Team Lead", name: "", email: "", phone: "", gender: "", gradYear: "" },
-      { role: "Member 1", name: "", email: "", phone: "", gender: "", gradYear: "" },
-      { role: "Member 2", name: "", email: "", phone: "", gender: "", gradYear: "" },
-      { role: "Member 3", name: "", email: "", phone: "", gender: "", gradYear: "" },
-    ],
-  });
+  const [teamFormData, setTeamFormData] = useState(emptyTeam);
+  // email problems found when the form was submitted, by member position (shown under each email box)
+  const [emailErrors, setEmailErrors] = useState({});
+  const [checking, setChecking] = useState(false);
 
   const [mentorName, setMentorName] = useState("");
   const [mentorEmail, setMentorEmail] = useState("");
@@ -595,6 +598,7 @@ function TeamList() {
   }, [spoc_id]);
 
   const handleMemberChange = (index, field, value) => {
+    if (field === "email") setEmailErrors((prev) => { const next = { ...prev }; delete next[index]; return next; });
     setTeamFormData((prev) => ({
       ...prev,
       members: prev.members.map((member, i) =>
@@ -603,47 +607,56 @@ function TeamList() {
     }));
   };
 
+  // add / remove member slots (2-5 people); roles are renumbered so they stay Member 1, 2, 3...
+  const addMember = () => setTeamFormData((prev) => (
+    prev.members.length >= MAX_TEAM ? prev : { ...prev, members: [...prev.members, newMember(prev.members.length)] }
+  ));
+  const removeMember = (index) => {
+    setEmailErrors({});
+    setTeamFormData((prev) => (
+      prev.members.length <= MIN_TEAM || index === 0 ? prev
+        : { ...prev, members: prev.members.filter((_, i) => i !== index).map((m, i) => ({ ...m, role: roleFor(i) })) }
+    ));
+  };
+
+  // shows every problem email at once: a message under each box and one toast listing them all
+  const showEmailIssues = (issues) => {
+    setEmailErrors(Object.fromEntries(issues.map((i) => [i.index, i.message])));
+    toast.error(
+      (t) => (
+        <div className="text-sm">
+          <div className="font-semibold mb-1">Fix these emails before saving:</div>
+          <ul className="list-disc pl-4 space-y-0.5">
+            {issues.map((i) => <li key={i.index}><b>{i.email || "(empty)"}</b> ({i.role}): {i.message}</li>)}
+          </ul>
+          <button type="button" onClick={() => toast.dismiss(t.id)} className="mt-2 text-xs underline">Dismiss</button>
+        </div>
+      ),
+      { duration: 10000, position: "top-center", id: "team-email-issues" }
+    );
+  };
+  const failWith = (error, fallback) => {
+    const issues = error.response?.data?.issues;
+    if (Array.isArray(issues) && issues.length) showEmailIssues(issues);
+    else toast.error(error.response?.data?.message || fallback);
+  };
+
   const handleEditMembers = (e) => {
     axios.post(`${URL}/fetch_team_members`, { id: e.ID }).then((res) => {
       setteam_id(e.ID);
       setfetch_team_members(res.data);
-      setTeamFormData({
-        teamName: e.NAME,
-        members: [
-          {
-            role: "Team Lead",
-            name: res.data.result[0].NAME,
-            email: res.data.result[0].EMAIL,
-            phone: res.data.result[0].PHONE,
-            gender: res.data.result[0].GENDER,
-            gradYear: res.data.result[0].GRAD_YEAR ? String(res.data.result[0].GRAD_YEAR) : "",
-          },
-          {
-            role: "Member 1",
-            name: res.data.result[1].NAME,
-            email: res.data.result[1].EMAIL,
-            phone: res.data.result[1].PHONE,
-            gender: res.data.result[1].GENDER,
-            gradYear: res.data.result[1].GRAD_YEAR ? String(res.data.result[1].GRAD_YEAR) : "",
-          },
-          {
-            role: "Member 2",
-            name: res.data.result[2].NAME,
-            email: res.data.result[2].EMAIL,
-            phone: res.data.result[2].PHONE,
-            gender: res.data.result[2].GENDER,
-            gradYear: res.data.result[2].GRAD_YEAR ? String(res.data.result[2].GRAD_YEAR) : "",
-          },
-          {
-            role: "Member 3",
-            name: res.data.result[3].NAME,
-            email: res.data.result[3].EMAIL,
-            phone: res.data.result[3].PHONE,
-            gender: res.data.result[3].GENDER,
-            gradYear: res.data.result[3].GRAD_YEAR ? String(res.data.result[3].GRAD_YEAR) : "",
-          },
-        ],
-      });
+      const rows = [...(res.data.result || [])].sort((a, b) => (a.ROLE === "Team Lead" ? -1 : b.ROLE === "Team Lead" ? 1 : a.ID - b.ID));
+      const loaded = rows.slice(0, MAX_TEAM).map((m, i) => ({
+        role: roleFor(i),
+        name: m.NAME || "",
+        email: m.EMAIL || "",
+        phone: m.PHONE || "",
+        gender: m.GENDER || "",
+        gradYear: m.GRAD_YEAR ? String(m.GRAD_YEAR) : "",
+      }));
+      while (loaded.length < MIN_TEAM) loaded.push(newMember(loaded.length));
+      setEmailErrors({});
+      setTeamFormData({ teamName: e.NAME, members: loaded });
       setMentorEmail(res.data.mentor[0].MENTOR_EMAIL);
       setMentorName(res.data.mentor[0].MENTOR_NAME);
     });
@@ -651,8 +664,29 @@ function TeamList() {
     setfetched_s(false);
   };
 
-  const handleCreateTeam = (e) => {
+  const handleCreateTeam = async (e) => {
     e.preventDefault();
+    if (checking) return;
+
+    // 1) check every email first (duplicates in this form, already in 2 teams, lead already used);
+    //    nothing is saved and no mail is sent until all of them are fine
+    setChecking(true);
+    try {
+      const res = await axios.post(`${URL}/check_team_members`, {
+        members: teamFormData.members.map(({ email }) => ({ email })),
+        teamId: fetched_s ? undefined : team_id,
+      });
+      if (res.data.issues?.length) {
+        showEmailIssues(res.data.issues);
+        return;
+      }
+      setEmailErrors({});
+    } catch (error) {
+      failWith(error, "Could not check the team details. Please try again.");
+      return;
+    } finally {
+      setChecking(false);
+    }
 
     if (!fetched_s) {
       let load = toast.loading("Updating team...");
@@ -673,16 +707,11 @@ function TeamList() {
         })
         .catch((error) => {
           toast.dismiss(load);
-          toast.error(error.response?.data?.message || "Failed to update team. Please try again.");
+          failWith(error, "Failed to update team. Please try again.");
         });
     } else {
-      const loadingToast = toast.loading("Creating team...");
-      let mailToast;
-
-      setTimeout(() => {
-        toast.dismiss(loadingToast);
-        mailToast = toast.loading("Sending mails...");
-      }, 2000);
+      // one toast that changes from "creating" to the result (never left spinning)
+      const toastId = toast.loading("Creating team and emailing the login details...");
 
       axios
         .post(`${URL}/add_members/${spoc_id}`, {
@@ -691,53 +720,19 @@ function TeamList() {
           mentorName: mentorName,
         })
         .then((res) => {
-          axios.post(`${URL}/register`, {
-            email: teamFormData.members[0].email,
-            password: spoc_data.COLLEGE_CODE + res.data,
-            role: "STUDENT",
-            college: spoc_data.COLLEGE,
-            college_code: res.data,
-            name: teamFormData.members[0].name,
-            date: new Date().toString().split(" ").slice(0, 4).join(" "),
-          });
-
-          
-
+          // the team lead's login is created by the server together with the team, and emailed to the lead
           if (res.status === 200) {
-            toast.dismiss(mailToast);
-            toast.success("Mail sent successfully!", {
-              duration: 3000,
-              position: "top-right",
-              style: {
-                backgroundColor: "green",
-                color: "white",
-              },
-            });
-            toast.success("Team created successfully!", {
-              duration: 3000,
-              position: "top-right",
-            });
+            toast.success("Team created. The login details are being emailed to the team lead.", { id: toastId, duration: 4000 });
 
             setShowCreateTeamModal(false);
-            setTeamFormData({
-              teamName: "",
-              members: [
-                { role: "Team Lead", name: "", email: "", phone: "", gender: "", gradYear: "" },
-                { role: "Member 1", name: "", email: "", phone: "", gender: "", gradYear: "" },
-                { role: "Member 2", name: "", email: "", phone: "", gender: "", gradYear: "" },
-                { role: "Member 3", name: "", email: "", phone: "", gender: "", gradYear: "" },
-              ],
-            });
+            setTeamFormData(emptyTeam());
+            setEmailErrors({});
             allteams();
           }
         })
         .catch((error) => {
-          toast.dismiss(loadingToast);
-          toast.dismiss(mailToast);
-          toast.error(error.response?.data?.message || "Failed to create team. Please try again.", {
-            duration: 4000,
-            position: "top-right",
-          });
+          toast.dismiss(toastId);
+          failWith(error, "Failed to create team. Please try again.");
           console.error("Error creating team:", error);
         });
     }
@@ -749,18 +744,16 @@ function TeamList() {
   };
 
   const deleteteam = (team) => {
-    if (window.confirm("Confirm delete ?")) {
+    if (window.confirm(`Remove team "${team.NAME}"? It disappears from your list and its login is closed. If the team has submitted a solution, the organisers keep its records.`)) {
       const del = toast.loading("Deleting team...");
       axios
         .post(`${URL}/delete_team`, { id: team.ID })
         .then((res) => {
           allteams();
-          toast.dismiss(del);
-          toast.success("Team deleted");
+          toast.success(res.data?.archived ? "Team removed. Its submissions stay on record for the organisers." : "Team deleted", { id: del });
         })
         .catch((error) => {
-          console.error("Error deleting team:", error);
-          toast.error("Failed to delete team");
+          toast.error(error.response?.data?.message || "Failed to delete team", { id: del });
         });
     }
   };
@@ -770,7 +763,7 @@ function TeamList() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Toaster />
+      {!embedded && <Toaster position="top-right" />}
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Header / Title */}
@@ -992,43 +985,8 @@ function TeamList() {
                 onClick={() => {
                   setShowCreateTeamModal(false);
                   setfetched_s(true);
-                  setTeamFormData({
-                    teamName: "",
-                    members: [
-                      {
-                        role: "Team Lead",
-                        name: "",
-                        email: "",
-                        phone: "",
-                        gender: "",
-                        gradYear: "",
-                      },
-                      {
-                        role: "Member 1",
-                        name: "",
-                        email: "",
-                        phone: "",
-                        gender: "",
-                        gradYear: "",
-                      },
-                      {
-                        role: "Member 2",
-                        name: "",
-                        email: "",
-                        phone: "",
-                        gender: "",
-                        gradYear: "",
-                      },
-                      {
-                        role: "Member 3",
-                        name: "",
-                        email: "",
-                        phone: "",
-                        gender: "",
-                        gradYear: "",
-                      },
-                    ],
-                  });
+                  setTeamFormData(emptyTeam());
+            setEmailErrors({});
                 }}
                 className="text-gray-500 hover:text-gray-700 text-xl"
               >
@@ -1099,18 +1057,36 @@ function TeamList() {
 
               {/* Team Members */}
               <div>
-                <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">
-                  Team Members
-                </h4>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-gray-800">
+                    Team Members{" "}
+                    <span className="text-sm font-normal text-gray-500">
+                      ({teamFormData.members.length} of {MAX_TEAM} · minimum {MIN_TEAM}, including the team lead)
+                    </span>
+                  </h4>
+                  {teamFormData.members.length < MAX_TEAM && (
+                    <button type="button" onClick={addMember} className="px-3 py-1.5 rounded-lg border border-[#fc8f00] text-[#fc8f00] text-sm font-medium hover:bg-orange-50">
+                      + Add member
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {teamFormData.members.map((member, index) => (
                     <div
                       key={index}
                       className="border border-gray-200 rounded-lg p-4 bg-gray-50"
                     >
-                      <h5 className="font-medium text-gray-700 mb-3 text-sm">
-                        {member.role}
-                      </h5>
+                      <div className="flex items-center justify-between mb-3">
+                        <h5 className="font-medium text-gray-700 text-sm">
+                          {member.role}
+                          {index === 0 && <span className="ml-2 text-xs font-normal text-gray-500">(email is the team login)</span>}
+                        </h5>
+                        {index > 0 && teamFormData.members.length > MIN_TEAM && (
+                          <button type="button" onClick={() => removeMember(index)} className="text-xs font-medium text-red-600 hover:underline">
+                            Remove
+                          </button>
+                        )}
+                      </div>
                       <div className="space-y-3">
                         <input
                           type="text"
@@ -1122,16 +1098,22 @@ function TeamList() {
                           placeholder="Name"
                           required
                         />
-                        <input
-                          type="email"
-                          value={member.email}
-                          onChange={(e) =>
-                            handleMemberChange(index, "email", e.target.value)
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#fc8f00]"
-                          placeholder="Email"
-                          required
-                        />
+                        <div>
+                          <input
+                            type="email"
+                            value={member.email}
+                            onChange={(e) =>
+                              handleMemberChange(index, "email", e.target.value)
+                            }
+                            aria-invalid={Boolean(emailErrors[index])}
+                            className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 ${emailErrors[index] ? "border-red-500 bg-red-50 focus:ring-red-300" : "border-gray-300 focus:ring-[#fc8f00]"}`}
+                            placeholder="Email"
+                            required
+                          />
+                          {emailErrors[index] && (
+                            <p className="mt-1 text-xs text-red-600">{emailErrors[index]}</p>
+                          )}
+                        </div>
                         <input
                           type="tel"
                           value={member.phone}
@@ -1181,43 +1163,8 @@ function TeamList() {
                   onClick={() => {
                     setShowCreateTeamModal(false);
                     setfetched_s(true);
-                    setTeamFormData({
-                      teamName: "",
-                      members: [
-                        {
-                          role: "Team Lead",
-                          name: "",
-                          email: "",
-                          phone: "",
-                          gender: "",
-                          gradYear: "",
-                        },
-                        {
-                          role: "Member 1",
-                          name: "",
-                          email: "",
-                          phone: "",
-                          gender: "",
-                          gradYear: "",
-                        },
-                        {
-                          role: "Member 2",
-                          name: "",
-                          email: "",
-                          phone: "",
-                          gender: "",
-                          gradYear: "",
-                        },
-                        {
-                          role: "Member 3",
-                          name: "",
-                          email: "",
-                          phone: "",
-                          gender: "",
-                          gradYear: "",
-                        },
-                      ],
-                    });
+                    setTeamFormData(emptyTeam());
+            setEmailErrors({});
                     setteam_id(0);
                   }}
                   className="px-5 py-2 border border-gray-300 text-sm text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -1226,9 +1173,10 @@ function TeamList() {
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-[#fc8f00] text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors"
+                  disabled={checking}
+                  className="px-6 py-2 bg-[#fc8f00] text-white text-sm font-medium rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-60"
                 >
-                  {fetched_s ? "Create team" : "Update team"}
+                  {checking ? "Checking details…" : fetched_s ? "Create team" : "Update team"}
                 </button>
               </div>
             </form>

@@ -6,6 +6,7 @@ import { notifySubmission, notifyReviewed, loadSubmission, notifySubmissionRemov
 import { DECISIONS, CHANGES_REQUESTED, APPROVED, REJECTED, CRITERIA, parseMarks, canTeamEdit, lockedMessage, uploadClosedReason } from "../utils/review.js";
 import { isAssignedToTeamOf } from "./TeamProblems.js";
 import { canViewTeamOfLead } from "../utils/teamAccess.js";
+import { withFiles, loadFiles, filePathsOf, unlinkAll, shareToken, SHARE_DAYS } from "../utils/submissionFiles.js";
 
 const SubmitSolution = AsyncHandler(async (req, res) => {
     const { problemId, teamId, SOL_LINK, SOL_TITLE = null, SOL_DESCRIPTION = null } = req.body;
@@ -127,14 +128,18 @@ const Get_submission_by_prob_id = AsyncHandler(async (req, res) => {
       t.MENTOR_NAME,
       t.MENTOR_EMAIL,
 
-      u.NAME AS spoc_name,
-      u.COLLEGE AS college_name
+      s.TEAM_EMAIL,
+      t.REMOVED_AT, t.GRADUATED_AT,
+      spoc.NAME AS spoc_name,
+      COALESCE(spoc.COLLEGE, u.COLLEGE) AS college_name
 
   FROM SolveForSakthi_Submissions s
   LEFT JOIN SolveForSakthi_Team_List t
       ON s.TEAM_EMAIL = t.LEAD_EMAIL
+  LEFT JOIN SolveForSakthi_Users spoc
+      ON spoc.ID = t.SPOC_ID
   LEFT JOIN SolveForSakthi_Users u
-      ON t.LEAD_EMAIL = u.EMAIL
+      ON s.TEAM_EMAIL = u.EMAIL
   LEFT JOIN SolveForSakthi_Users ev
       ON ev.ID = s.EVALUATED_BY
   WHERE s.PROBLEM_ID = ?
@@ -197,7 +202,8 @@ WHERE s.ID = ?;
         LEFT JOIN SolveForSakthi_Users u ON u.ID = r.REVIEWED_BY
         WHERE r.SUBMISSION_ID = ?
         ORDER BY r.ID DESC`, [id]);
-    res.status(200).json({ ...result[0], reviews });
+    const files = (await loadFiles([result[0].submission_id])).get(Number(result[0].submission_id)) || [];
+    res.status(200).json({ ...result[0], reviews, files });
 });
 
 // Admin reviews a submission: Changes needed / Approved / Rejected, with a comment and the evaluation marks
@@ -265,7 +271,8 @@ const fetch_submissions_by_email = AsyncHandler(async (req, res) => {
         return res.status(403).json({ message: "You do not have access to this team" });
     }
     const [data, extra] = await connection.query("select s.*, p.TITLE AS PROBLEM_TITLE, p.SUB_DEADLINE from SolveForSakthi_Submissions s left join SolveForSakthi_Problems p on p.ID = s.PROBLEM_ID where s.TEAM_EMAIL = ? order by s.ID desc", [userEmail]);
-    
+    res.send(await withFiles(data));
+    return;
 
     
 
@@ -321,12 +328,26 @@ const Delete_submission = AsyncHandler(async (req, res) => {
 
     // load the mail details before the row is gone
     const snapshot = role === "STUDENT" ? null : await loadSubmission(id);
+    const paths = await filePathsOf([id]);
     await connection.query("DELETE FROM SolveForSakthi_Submission_Reviews WHERE SUBMISSION_ID = ?", [id]);
+    await connection.query("DELETE FROM SolveForSakthi_Submission_Files WHERE SUBMISSION_ID = ?", [id]);
     await connection.query("DELETE FROM SolveForSakthi_Submissions WHERE ID = ?", [id]);
-    if (submission.FILES) fs.unlink(submission.FILES, () => {});
+    unlinkAll([...new Set([...paths, submission.FILES])]);
     if (snapshot) notifySubmissionRemoved(snapshot);
 
     res.json({ message: role === "STUDENT" ? "Submission withdrawn" : "Submission deleted" });
 });
 
-export { Delete_submission, SubmitSolution, check_status_submission, Get_solution, Get_all_submissions, Get_submission_by_id, Review_submission, Get_submission_by_prob_id, fetch_submissions_by_email };
+// POST /submission_files/:id/share -> a signed link to one file (anyone with it can open the file until it
+// expires). Only people who can see the submission can create one.
+const Share_submission_file = AsyncHandler(async (req, res) => {
+    const fileId = parseInt(req.params.id, 10);
+    if (Number.isNaN(fileId)) return res.status(400).json({ message: "Invalid file id" });
+    const [rows] = await connection.query(`
+        SELECT f.ID, s.TEAM_EMAIL FROM SolveForSakthi_Submission_Files f
+        JOIN SolveForSakthi_Submissions s ON s.ID = f.SUBMISSION_ID WHERE f.ID = ?`, [fileId]);
+    if (!rows[0] || !(await canViewTeamOfLead(req, rows[0].TEAM_EMAIL))) return res.status(404).json({ message: "File not found" });
+    res.json({ token: shareToken(fileId), days: SHARE_DAYS, expiresAt: new Date(Date.now() + SHARE_DAYS * 864e5).toISOString() });
+});
+
+export { Share_submission_file, Delete_submission, SubmitSolution, check_status_submission, Get_solution, Get_all_submissions, Get_submission_by_id, Review_submission, Get_submission_by_prob_id, fetch_submissions_by_email };
