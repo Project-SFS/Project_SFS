@@ -360,19 +360,37 @@ const notifySubmissionRemoved = (s) => background("submission removed", async ()
 })
 
 // Problem statements were imported from Excel: one mail per SPOC listing them (instead of one mail per problem)
-const notifyProblemsPublished = (titles) => background("problems published", async () => {
+// Problem statements were imported from Excel: ONE short mail per SPOC (never one per problem, never cc).
+// It previews the first two problems and links to the full list for the rest.
+const PUBLISH_PREVIEW = 2
+const notifyProblemsPublished = (problemIds) => background("problems published", async () => {
+    const ids = (problemIds || []).map(Number).filter(Number.isInteger)
+    if (!ids.length) return
+    const [problems] = await connection.query(
+        `SELECT ID, TITLE, CATEGORY, DOMAIN, DESCRIPTION, SUB_DEADLINE FROM SolveForSakthi_Problems WHERE ID IN (${ids.map(() => "?").join(", ")}) ORDER BY ID`, ids)
+    if (!problems.length) return
     const [spocs] = await connection.query("SELECT EMAIL, NAME FROM SolveForSakthi_Users WHERE ROLE = 'SPOC' AND STATUS = 'ACTIVE'")
-    const shown = titles.slice(0, 25)
-    const more = titles.length - shown.length
+    const total = problems.length
+    const more = total - PUBLISH_PREVIEW
+    const card = (p) => `
+        <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin:0 0 10px;">
+          <div style="font-size:12px;color:#fc9300;font-weight:bold;">SFS_${p.ID}${p.CATEGORY ? ` · ${escapeHtml(String(p.CATEGORY).charAt(0).toUpperCase() + String(p.CATEGORY).slice(1))}` : ""}${p.DOMAIN ? ` · ${escapeHtml(p.DOMAIN)}` : ""}</div>
+          <div style="font-weight:bold;color:#2f3640;margin:2px 0 4px;">${escapeHtml(p.TITLE)}</div>
+          ${p.DESCRIPTION ? `<div style="font-size:13px;color:#4a5568;">${escapeHtml(clip(p.DESCRIPTION, 160))}</div>` : ""}
+          <div style="font-size:12px;color:#718096;margin-top:6px;">Deadline: ${escapeHtml(formatDate(p.SUB_DEADLINE))}</div>
+        </div>`
+    const outro = `${problems.slice(0, PUBLISH_PREVIEW).map(card).join("")}${more > 0
+        ? `<p style="margin:4px 0 0;font-weight:bold;color:#2f3640;">+ ${more} more problem statement${more === 1 ? "" : "s"}. Use the button below to view them all.</p>`
+        : ""}`
     for (const spoc of spocs) {
         deliver("problems published", {
             to: spoc.EMAIL,
-            subject: titles.length === 1 ? `New problem statement: ${titles[0]}` : `${titles.length} new problem statements on Solve For Sakthi`,
+            subject: total === 1 ? `New problem statement: ${problems[0].TITLE}` : `${total} new problem statements on Solve For Sakthi`,
             html: layout({
-                heading: titles.length === 1 ? "A new problem statement is available" : `${titles.length} new problem statements are available`,
-                intro: `Hello ${escapeHtml(spoc.NAME || "")}, new problem statements have been published for Solve For Sakthi ${new Date().getFullYear()}. Your teams can request them from their team portal, or you can assign them under Team Progress.`,
-                rows: shown.map((title, i) => [`${i + 1}`, title]).concat(more > 0 ? [["…", `and ${more} more`]] : []),
-                linkPath: "/spoc", linkLabel: "Open SPOC portal",
+                heading: total === 1 ? "A new problem statement is available" : `${total} new problem statements are available`,
+                intro: `Hello ${escapeHtml(spoc.NAME || "")}, ${total === 1 ? "a new problem statement has" : `${total} new problem statements have`} been published for Solve For Sakthi ${new Date().getFullYear()}. Your teams can request them, or you can assign them under Team Progress.`,
+                outro,
+                linkPath: "/problemstatements", linkLabel: total > PUBLISH_PREVIEW ? `View all ${total} problem statements` : "View problem statements",
             }),
         })
     }

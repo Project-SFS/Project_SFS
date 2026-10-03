@@ -42,6 +42,7 @@ import ProblemImport from "./pages/Admin/ProblemImport.jsx";
 import Exports from "./pages/Admin/Exports.jsx";
 import { RequirePermission } from "./components/admin/adminAccess.jsx";
 import AdminSubmissions from "./pages/Admin/Submissions.jsx";
+import ResetPortal from "./pages/Admin/ResetPortal.jsx";
 import ProblemStatementEdit from "./pages/Admin/ProblemStatementEdit.jsx";
 import ProblemStatementDetail from "./pages/Admin/ProblemStatementDetail.jsx";
 import SubmissionDetail from "./pages/Admin/SubmissionDetail.jsx";
@@ -201,6 +202,7 @@ function App() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="approvals" element={<RequirePermission permission="USERS"><Approvals /></RequirePermission>} />
           <Route path="exports" element={<Exports />} />
+          <Route path="reset" element={<ResetPortal />} />
           <Route path="spoc-approvals" element={<Navigate to="/admin/approvals" replace />} />
           <Route path="problems/:id/details" element={<ProblemStatementDetail />} />
           <Route path="submissions" element={<RequirePermission permission="EVALUATE"><AdminSubmissions /></RequirePermission>} />

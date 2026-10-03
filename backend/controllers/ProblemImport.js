@@ -181,7 +181,7 @@ const Import_problems = AsyncHandler(async (req, res) => {
         const id = await insertProblem({ ...r, deadline }, req.user.ID);
         created.push({ id, title: r.title, row: r.row });
     }
-    if (created.length) notifyProblemsPublished(created.map((c) => c.title));
+    if (created.length) notifyProblemsPublished(created.map((c) => c.id));
     res.status(201).json({ dryRun: false, summary: { ...summary, imported: created.length }, created, rows });
 });
 

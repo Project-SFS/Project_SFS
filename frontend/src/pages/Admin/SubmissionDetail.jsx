@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { FiArrowLeft, FiEdit3, FiCheckCircle, FiXCircle, FiSend, FiClock, FiShare2, FiMonitor, FiFileText } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit3, FiCheckCircle, FiXCircle, FiSend, FiClock, FiShare2, FiMonitor, FiFileText, FiLock } from 'react-icons/fi';
 import { fileHref, createShareLink, copyText, isPublicSite, officeViewerUrl, formatSize } from '../../submissionFiles';
 import axios from 'axios';
 import { URL } from '../../Utils';
@@ -10,6 +10,7 @@ import DeleteSubmissionButton from '../../components/DeleteSubmissionButton';
 import { useAdmin, PERMISSION_LABELS } from '../../components/admin/adminAccess';
 import { StatusBadge, normalizeStatus, statusMeta, EVAL_CRITERIA, EVAL_TOTAL_MAX, MarksBreakdown } from '../../submissionStatus';
 import Pagination, { usePagination } from '../../components/common/Pagination';
+import TeamDetailsModal from '../../components/admin/TeamDetailsModal';
 
 // The three review decisions. Every decision and its comment are emailed to the team lead and,
 // separately, to their SPOC. Marks are given (and emailed) only with an approval.
@@ -23,14 +24,14 @@ const DECISIONS = [
   },
   {
     value: 'APPROVED', label: 'Approve', result: 'Approved', icon: FiCheckCircle,
-    hint: 'The solution is accepted. It can no longer be changed by the team.',
+    hint: 'The solution is accepted. Final: nobody can change it afterwards.',
     active: 'border-green-400 bg-green-50 ring-2 ring-green-200', iconCls: 'text-green-600',
     button: 'bg-green-600 hover:bg-green-700', commentRequired: false,
     placeholder: 'Optional: a note for the team, e.g. what was strong about the solution...',
   },
   {
     value: 'REJECTED', label: 'Reject', result: 'Rejected', icon: FiXCircle,
-    hint: 'The solution is not accepted. It can no longer be changed by the team.',
+    hint: 'The solution is not accepted. Final: nobody can change it afterwards.',
     active: 'border-red-400 bg-red-50 ring-2 ring-red-200', iconCls: 'text-red-600',
     button: 'bg-red-600 hover:bg-red-700', commentRequired: true,
     placeholder: 'Explain why the solution is rejected...',
@@ -294,6 +295,8 @@ const SubmissionDetail = () => {
 
   const sendReview = async () => {
     if (!chosen || commentMissing || marksProblem || saving) return;
+    if (chosen.value !== 'CHANGES_REQUESTED'
+      && !window.confirm(`${chosen.label} this submission? This decision is final and cannot be changed later.`)) return;
     setSaving(true);
     setMessage(null);
     try {
@@ -314,6 +317,7 @@ const SubmissionDetail = () => {
     }
   };
 
+  const [teamOpen, setTeamOpen] = useState(false);
   // review history, 25 per page (hook kept above the early returns)
   const reviewPages = usePagination(submission?.reviews || [], { resetKey: id });
 
@@ -375,13 +379,14 @@ const SubmissionDetail = () => {
               <InfoRow label="Description"><span className="whitespace-pre-line">{submission.description}</span></InfoRow>
               <InfoRow label="Team Name">
                 {submission.team_name}
-                {submission.team_id && (
-                  <Link
-                    to={`/admin/users?section=teams&team=${submission.team_id}`}
+                {submission.team_id && can('USERS') && (
+                  <button
+                    type="button"
+                    onClick={() => setTeamOpen(true)}
                     className="ml-3 inline-flex items-center gap-1 text-sm font-medium text-[#FF9900] hover:underline"
                   >
-                    View team details →
-                  </Link>
+                    View team details
+                  </button>
                 )}
               </InfoRow>
               <InfoRow label="College">{submission.college_name}</InfoRow>
@@ -425,7 +430,16 @@ const SubmissionDetail = () => {
         </div>
 
         {/* Review (needs the Evaluate submissions permission) */}
-        {!canEvaluate ? (
+        {status === 'APPROVED' || status === 'REJECTED' ? (
+          // approved / rejected are final: the decision cannot be changed any more
+          <div className={`bg-white rounded-2xl shadow-sm p-6 border-2 ${statusMeta(status).border} text-sm text-[#4A5568] flex items-start gap-3`}>
+            <FiLock className={`text-xl shrink-0 mt-0.5 ${statusMeta(status).text}`} />
+            <div>
+              <div className="font-semibold text-[#1A202C]">Final decision: {statusMeta(status).label}</div>
+              This submission was {status === 'APPROVED' ? 'approved' : 'rejected'}. That decision is final and can no longer be changed. Only submissions awaiting review or with changes needed can be reviewed.
+            </div>
+          </div>
+        ) : !canEvaluate ? (
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-[#E2E8F0] text-sm text-[#718096]">
             Reviewing needs the <b className="text-[#1A202C]">{PERMISSION_LABELS.EVALUATE}</b> permission. You can see the submission and its review history; ask the main admin if you should evaluate.
           </div>
@@ -435,7 +449,7 @@ const SubmissionDetail = () => {
           <p className="text-sm text-[#718096] mb-6">
             {status === 'PENDING'
               ? 'Choose a decision and write your comment. The team and their SPOC are emailed straight away.'
-              : 'This submission has already been reviewed. A new decision replaces the current one and is emailed again.'}
+              : 'Changes were requested and the team has not sent a revision yet. You can still give a new decision; it is emailed again. Approve and Reject are final.'}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" role="radiogroup" aria-label="Decision">
@@ -582,6 +596,7 @@ const SubmissionDetail = () => {
           <Pagination page={reviewPages.page} totalPages={reviewPages.totalPages} total={reviewPages.total} onChange={reviewPages.setPage} label="reviews" />
         </div>
       </div>
+      {teamOpen && <TeamDetailsModal teamId={submission.team_id} onClose={() => setTeamOpen(false)} />}
     </div>
   );
 };

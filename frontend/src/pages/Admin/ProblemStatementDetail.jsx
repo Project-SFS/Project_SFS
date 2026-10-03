@@ -17,6 +17,7 @@ import {
   FiChevronDown
 } from 'react-icons/fi';
 import { copyText } from '../../submissionFiles';
+import TeamDetailsModal from '../../components/admin/TeamDetailsModal';
 import { URL } from '../../Utils';
 import { StatusBadge, normalizeStatus } from '../../submissionStatus';
 import Pagination, { usePagination } from '../../components/common/Pagination';
@@ -28,6 +29,7 @@ const ProblemStatementDetail = () => {
   const navigate = useNavigate();
 
   const [linkCopied, setLinkCopied] = useState(false);
+  const [teamOpen, setTeamOpen] = useState(null); // team id whose details dialog is open
   const [problem, setProblem] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -99,6 +101,7 @@ const ProblemStatementDetail = () => {
           
           id: String(s.submission_id ?? ''),
           // a team deleted before teams were archived has no name any more: show its lead email
+          team_id: s.team_id || null,
           team_name: s.team_name || s.TEAM_EMAIL || 'N/A',
           team_note: !s.team_name ? 'team deleted' : s.REMOVED_AT ? 'removed by SPOC' : s.GRADUATED_AT ? 'graduated' : '',
           college: s.college_name || '',
@@ -455,7 +458,13 @@ const ProblemStatementDetail = () => {
                   className="hover:bg-[#F9FAFB] border-t border-[#E2E8F0] transition-all"
                 >
                   <td className="p-4 text-[#1A202C] font-medium">
-                    <div className="break-all">{sub.team_name}</div>
+                    {sub.team_id && can('USERS') ? (
+                      <button type="button" onClick={() => setTeamOpen(sub.team_id)} className="break-all text-left text-[#2B6CB0] hover:underline" title="View team details">
+                        {sub.team_name}
+                      </button>
+                    ) : (
+                      <div className="break-all">{sub.team_name}</div>
+                    )}
                     {sub.team_note && <div className="text-xs font-normal text-[#A0AEC0]">{sub.team_note}</div>}
                   </td>
                   <td className="p-4 text-[#4A5568]">{sub.college || <span className="text-[#A0AEC0]">—</span>}</td>
@@ -471,7 +480,7 @@ const ProblemStatementDetail = () => {
                       onClick={() => navigate(`/admin/submissions/${sub.id}/details`)}
                       className="bg-[#FF9900] text-white font-bold px-4 py-2 rounded-xl shadow hover:bg-[#e68900]"
                     >
-                      {!can('EVALUATE') ? 'View' : sub.status === 'PENDING' ? 'Review' : 'View / Re-review'}
+                      {!can('EVALUATE') || sub.status === 'APPROVED' || sub.status === 'REJECTED' ? 'View' : 'Review'}
                     </button>
 
                   </td>
@@ -544,9 +553,8 @@ const ProblemStatementDetail = () => {
           </div>
         )
       }
+      {teamOpen && <TeamDetailsModal teamId={teamOpen} onClose={() => setTeamOpen(null)} />}
     </div>
-
-    
   );
 };
 

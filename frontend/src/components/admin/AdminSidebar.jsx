@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiHome, FiFileText, FiUsers, FiCheckSquare, FiX, FiUserPlus, FiDownload, FiInbox } from 'react-icons/fi';
+import { FiHome, FiFileText, FiUsers, FiCheckSquare, FiX, FiUserPlus, FiDownload, FiInbox, FiRefreshCw } from 'react-icons/fi';
 import { useAdmin } from './adminAccess';
 import yourLogo from '../../assets/image.png';
 
@@ -29,7 +29,7 @@ const NavItem = ({ to, icon, children, isExpanded, onClick }) => (
   </NavLink>
 );
 
-// sidebar entries; "permission" hides an entry from admins without it
+// sidebar entries; "permission" hides an entry from admins without it, "superOnly" from everyone but the main admin
 const NAV = [
   { to: "/admin/dashboard", label: "Dashboard", icon: FiHome },
   { to: "/admin/problems", label: "Problem Statements", icon: FiFileText },
@@ -38,11 +38,12 @@ const NAV = [
   { to: "/admin/users/create", label: "Create User", icon: FiUserPlus, permission: "USERS" },
   { to: "/admin/approvals", label: "Approvals", icon: FiCheckSquare, permission: "USERS" },
   { to: "/admin/exports", label: "Exports", icon: FiDownload },
+  { to: "/admin/reset", label: "Reset portal", icon: FiRefreshCw, superOnly: true },
 ];
 
 const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }) => {
-  const { can } = useAdmin();
-  const items = NAV.filter((item) => !item.permission || can(item.permission));
+  const { can, isSuper } = useAdmin();
+  const items = NAV.filter((item) => (!item.permission || can(item.permission)) && (!item.superOnly || isSuper));
   const closeMobileSidebar = () => setMobileOpen(false);
 
   return (

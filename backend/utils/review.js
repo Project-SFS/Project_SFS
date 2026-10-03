@@ -1,6 +1,6 @@
 // Submission review states. A team can (re)upload while its submission is PENDING or CHANGES_REQUESTED;
-// a revised upload goes back to PENDING. APPROVED and REJECTED are final for the team (an admin can still
-// change the decision).
+// a revised upload goes back to PENDING. APPROVED and REJECTED are final for everyone: the team cannot
+// change the submission and no admin can change the decision.
 export const PENDING = "PENDING"
 export const CHANGES_REQUESTED = "CHANGES_REQUESTED"
 export const APPROVED = "APPROVED"
@@ -10,6 +10,8 @@ export const DECISIONS = [CHANGES_REQUESTED, APPROVED, REJECTED]
 export const DECISION_LABELS = { [PENDING]: "Awaiting review", [CHANGES_REQUESTED]: "Changes needed", [APPROVED]: "Approved", [REJECTED]: "Rejected" }
 
 export const canTeamEdit = (status) => status === PENDING || status === CHANGES_REQUESTED
+// an evaluator can decide while it waits for review or while changes are requested; approve / reject are final
+export const isFinal = (status) => status === APPROVED || status === REJECTED || status === "ACCEPTED"
 
 // Message for a team that tries to change a submission it can no longer change
 export const lockedMessage = (status) =>

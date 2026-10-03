@@ -5,6 +5,8 @@ import { FiSearch, FiClock, FiEdit3, FiCheckCircle, FiXCircle, FiInbox, FiRotate
 import Pagination, { usePagination } from '../../components/common/Pagination';
 import { StatusBadge, EVAL_TOTAL_MAX } from '../../submissionStatus';
 import { URL } from '../../Utils';
+import { useAdmin } from '../../components/admin/adminAccess';
+import TeamDetailsModal from '../../components/admin/TeamDetailsModal';
 
 // Every submission across all problem statements, for admins who evaluate. Waiting ones come first
 // by default so the evaluator sees what needs attention.
@@ -30,6 +32,8 @@ const Submissions = () => {
   const [error, setError] = useState('');
   const [f, setF] = useState(EMPTY);
   const navigate = useNavigate();
+  const { can } = useAdmin();
+  const [teamOpen, setTeamOpen] = useState(null); // team id whose details dialog is open
   const set = (key) => (value) => setF((prev) => ({ ...prev, [key]: value }));
 
   useEffect(() => {
@@ -181,7 +185,13 @@ const Submissions = () => {
                         <div className="text-xs text-[#A0AEC0]">SFS_{r.PROBLEM_ID}</div>
                       </td>
                       <td className="px-5 py-3 max-w-[14rem]">
-                        <div className="text-[#1A202C] truncate">{r.TEAM_NAME || r.TEAM_EMAIL}</div>
+                        {r.TEAM_ID && can('USERS') ? (
+                          <button type="button" onClick={(e) => { e.stopPropagation(); setTeamOpen(r.TEAM_ID); }} className="block max-w-full text-left text-[#2B6CB0] hover:underline truncate" title="View team details">
+                            {r.TEAM_NAME || r.TEAM_EMAIL}
+                          </button>
+                        ) : (
+                          <div className="text-[#1A202C] truncate">{r.TEAM_NAME || r.TEAM_EMAIL}</div>
+                        )}
                         <div className="text-xs text-[#718096] truncate">{r.COLLEGE || '—'}</div>
                       </td>
                       <td className="px-5 py-3 whitespace-nowrap text-[#4A5568]">{readable(r.SUB_DATE)}</td>
@@ -195,7 +205,7 @@ const Submissions = () => {
                       </td>
                       <td className="px-5 py-3 text-right">
                         <span className="inline-flex items-center gap-1 text-[#FF9900] font-medium whitespace-nowrap">
-                          {r.STATUS === 'PENDING' ? 'Review' : 'View'} <FiChevronRight />
+                          {r.STATUS === 'PENDING' || r.STATUS === 'CHANGES_REQUESTED' ? 'Review' : 'View'} <FiChevronRight />
                         </span>
                       </td>
                     </tr>
@@ -228,6 +238,7 @@ const Submissions = () => {
         )}
       </div>
       <Pagination page={page} totalPages={totalPages} total={total} onChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} label="submissions" />
+      {teamOpen && <TeamDetailsModal teamId={teamOpen} onClose={() => setTeamOpen(null)} />}
     </div>
   );
 };

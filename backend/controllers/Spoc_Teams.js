@@ -85,9 +85,9 @@ const fetch_team_id_email = AsyncHandler(async (req, res) => {
     res.send(data)
 })
 
-// Admin: every registered team with its SPOC / college, members, problem statements and submissions,
-// for the Teams section of the admin Users page (filtered and paged in the browser)
-const Admin_list_teams = AsyncHandler(async (req, res) => {
+// Builds the admin team records (all teams, or just one with teamId)
+const buildAdminTeams = async (teamId = null) => {
+    const one = teamId != null;
     const [teams] = await connection.query(`
         SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.CREATED_AT, t.SPOC_ID,
                t.GRADUATED_AT, t.REMOVED_AT, rb.EMAIL AS REMOVED_BY_EMAIL, COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
@@ -97,18 +97,21 @@ const Admin_list_teams = AsyncHandler(async (req, res) => {
         FROM SolveForSakthi_Team_List t
         LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
         LEFT JOIN SolveForSakthi_Users rb ON rb.ID = t.REMOVED_BY
-        ORDER BY t.ID DESC`);
+        ${one ? "WHERE t.ID = ?" : ""}
+        ORDER BY t.ID DESC`, one ? [teamId] : []);
 
     const [assignments] = await connection.query(`
         SELECT tp.TEAM_ID, tp.PROBLEM_ID, tp.STATUS, p.TITLE
         FROM SolveForSakthi_Team_Problems tp
-        JOIN SolveForSakthi_Problems p ON p.ID = tp.PROBLEM_ID`);
+        JOIN SolveForSakthi_Problems p ON p.ID = tp.PROBLEM_ID
+        ${one ? "WHERE tp.TEAM_ID = ?" : ""}`, one ? [teamId] : []);
 
     const [submissions] = await connection.query(`
         SELECT s.ID, s.PROBLEM_ID, s.TEAM_EMAIL, s.STATUS, s.EVALUATION_COMMENT, s.EVAL_TOTAL, s.SUB_DATE, p.TITLE
         FROM SolveForSakthi_Submissions s
         LEFT JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID
-        ORDER BY s.ID DESC`);
+        ${one ? "WHERE s.TEAM_EMAIL = ?" : ""}
+        ORDER BY s.ID DESC`, one ? [teams[0]?.LEAD_EMAIL || ""] : []);
 
     // latest submission per team lead + problem
     const latest = new Map();
@@ -117,7 +120,7 @@ const Admin_list_teams = AsyncHandler(async (req, res) => {
         if (!latest.has(key)) latest.set(key, s);
     }
 
-    res.json(teams.map((team) => {
+    return teams.map((team) => {
         const lead = String(team.LEAD_EMAIL || "").toLowerCase();
         const problems = new Map();
         for (const a of assignments) {
@@ -141,7 +144,22 @@ const Admin_list_teams = AsyncHandler(async (req, res) => {
             SUBMISSION_COUNT: subs.length,
             EVALUATED_COUNT: subs.filter((p) => p.submission.STATUS !== "PENDING").length,
         };
-    }));
+    });
+};
+
+// Admin: every registered team with its SPOC / college, members, problem statements and submissions,
+// for the Teams section of the admin Users page (filtered and paged in the browser)
+const Admin_list_teams = AsyncHandler(async (req, res) => {
+    res.json(await buildAdminTeams());
+});
+
+// Admin: one team in the same shape (the team details dialog opened from a problem or submission page)
+const Admin_get_team = AsyncHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid team id" });
+    const [team] = await buildAdminTeams(id);
+    if (!team) return res.status(404).json({ message: "This team no longer exists" });
+    res.json(team);
 });
 
 // Admin: everything on record for one team (also after it graduated): members, every submission with its
@@ -190,4 +208,4 @@ const Admin_team_history = AsyncHandler(async (req, res) => {
     });
 });
 
-export { Fetch_Teams, Fetch_Team_Members, Delete_team, Fetch_Team_For_Students, fetch_team_id_email, Admin_list_teams, Admin_team_history }
+export { Fetch_Teams, Fetch_Team_Members, Delete_team, Fetch_Team_For_Students, fetch_team_id_email, Admin_list_teams, Admin_get_team, Admin_team_history }

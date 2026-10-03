@@ -2,7 +2,7 @@ import { Router } from "express";
 
 // Controller Imports
 import { Add_Team_Members, Update_team, Check_team_members } from "../controllers/Team_members.js";
-import { Fetch_Teams, Fetch_Team_Members, Delete_team, Fetch_Team_For_Students, fetch_team_id_email, Admin_list_teams, Admin_team_history } from "../controllers/Spoc_Teams.js";
+import { Fetch_Teams, Fetch_Team_Members, Delete_team, Fetch_Team_For_Students, fetch_team_id_email, Admin_list_teams, Admin_get_team, Admin_team_history } from "../controllers/Spoc_Teams.js";
 import { login, logout, signup, GetAllUsers, verifyEmail, UpdateUser, Admin_create_user, Admin_delete_user, Admin_set_password, Set_team_password, Get_profile, Update_profile, Change_own_password, Admin_set_permissions, Admin_permission_list } from "../controllers/User_details.js";
 import { Verify_OTP, Verify_OTP_Check } from "../controllers/Verify_OTP.js";
 // import Verify_OTP_Check from "../controllers/Verify_OTP_Check.js";
@@ -10,6 +10,7 @@ import { requireAuth, optionalAuth, requireRole, requirePermission, requireSuper
 import { Post_problem, Get_problems, Get_problem_by_id, Delete_problem, Update_problem } from "../controllers/Problems.js";
 import { Get_cookies } from "../controllers/Cookie.js";
 import { Get_public_stats, Submit_interest } from "../controllers/PublicStats.js";
+import { Reset_summary, Reset_send_otp, Reset_confirm } from "../controllers/Reset.js";
 import { Import_problems, Problem_import_template, memoryUpload } from "../controllers/ProblemImport.js";
 import { Export_options, Export_data, Export_problem_reports, List_all_submissions } from "../controllers/Export.js";
 import { Share_submission_file, Delete_submission, Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email, Review_submission, check_status_submission } from "../controllers/Submission.js";
@@ -42,6 +43,7 @@ router.route("/admin/create_user").post(requireAuth, requireRole(['ADMIN']), req
 router.route("/admin/problems/import").post(requireAuth, requireRole(['ADMIN']), requirePermission('PROBLEMS'), memoryUpload, Import_problems); // Excel import (dryRun=true previews)
 router.route("/admin/problems/import/template").get(requireAuth, requireRole(['ADMIN']), requirePermission('PROBLEMS'), Problem_import_template); // empty Excel template
 router.route("/admin/teams/:id/history").get(requireAuth, requireRole(['ADMIN']), requirePermission('USERS'), Admin_team_history); // members, submissions + reviews, mails
+router.route("/admin/teams/:id").get(requireAuth, requireRole(['ADMIN']), requirePermission('USERS'), Admin_get_team); // one team for the details dialog
 router.route("/admin/teams").get(requireAuth, requireRole(['ADMIN']), requirePermission('USERS'), Admin_list_teams); // Every registered team, for the admin Users page
 router.route("/profile").get(requireAuth, Get_profile).put(requireAuth, requireRole(['SPOC', 'ADMIN']), Update_profile); // own profile
 router.route("/profile/password").post(requireAuth, requireRole(['SPOC', 'ADMIN']), Change_own_password); // own password
@@ -51,6 +53,10 @@ router.route("/admin/submissions/all").get(requireAuth, requireRole(['ADMIN']), 
 router.route("/admin/export/options").get(requireAuth, requireRole(['ADMIN']), Export_options); // filters + columns for the export screen
 router.route("/admin/export/problem-reports").post(requireAuth, requireRole(['ADMIN']), Export_problem_reports); // ZIP: one report per problem
 router.route("/admin/export/:type").post(requireAuth, requireRole(['ADMIN']), Export_data); // Excel export (preview=true -> count)
+// portal reset: main admin only, confirmed with an emailed code
+router.route("/admin/reset/summary").get(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Reset_summary);
+router.route("/admin/reset/send-otp").post(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Reset_send_otp);
+router.route("/admin/reset/confirm").post(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Reset_confirm);
 router.route("/admin/set_permissions").post(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Admin_set_permissions); // main admin only
 router.route("/admin/permissions").get(requireAuth, requireRole(['ADMIN']), Admin_permission_list);
 router.route("/admin/delete_user").post(requireAuth, requireRole(['ADMIN']), requirePermission('USERS'), Admin_delete_user); // Platform admin deletes an admin / SPOC account
