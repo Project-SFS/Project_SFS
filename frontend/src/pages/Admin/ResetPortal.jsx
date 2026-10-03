@@ -4,8 +4,8 @@ import { FiAlertTriangle, FiMail, FiTrash2, FiShield, FiCheckCircle, FiLock } fr
 import { URL } from '../../Utils';
 import { useAdmin } from '../../components/admin/adminAccess';
 
-// Main admin only: empty every table of the portal and delete every uploaded file, keeping only the main
-// admin's account. Step 1 emails a code to the main admin, step 2 asks for the code and the word RESET.
+// Main admin only: empty every table of the portal and delete every uploaded file. All admin accounts are
+// kept. Step 1 emails a code to the main admin, step 2 asks for the code and the word RESET.
 const CONFIRM_WORD = 'RESET';
 
 const ResetPortal = () => {
@@ -51,7 +51,7 @@ const ResetPortal = () => {
   const reset = async (e) => {
     e.preventDefault();
     if (word !== CONFIRM_WORD || otp.length !== 6) return;
-    if (!window.confirm('Last check: delete EVERYTHING in the portal except your main admin account? This cannot be undone.')) return;
+    if (!window.confirm('Last check: delete EVERYTHING in the portal except the admin accounts? This cannot be undone.')) return;
     setBusy('reset');
     setError('');
     try {
@@ -91,8 +91,8 @@ const ResetPortal = () => {
           <FiAlertTriangle className="text-2xl text-red-600 shrink-0" />
           <div className="text-sm text-red-900">
             <div className="font-semibold text-base mb-1">This permanently deletes everything</div>
-            Every problem statement, team, member, SPOC, other admin, submission, uploaded file, review and email record is deleted.
-            Only <b>your main admin account ({summary?.keep?.email || user?.EMAIL})</b> is kept. There is no undo. Export anything you need first (Exports page).
+            Every problem statement, team, member, SPOC account, team login, submission, uploaded file, review and email record is deleted.
+            Only the <b>admin accounts</b> are kept (listed below). There is no undo. Export anything you need first (Exports page).
           </div>
         </div>
 
@@ -103,7 +103,7 @@ const ResetPortal = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
                 {summary.tables.map((t) => (
                   <div key={t.table} className="flex justify-between border-b border-[#F1F5F9] py-1">
-                    <span className="text-[#4A5568]">{t.table}{t.table === 'Users' ? ' (all except you)' : ''}</span>
+                    <span className="text-[#4A5568]">{t.table}</span>
                     <span className="font-semibold text-[#1A202C] tabular-nums">{t.rows}</span>
                   </div>
                 ))}
@@ -113,6 +113,14 @@ const ResetPortal = () => {
                 </div>
               </div>
               <p className="text-xs text-[#718096] mt-3">{totalRows} records and {summary.files} files in total.</p>
+              <div className="mt-4 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm">
+                <div className="font-semibold text-green-800 mb-1">Kept: {summary.keep.length} admin account{summary.keep.length === 1 ? '' : 's'}</div>
+                <ul className="text-green-900 space-y-0.5">
+                  {summary.keep.map((a) => (
+                    <li key={a.email} className="break-all">{a.email}{a.main ? ' (main admin)' : ''}</li>
+                  ))}
+                </ul>
+              </div>
             </>
           )}
         </section>
@@ -120,7 +128,7 @@ const ResetPortal = () => {
         <section className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
           <div className="text-xs font-semibold uppercase tracking-wide text-[#FF9900] mb-1">Step 1</div>
           <h2 className="font-semibold text-[#1A202C] mb-1 flex items-center gap-2"><FiMail /> Get a confirmation code</h2>
-          <p className="text-sm text-[#718096] mb-4">A 6-digit code is emailed to the main admin ({summary?.keep?.email || user?.EMAIL}). It is valid for 10 minutes.</p>
+          <p className="text-sm text-[#718096] mb-4">A 6-digit code is emailed to the main admin ({summary?.mainAdmin || user?.EMAIL}). It is valid for 10 minutes.</p>
           <button type="button" onClick={sendCode} disabled={busy === 'send'} className="px-4 py-2.5 rounded-xl border border-[#FF9900] text-[#FF9900] font-medium hover:bg-[#FF9900] hover:text-white transition disabled:opacity-60">
             {busy === 'send' ? 'Sending…' : sent ? 'Send a new code' : 'Send code'}
           </button>

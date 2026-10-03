@@ -7,8 +7,8 @@ import { sendMail, waitForPendingMail } from "../utils/mailer.js";
 import { layout, escapeHtml } from "../utils/notifications.js";
 
 // Portal reset (main admin only): empties every Solve For Sakthi table and deletes every uploaded file.
-// The only thing kept is the main admin's own account. Guarded by a one-time code emailed to the main admin
-// and by typing RESET.
+// Every admin account is kept (the main admin and the other admins, with their permissions); SPOCs, team
+// logins and all other data are deleted. Guarded by a one-time code emailed to the main admin and by typing RESET.
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESEND_INTERVAL_MS = 60 * 1000;
@@ -36,19 +36,27 @@ const uploadedFiles = () => {
     }
 };
 
-// GET /admin/reset/summary: what a reset would delete
+// GET /admin/reset/summary: what a reset would delete, and the admin accounts it keeps
 const Reset_summary = AsyncHandler(async (req, res) => {
     const tables = await platformTables();
     const counts = [];
     for (const name of tables) {
         const [[row]] = await connection.query(
             name === USERS_TABLE
-                ? `SELECT COUNT(*) AS n FROM [${name}] WHERE ID <> ?`
-                : `SELECT COUNT(*) AS n FROM [${name}]`,
-            name === USERS_TABLE ? [req.user.ID] : []);
-        counts.push({ table: name.replace(/^SolveForSakthi_/, "").replace(/_/g, " "), rows: Number(row?.n) || 0 });
+                ? `SELECT COUNT(*) AS n FROM [${name}] WHERE ROLE IS NULL OR ROLE <> 'ADMIN'`
+                : `SELECT COUNT(*) AS n FROM [${name}]`);
+        counts.push({
+            table: name === USERS_TABLE ? "SPOC and team accounts" : name.replace(/^SolveForSakthi_/, "").replace(/_/g, " "),
+            rows: Number(row?.n) || 0,
+        });
     }
-    res.json({ keep: { email: req.user.EMAIL, name: req.user.NAME }, tables: counts, files: uploadedFiles().length });
+    const [admins] = await connection.query("SELECT EMAIL, NAME, IS_SUPER_ADMIN FROM SolveForSakthi_Users WHERE ROLE = 'ADMIN' ORDER BY IS_SUPER_ADMIN DESC, ID");
+    res.json({
+        mainAdmin: req.user.EMAIL,
+        keep: admins.map((a) => ({ email: a.EMAIL, name: a.NAME, main: Boolean(a.IS_SUPER_ADMIN) })),
+        tables: counts,
+        files: uploadedFiles().length,
+    });
 });
 
 // POST /admin/reset/send-otp: emails a 6-digit code to the main admin
@@ -66,7 +74,7 @@ const Reset_send_otp = AsyncHandler(async (req, res) => {
             subject: `${code} is your Solve For Sakthi portal reset code`,
             html: layout({
                 heading: "Confirm the portal reset",
-                intro: `Someone signed in as the main admin asked to <b>reset the Solve For Sakthi portal</b>. This deletes every problem statement, team, SPOC, admin, submission, file and email record; only your main admin account is kept.<br>Your code:<br><span style="display:inline-block;margin-top:12px;font-size:28px;font-weight:bold;letter-spacing:6px;color:#c53030;">${code}</span>`,
+                intro: `Someone signed in as the main admin asked to <b>reset the Solve For Sakthi portal</b>. This deletes every problem statement, team, SPOC, submission, file and email record; only the admin accounts are kept.<br>Your code:<br><span style="display:inline-block;margin-top:12px;font-size:28px;font-weight:bold;letter-spacing:6px;color:#c53030;">${code}</span>`,
                 outro: "The code is valid for 10 minutes. If you did not ask for this, do not share the code and change your password.",
             }),
         });
@@ -106,7 +114,8 @@ const Reset_confirm = AsyncHandler(async (req, res) => {
         await waitForPendingMail(15000);
         for (const name of await platformTables()) {
             if (name === USERS_TABLE) {
-                const [r] = await connection.query(`DELETE FROM [${name}] WHERE ID <> ?`, [req.user.ID]);
+                // admin accounts stay (main admin + the others); SPOC and team logins go
+                const [r] = await connection.query(`DELETE FROM [${name}] WHERE ROLE IS NULL OR ROLE <> 'ADMIN'`);
                 deleted[name] = r.affectedRows;
             } else {
                 const [r] = await connection.query(`DELETE FROM [${name}]`);
@@ -129,12 +138,12 @@ const Reset_confirm = AsyncHandler(async (req, res) => {
         subject: "The Solve For Sakthi portal was reset",
         html: layout({
             heading: "Portal reset completed",
-            intro: `The portal was reset on ${escapeHtml(new Date().toLocaleString("en-IN", { timeZone: process.env.APP_TIMEZONE || "Asia/Kolkata" }))}. Every table was emptied and every uploaded file deleted. Your main admin account is the only one left.`,
+            intro: `The portal was reset on ${escapeHtml(new Date().toLocaleString("en-IN", { timeZone: process.env.APP_TIMEZONE || "Asia/Kolkata" }))}. Every problem statement, team, SPOC, submission, file and email record was deleted. The admin accounts were kept.`,
             linkPath: "/admin", linkLabel: "Open the admin panel",
         }),
     }).catch((err) => console.error("Reset confirmation mail failed:", err.message));
 
-    res.json({ message: "The portal was reset. Only your main admin account is left.", deleted });
+    res.json({ message: "The portal was reset. All admin accounts were kept; everything else was deleted.", deleted });
 });
 
 export { Reset_summary, Reset_send_otp, Reset_confirm };
