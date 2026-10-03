@@ -20,8 +20,8 @@ export default function CreateUser() {
   const navigate = useNavigate();
   const [role, setRole] = useState("SPOC");
   // only the main admin creates admins, and chooses their permissions
-  const { isSuper } = useAdmin();
-  const roles = ROLES.filter((r) => r.value !== "ADMIN" || isSuper);
+  const { canManageAdmins } = useAdmin();
+  const roles = ROLES.filter((r) => r.value !== "ADMIN" || canManageAdmins);
   const [permissions, setPermissions] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -99,7 +99,7 @@ export default function CreateUser() {
             ))}
           </div>
           <p className="text-xs text-[#718096] mt-2">{roleInfo?.hint}</p>
-          {!isSuper && <p className="text-xs text-[#A0AEC0] mt-1">Only the main admin can create admin accounts.</p>}
+          {!canManageAdmins && <p className="text-xs text-[#A0AEC0] mt-1">Only the main admin or an admin with all three permissions can create admin accounts.</p>}
         </div>
 
         {role === "ADMIN" && (

@@ -9,7 +9,7 @@ import { isEmailVerified, consumeVerifiedEmail } from "./Verify_OTP.js"
 import crypto from "crypto"
 import { notifyAccountCreated, notifyPasswordChanged, notifyOwnPasswordChanged } from "../utils/notifications.js"
 import { passwordError } from "../utils/password.js"
-import { ALL_PERMISSIONS, serializePermissions, PERMISSIONS } from "../utils/permissions.js"
+import { ALL_PERMISSIONS, serializePermissions, PERMISSIONS, canManageAdmins } from "../utils/permissions.js"
 
 const signup = AsyncHandler(async (req, res) => {
     const { email, password, role, college, college_code, name, date } = req.body;
@@ -254,8 +254,8 @@ const Admin_create_user = AsyncHandler(async (req, res) => {
     if (!CREATABLE_ROLES.includes(role)) {
         return res.status(400).json({ message: "Role must be ADMIN or SPOC" });
     }
-    if (role === "ADMIN" && !req.user.IS_SUPER_ADMIN) {
-        return res.status(403).json({ message: "Only the main admin can create admin accounts" });
+    if (role === "ADMIN" && !canManageAdmins(req.user)) {
+        return res.status(403).json({ message: 'Only the main admin or an admin with all three permissions can create admin accounts' });
     }
     const permissions = role === "ADMIN" ? serializePermissions(req.body.permissions) : null;
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim()) || !name || !String(name).trim()) {
@@ -314,8 +314,11 @@ const Admin_delete_user = AsyncHandler(async (req, res) => {
     if (user.IS_SUPER_ADMIN) {
         return res.status(400).json({ message: "The main admin account cannot be deleted" });
     }
-    if (String(user.ROLE).toUpperCase() === "ADMIN" && !req.user.IS_SUPER_ADMIN) {
-        return res.status(403).json({ message: "Only the main admin can delete admin accounts" });
+    if (String(user.ROLE).toUpperCase() === "ADMIN" && !canManageAdmins(req.user)) {
+        return res.status(403).json({ message: 'Only the main admin or an admin with all three permissions can delete admin accounts' });
+    }
+    if (user.ID === req.user.ID) {
+        return res.status(400).json({ message: "You cannot delete your own account" });
     }
     const role = String(user.ROLE).toUpperCase();
     if (![...CREATABLE_ROLES, "EVALUATOR"].includes(role)) {
@@ -362,8 +365,12 @@ const Admin_set_password = AsyncHandler(async (req, res) => {
     if (weak) return res.status(400).json({ message: weak });
     const [users] = await connection.query("SELECT ID, EMAIL, NAME, ROLE, IS_SUPER_ADMIN FROM SolveForSakthi_Users WHERE ID = ?", [userId]);
     if (!users[0]) return res.status(404).json({ message: "User not found" });
-    if (users[0].ROLE === "ADMIN" && users[0].ID !== req.user.ID && !req.user.IS_SUPER_ADMIN) {
-        return res.status(403).json({ message: "Only the main admin can change another admin's password" });
+    // the main admin's password is changed only by the main admin (nobody can take over that account)
+    if (users[0].IS_SUPER_ADMIN && users[0].ID !== req.user.ID) {
+        return res.status(403).json({ message: "Only the main admin can change the main admin's password" });
+    }
+    if (users[0].ROLE === "ADMIN" && users[0].ID !== req.user.ID && !canManageAdmins(req.user)) {
+        return res.status(403).json({ message: 'Only the main admin or an admin with all three permissions can change another admin\'s password' });
     }
     const { IS_SUPER_ADMIN, ...target } = users[0];
     await setPassword(target, password, { emailUser: Boolean(emailUser), changedBy: "a platform admin" });
@@ -472,7 +479,7 @@ const Change_own_password = AsyncHandler(async (req, res) => {
 
 export { Get_profile, Update_profile, Change_own_password }
 
-// Main admin: set which permissions another admin has
+// Main admin or a full admin (all three permissions): set which permissions another admin has (never the main admin)
 const Admin_set_permissions = AsyncHandler(async (req, res) => {
     const userId = parseInt(req.body.userId, 10);
     if (Number.isNaN(userId)) return res.status(400).json({ message: "Invalid user id" });

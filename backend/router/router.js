@@ -53,11 +53,11 @@ router.route("/admin/submissions/all").get(requireAuth, requireRole(['ADMIN']), 
 router.route("/admin/export/options").get(requireAuth, requireRole(['ADMIN']), Export_options); // filters + columns for the export screen
 router.route("/admin/export/problem-reports").post(requireAuth, requireRole(['ADMIN']), Export_problem_reports); // ZIP: one report per problem
 router.route("/admin/export/:type").post(requireAuth, requireRole(['ADMIN']), Export_data); // Excel export (preview=true -> count)
-// portal reset: main admin only, confirmed with an emailed code
+// portal reset: main admin or a full admin, confirmed with a code emailed to the main admin
 router.route("/admin/reset/summary").get(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Reset_summary);
 router.route("/admin/reset/send-otp").post(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Reset_send_otp);
 router.route("/admin/reset/confirm").post(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Reset_confirm);
-router.route("/admin/set_permissions").post(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Admin_set_permissions); // main admin only
+router.route("/admin/set_permissions").post(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Admin_set_permissions); // main admin or a full admin (all three permissions)
 router.route("/admin/permissions").get(requireAuth, requireRole(['ADMIN']), Admin_permission_list);
 router.route("/admin/delete_user").post(requireAuth, requireRole(['ADMIN']), requirePermission('USERS'), Admin_delete_user); // Platform admin deletes an admin / SPOC account
 router.route("/spoc_users").get(requireAuth, requireRole(['ADMIN']), requirePermission('USERS'), Spoc_approve); // Get pending SPOC approvals

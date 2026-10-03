@@ -29,7 +29,8 @@ const NavItem = ({ to, icon, children, isExpanded, onClick }) => (
   </NavLink>
 );
 
-// sidebar entries; "permission" hides an entry from admins without it, "superOnly" from everyone but the main admin
+// sidebar entries; "permission" hides an entry from admins without it, "managersOnly" from admins who are
+// neither the main admin nor have all three permissions
 const NAV = [
   { to: "/admin/dashboard", label: "Dashboard", icon: FiHome },
   { to: "/admin/problems", label: "Problem Statements", icon: FiFileText },
@@ -38,12 +39,12 @@ const NAV = [
   { to: "/admin/users/create", label: "Create User", icon: FiUserPlus, permission: "USERS" },
   { to: "/admin/approvals", label: "Approvals", icon: FiCheckSquare, permission: "USERS" },
   { to: "/admin/exports", label: "Exports", icon: FiDownload },
-  { to: "/admin/reset", label: "Reset portal", icon: FiRefreshCw, superOnly: true },
+  { to: "/admin/reset", label: "Reset portal", icon: FiRefreshCw, managersOnly: true },
 ];
 
 const AdminSidebar = ({ isMobileOpen, setMobileOpen, isExpanded, setIsExpanded }) => {
-  const { can, isSuper } = useAdmin();
-  const items = NAV.filter((item) => (!item.permission || can(item.permission)) && (!item.superOnly || isSuper));
+  const { can, canManageAdmins } = useAdmin();
+  const items = NAV.filter((item) => (!item.permission || can(item.permission)) && (!item.managersOnly || canManageAdmins));
   const closeMobileSidebar = () => setMobileOpen(false);
 
   return (

@@ -19,10 +19,14 @@ export const AdminContext = createContext({ user: null, loading: true });
 export const useAdmin = () => {
   const { user, loading } = useContext(AdminContext);
   const isSuper = Boolean(user?.IS_SUPER_ADMIN);
+  // the main admin or an admin with all three permissions acts as a main admin (manages other admins,
+  // resets the portal); everyone else only gets what their permissions allow
+  const canManageAdmins = isSuper || Object.keys(PERMISSION_LABELS).every((p) => (user?.PERMISSIONS || []).includes(p));
   return {
     user,
     loading,
     isSuper,
+    canManageAdmins,
     can: (permission) => isSuper || (user?.PERMISSIONS || []).includes(permission),
   };
 };

@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import connection from "../database/db.js";
-import { parsePermissions, hasPermission, PERMISSIONS } from "../utils/permissions.js";
+import { parsePermissions, hasPermission, PERMISSIONS, canManageAdmins } from "../utils/permissions.js";
 
 // The login cookie's user, or null. The account is looked up again so a deleted or rejected
 // user (or an account of the removed EVALUATOR role) loses access at once instead of when the
@@ -62,10 +62,10 @@ const requirePermission = (permission) => (req, res, next) => {
   return res.status(403).json({ message: `You need the "${PERMISSIONS[permission]}" permission for this. Ask the main admin.` });
 };
 
-// Only the main admin
+// The main admin or an admin with all three permissions (managing admins, portal reset)
 const requireSuperAdmin = (req, res, next) => {
-  if (req.user?.ROLE === "ADMIN" && req.user.IS_SUPER_ADMIN) return next();
-  return res.status(403).json({ message: "Only the main admin can do this" });
+  if (canManageAdmins(req.user)) return next();
+  return res.status(403).json({ message: `Only the main admin or an admin with all three permissions can do this` });
 };
 
 export { requireAuth, optionalAuth, requireRole, requirePermission, requireSuperAdmin, sessionUser };

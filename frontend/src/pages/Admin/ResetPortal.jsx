@@ -4,12 +4,12 @@ import { FiAlertTriangle, FiMail, FiTrash2, FiShield, FiCheckCircle, FiLock } fr
 import { URL } from '../../Utils';
 import { useAdmin } from '../../components/admin/adminAccess';
 
-// Main admin only: empty every table of the portal and delete every uploaded file. All admin accounts are
+// Main admin or a full admin (all three permissions): empty every table of the portal and delete every uploaded file. All admin accounts are
 // kept. Step 1 emails a code to the main admin, step 2 asks for the code and the word RESET.
 const CONFIRM_WORD = 'RESET';
 
 const ResetPortal = () => {
-  const { isSuper, loading: adminLoading, user } = useAdmin();
+  const { canManageAdmins, loading: adminLoading, user } = useAdmin();
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
   const [sent, setSent] = useState('');
@@ -19,18 +19,18 @@ const ResetPortal = () => {
   const [result, setResult] = useState(null);
 
   useEffect(() => {
-    if (!isSuper) return;
+    if (!canManageAdmins) return;
     axios.get(`${URL}/admin/reset/summary`, { withCredentials: true })
       .then((res) => setSummary(res.data))
       .catch((err) => setError(err.response?.data?.message || 'Could not load what will be deleted'));
-  }, [isSuper]);
+  }, [canManageAdmins]);
 
   if (adminLoading) return null;
-  if (!isSuper) {
+  if (!canManageAdmins) {
     return (
       <div className="max-w-lg mx-auto mt-16 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-8 text-center">
         <FiLock className="mx-auto text-2xl text-[#FF9900] mb-3" />
-        <h1 className="text-lg font-semibold text-[#1A202C]">Only the main admin can reset the portal</h1>
+        <h1 className="text-lg font-semibold text-[#1A202C]">Only the main admin or an admin with all three permissions can reset the portal</h1>
       </div>
     );
   }

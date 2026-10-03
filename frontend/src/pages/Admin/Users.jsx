@@ -35,7 +35,7 @@ const Users = () => {
   const [details, setDetails] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [passwordFor, setPasswordFor] = useState(null);
-  const { isSuper } = useAdmin();
+  const { isSuper, canManageAdmins } = useAdmin();
   // main admin: editing another admin's permissions
   const [permsFor, setPermsFor] = useState(null);
   const [permsDraft, setPermsDraft] = useState([]);
@@ -192,7 +192,9 @@ const Users = () => {
         <p className="mb-4 text-sm text-[#4A5568] bg-white border border-[#E2E8F0] rounded-xl px-4 py-3">
           {isSuper
             ? "You are the main admin: create admins under Create User and choose what each one may do with the shield icon. Your own account cannot be deleted."
-            : "Only the main admin can add admins, change their permissions or delete them."}
+            : canManageAdmins
+              ? "You have all three permissions, so you act as a main admin: add admins, change their permissions or passwords, or delete them. The main admin account cannot be changed or deleted."
+              : "Only the main admin or an admin with all three permissions can add admins, change their permissions or delete them."}
         </p>
       )}
 
@@ -248,7 +250,7 @@ const Users = () => {
                     <span className={`text-xs font-semibold rounded-full px-2 py-1 ${statusStyle(u.STATUS)}`}>{u.STATUS || "-"}</span>
                   </td>
                   <td className="py-4 px-5 text-center space-x-4 whitespace-nowrap">
-                    {u.ROLE === "ADMIN" && isSuper && !u.IS_SUPER_ADMIN && (
+                    {u.ROLE === "ADMIN" && canManageAdmins && !u.IS_SUPER_ADMIN && (
                       <button
                         onClick={() => openPerms(u)}
                         className="text-gray-500 hover:text-[#FF9900] transition-all"
@@ -257,7 +259,7 @@ const Users = () => {
                         <FiShield size={18} />
                       </button>
                     )}
-                    {u.ROLE !== "EVALUATOR" && (u.ROLE !== "ADMIN" || isSuper || u.ID === currentUserId) && (
+                    {u.ROLE !== "EVALUATOR" && (u.ROLE !== "ADMIN" || u.ID === currentUserId || (canManageAdmins && !u.IS_SUPER_ADMIN)) && (
                       <button
                         onClick={() => setPasswordFor(u)}
                         className="text-gray-500 hover:text-[#FF9900] transition-all"
@@ -266,7 +268,7 @@ const Users = () => {
                         <FiKey size={18} />
                       </button>
                     )}
-                    {u.ID !== currentUserId && !u.IS_SUPER_ADMIN && (u.ROLE !== "ADMIN" || isSuper) && (
+                    {u.ID !== currentUserId && !u.IS_SUPER_ADMIN && (u.ROLE !== "ADMIN" || canManageAdmins) && (
                       <button
                         onClick={() => setToDelete(u)}
                         className="text-gray-500 hover:text-red-600 transition-all"
