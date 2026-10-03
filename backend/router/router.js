@@ -53,7 +53,7 @@ router.route("/admin/submissions/all").get(requireAuth, requireRole(['ADMIN']), 
 router.route("/admin/export/options").get(requireAuth, requireRole(['ADMIN']), Export_options); // filters + columns for the export screen
 router.route("/admin/export/problem-reports").post(requireAuth, requireRole(['ADMIN']), Export_problem_reports); // ZIP: one report per problem
 router.route("/admin/export/:type").post(requireAuth, requireRole(['ADMIN']), Export_data); // Excel export (preview=true -> count)
-// portal reset: main admin or a full admin, confirmed with a code emailed to the main admin
+// portal reset: main admin or a full admin, confirmed with a code emailed to the requesting admin
 router.route("/admin/reset/summary").get(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Reset_summary);
 router.route("/admin/reset/send-otp").post(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Reset_send_otp);
 router.route("/admin/reset/confirm").post(requireAuth, requireRole(['ADMIN']), requireSuperAdmin, Reset_confirm);

@@ -5,7 +5,7 @@ import { URL } from '../../Utils';
 import { useAdmin } from '../../components/admin/adminAccess';
 
 // Main admin or a full admin (all three permissions): empty every table of the portal and delete every uploaded file. All admin accounts are
-// kept. Step 1 emails a code to the main admin, step 2 asks for the code and the word RESET.
+// kept. Step 1 emails a code to the admin doing the reset, step 2 asks for the code and the word RESET.
 const CONFIRM_WORD = 'RESET';
 
 const ResetPortal = () => {
@@ -128,7 +128,7 @@ const ResetPortal = () => {
         <section className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
           <div className="text-xs font-semibold uppercase tracking-wide text-[#FF9900] mb-1">Step 1</div>
           <h2 className="font-semibold text-[#1A202C] mb-1 flex items-center gap-2"><FiMail /> Get a confirmation code</h2>
-          <p className="text-sm text-[#718096] mb-4">A 6-digit code is emailed to the main admin ({summary?.mainAdmin || user?.EMAIL}). It is valid for 10 minutes.</p>
+          <p className="text-sm text-[#718096] mb-4">A 6-digit code is emailed to you ({user?.EMAIL}). It is valid for 10 minutes. The main admin is told when the reset is done.</p>
           <button type="button" onClick={sendCode} disabled={busy === 'send'} className="px-4 py-2.5 rounded-xl border border-[#FF9900] text-[#FF9900] font-medium hover:bg-[#FF9900] hover:text-white transition disabled:opacity-60">
             {busy === 'send' ? 'Sending…' : sent ? 'Send a new code' : 'Send code'}
           </button>

@@ -8,7 +8,7 @@ import { layout, escapeHtml } from "../utils/notifications.js";
 
 // Portal reset (main admin, or an admin with all three permissions): empties every Solve For Sakthi table and deletes every uploaded file.
 // Every admin account is kept (the main admin and the other admins, with their permissions); SPOCs, team
-// logins and all other data are deleted. Guarded by a one-time code emailed to the main admin and by typing RESET.
+// logins and all other data are deleted. Guarded by a one-time code emailed to the admin who asks for it and by typing RESET.
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESEND_INTERVAL_MS = 60 * 1000;
@@ -59,16 +59,15 @@ const Reset_summary = AsyncHandler(async (req, res) => {
     });
 });
 
-// the main admin account: the reset code always goes there, whoever asks for the reset
+// the main admin account (told about every reset)
 const mainAdmin = async () => {
     const [rows] = await connection.query("SELECT TOP 1 ID, EMAIL, NAME FROM SolveForSakthi_Users WHERE ROLE = 'ADMIN' AND IS_SUPER_ADMIN = 1");
     return rows[0];
 };
 
-// POST /admin/reset/send-otp: emails a 6-digit code to the main admin
+// POST /admin/reset/send-otp: emails a 6-digit code to the admin who asks for the reset
 const Reset_send_otp = AsyncHandler(async (req, res) => {
-    const main = await mainAdmin();
-    if (!main?.EMAIL) return res.status(400).json({ message: "No main admin email is set" });
+    if (!req.user.EMAIL) return res.status(400).json({ message: "Your account has no email address" });
     const previous = pendingCodes.get(req.user.ID);
     if (previous && Date.now() - previous.sentAt < RESEND_INTERVAL_MS) {
         return res.status(429).json({ message: "A code was sent less than a minute ago. Please wait before asking for another." });
@@ -78,11 +77,11 @@ const Reset_send_otp = AsyncHandler(async (req, res) => {
     try {
         await sendMail({
             sensitive: true,
-            to: main.EMAIL,
+            to: req.user.EMAIL,
             subject: `${code} is your Solve For Sakthi portal reset code`,
             html: layout({
                 heading: "Confirm the portal reset",
-                intro: `${escapeHtml(req.user.EMAIL)}${req.user.ID === main.ID ? " (you)" : ""} asked to <b>reset the Solve For Sakthi portal</b>. This deletes every problem statement, team, SPOC, submission, file and email record; only the admin accounts are kept.<br>Your code:<br><span style="display:inline-block;margin-top:12px;font-size:28px;font-weight:bold;letter-spacing:6px;color:#c53030;">${code}</span>`,
+                intro: `You asked to <b>reset the Solve For Sakthi portal</b>. This deletes every problem statement, team, SPOC, submission, file and email record; only the admin accounts are kept.<br>Your code:<br><span style="display:inline-block;margin-top:12px;font-size:28px;font-weight:bold;letter-spacing:6px;color:#c53030;">${code}</span>`,
                 outro: "The code is valid for 10 minutes. If you did not ask for this, do not share the code and change your password.",
             }),
         });
@@ -91,7 +90,7 @@ const Reset_send_otp = AsyncHandler(async (req, res) => {
         console.error("Reset code mail failed:", err.message);
         return res.status(502).json({ message: "Could not send the code email, please try again" });
     }
-    res.json({ message: `A code was sent to the main admin (${main.EMAIL})`, expiresInMinutes: OTP_TTL_MS / 60000 });
+    res.json({ message: `A code was sent to your email (${req.user.EMAIL})`, expiresInMinutes: OTP_TTL_MS / 60000 });
 });
 
 // POST /admin/reset/confirm { otp, confirm: "RESET" }: checks the code, then empties the portal
@@ -135,13 +134,13 @@ const Reset_confirm = AsyncHandler(async (req, res) => {
         const files = uploadedFiles();
         files.forEach((f) => fs.unlink(path.join(uploadsDir, f), () => {}));
         deleted.files = files.length;
-        console.log(`Portal reset by main admin ${req.user.ID} (${req.user.EMAIL}):`, JSON.stringify(deleted));
+        console.log(`Portal reset by admin ${req.user.ID} (${req.user.EMAIL}):`, JSON.stringify(deleted));
     } finally {
         resetRunning = false;
     }
 
-    // a record of the reset for the main admin (the first entry of the new mail log)
-    // the main admin, and the admin who ran it if that was someone else (separate emails, no cc)
+    // a record of the reset (the first entries of the new mail log): to the admin who ran it and, separately,
+    // to the main admin if that was someone else (no cc)
     const main = await mainAdmin();
     for (const to of [...new Set([main?.EMAIL, req.user.EMAIL].filter(Boolean))]) sendMail({
         to,
