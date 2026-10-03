@@ -7,9 +7,9 @@ import Pagination, { usePagination } from "../common/Pagination";
 import { StatusBadge } from "../../submissionStatus";
 import ChangePasswordModal from "../ChangePasswordModal";
 
-// The admin's team details dialog: team facts, members, problem statements and submissions with their
+// The admin's team details dialog: team facts, members, challenges and submissions with their
 // review history, and every email sent to the team. Used on the Teams page and, opened in place, from the
-// problem statement and submission pages.
+// challenge and submission pages.
 //   team   - the team record from /admin/teams (when the caller already has it)
 //   teamId - or just the id: the record is loaded here
 const formatDateTime = (value) =>
@@ -118,7 +118,7 @@ const TeamDetailsModal = ({ team: given = null, teamId = null, onClose }) => {
             <div className="sticky top-0 bg-white border-b border-[#E2E8F0] px-6 py-4 flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-[#1A202C]">{team.NAME}</h2>
-                <p className="text-sm text-[#718096]">{team.COLLEGE || "No college"} · Team ID {team.ID}</p>
+                <p className="text-sm text-[#718096]">{team.COLLEGE || "No college"}</p>
                 {team.REMOVED_AT ? (
                   <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
                     <FiArchive /> Removed by {team.REMOVED_BY_EMAIL || "the SPOC"} on {formatDate(team.REMOVED_AT)} · records kept · read-only
@@ -189,20 +189,17 @@ const TeamDetailsModal = ({ team: given = null, teamId = null, onClose }) => {
               </div>
 
               <div>
-                <h3 className="font-semibold text-[#1A202C] mb-2">Problem statements & submissions</h3>
+                <h3 className="font-semibold text-[#1A202C] mb-2">Challenges & submissions</h3>
                 {team.problems.length === 0 ? (
-                  <p className="text-sm text-[#A0AEC0]">No problem statement requested or assigned yet.</p>
+                  <p className="text-sm text-[#A0AEC0]">This team has not submitted a solution yet.</p>
                 ) : (
                   <div className="border border-[#E2E8F0] rounded-xl divide-y divide-[#E2E8F0]">
                     {problemPages.pageItems.map((p) => (
                       <div key={p.PROBLEM_ID} className="px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
                         <div className="min-w-0">
                           <Link to={`/admin/problems/${p.PROBLEM_ID}/details`} className="font-medium text-[#2B6CB0] hover:underline">
-                            SFS_{p.PROBLEM_ID} · {p.TITLE || "Deleted problem"}
+                            SFS_{p.PROBLEM_ID} · {p.TITLE || "Deleted challenge"}
                           </Link>
-                          <div className="text-xs text-[#718096]">
-                            {p.ASSIGNMENT_STATUS ? p.ASSIGNMENT_STATUS.charAt(0) + p.ASSIGNMENT_STATUS.slice(1).toLowerCase() : "Not assigned"}
-                          </div>
                         </div>
                         {p.submission ? (
                           <Link
@@ -220,7 +217,7 @@ const TeamDetailsModal = ({ team: given = null, teamId = null, onClose }) => {
                     ))}
                   </div>
                 )}
-                <Pagination page={problemPages.page} totalPages={problemPages.totalPages} total={problemPages.total} onChange={problemPages.setPage} label="problem statements" />
+                <Pagination page={problemPages.page} totalPages={problemPages.totalPages} total={problemPages.total} onChange={problemPages.setPage} label="challenges" />
               </div>
 
               <div>
@@ -236,7 +233,7 @@ const TeamDetailsModal = ({ team: given = null, teamId = null, onClose }) => {
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="font-medium text-[#1A202C]">{sub.SOL_TITLE || "Untitled solution"}</div>
-                            <div className="text-xs text-[#718096]">SFS_{sub.PROBLEM_ID} · {sub.PROBLEM_TITLE || "Deleted problem"} · submitted {formatDate(sub.SUB_DATE)}</div>
+                            <div className="text-xs text-[#718096]">SFS_{sub.PROBLEM_ID} · {sub.PROBLEM_TITLE || "Deleted challenge"} · submitted {formatDate(sub.SUB_DATE)}</div>
                           </div>
                           <div className="flex items-center gap-2">
                             <StatusBadge status={sub.STATUS} />

@@ -12,38 +12,34 @@ import { normalizeStatus, statusMeta } from "../../submissionStatus";
 const formatDate = (value) => (value ? String(value).split("T")[0] : "N/A");
 
 const FILTERS = [
-  ["all", "All problem statements"],
-  ["assigned", "Our team's problems"],
-  ["requested", "Requested"],
+  ["all", "All challenges"],
+  ["open", "Open"],
+  ["mine", "Our solutions"],
 ];
 
-// Badge for where the team stands with a problem: not requested / requested / rejected / assigned (+ submission)
-const TeamState = ({ problem }) => {
-  if (problem.ASSIGNMENT_STATUS === "ASSIGNED") return <SubmissionStatus submission={problem.submission} />;
-  const styles = {
-    REQUESTED: ["bg-blue-100 text-blue-800", "Requested"],
-    REJECTED: ["bg-red-100 text-red-800", "Request declined"],
-  };
-  const [cls, label] = styles[problem.ASSIGNMENT_STATUS] || ["bg-gray-100 text-gray-600", "Not requested"];
-  return <span className={`whitespace-nowrap text-xs font-semibold px-2.5 py-1 rounded-full ${cls}`}>{label}</span>;
+// A challenge closed by the admins ("Concept Received") takes no new solutions
+const ChallengeState = ({ problem }) => {
+  if (problem.submission) return <SubmissionStatus submission={problem.submission} />;
+  return problem.IS_CLOSED
+    ? <span className="whitespace-nowrap text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-200 text-gray-700">Concept Received</span>
+    : <span className="whitespace-nowrap text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800">Open</span>;
 };
 
-// Every problem statement published by the admins. The team requests one from its SPOC,
-// and once the SPOC approves it the team can submit a solution.
+// Every challenge published by the admins. A team submits a solution to any open challenge directly
+// (one solution per challenge), until it has the maximum number of accepted concepts.
 export default function TeamProblemStatements() {
   const navigate = useNavigate();
-  const [data, setData] = useState({ team: null, problems: [] });
+  const [data, setData] = useState({ team: null, problems: [], acceptedCount: 0, maxAccepted: 3, limitReached: false });
   const [filter, setFilter] = useState("all");
   const [expanded, setExpanded] = useState({});
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const load = useCallback(() => {
     return axios
       .get(`${URL}/student/overview`)
       .then((res) => setData(res.data))
-      .catch(() => setError("Could not load the problem statements. Please refresh the page."))
+      .catch(() => setError("Could not load the challenges. Please refresh the page."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -51,69 +47,42 @@ export default function TeamProblemStatements() {
     load();
   }, [load]);
 
-  const act = async (path, problemId, successMessage) => {
-    setBusy(true);
-    try {
-      await axios.post(`${URL}/student/${path}`, { problemId });
-      toast.success(successMessage);
-      await load();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Something went wrong, please try again");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const visible = data.problems.filter((p) =>
-    filter === "assigned" ? p.ASSIGNMENT_STATUS === "ASSIGNED" : filter === "requested" ? p.ASSIGNMENT_STATUS === "REQUESTED" : true
+    filter === "open" ? !p.IS_CLOSED : filter === "mine" ? Boolean(p.submission) : true
   );
   const { page, setPage, pageItems, total, totalPages } = usePagination(visible, { resetKey: filter });
 
   if (loading) {
-    return <div className="text-center text-gray-500 py-10">Loading problem statements...</div>;
+    return <div className="text-center text-gray-500 py-10">Loading challenges...</div>;
   }
   if (error) {
     return <div className="text-center text-red-600 py-10">{error}</div>;
   }
 
   const actionFor = (p) => {
-    const sub = p.submission;
-    if (p.ASSIGNMENT_STATUS === "ASSIGNED") {
-      const status = sub ? normalizeStatus(sub.STATUS) : null;
-      // changes requested: the team may upload its revision even after the deadline
-      const changes = status === "CHANGES_REQUESTED";
-      const final = status === "APPROVED" || status === "REJECTED";
-      const blocked = final || (p.DEADLINE_PASSED && !changes);
-      const label = final ? statusMeta(status).label : changes ? "Upload revised solution" : p.DEADLINE_PASSED ? "Deadline passed" : sub ? "Replace submission" : "Submit solution";
-      return (
-        <button
-          disabled={blocked}
-          onClick={() => navigate(`/student/submit-solution?problemId=${p.PROBLEM_ID}`)}
-          className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[#fc9300] hover:bg-[#e08300] disabled:bg-gray-300 disabled:cursor-not-allowed"
-        >
-          {label}
-        </button>
-      );
-    }
     if (!data.team) return null;
-    if (p.ASSIGNMENT_STATUS === "REQUESTED") {
-      return (
-        <button
-          disabled={busy}
-          onClick={() => act("cancel_request", p.PROBLEM_ID, "Request cancelled")}
-          className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-        >
-          Cancel request
-        </button>
-      );
-    }
+    const sub = p.submission;
+    const status = sub ? normalizeStatus(sub.STATUS) : null;
+    const changes = status === "CHANGES_REQUESTED";
+    const final = status === "APPROVED" || status === "REJECTED";
+    // a revision that was asked for can still come in after the challenge is closed
+    const closed = p.IS_CLOSED && !changes;
+    // the limit only stops NEW solutions; solutions already under way can be finished
+    const limited = !sub && data.limitReached;
+    const blocked = final || closed || limited;
+    const label = final ? statusMeta(status).label
+      : changes ? "Upload revised solution"
+      : closed ? "Concept Received"
+      : limited ? "Limit reached"
+      : sub ? "Replace solution" : "Submit solution";
     return (
       <button
-        disabled={busy || p.DEADLINE_PASSED}
-        onClick={() => act("request_problem", p.PROBLEM_ID, "Request sent to your SPOC")}
-        className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[#494949] hover:bg-[#333333] disabled:bg-gray-300 disabled:cursor-not-allowed"
+        disabled={blocked}
+        onClick={() => navigate(`/student/submit-solution?problemId=${p.PROBLEM_ID}`)}
+        title={limited ? `Your team already has ${data.maxAccepted} accepted concepts` : undefined}
+        className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[#fc9300] hover:bg-[#e08300] disabled:bg-gray-300 disabled:cursor-not-allowed"
       >
-        {p.DEADLINE_PASSED ? "Deadline passed" : p.ASSIGNMENT_STATUS === "REJECTED" ? "Request again" : "Request from SPOC"}
+        {label}
       </button>
     );
   };
@@ -126,12 +95,20 @@ export default function TeamProblemStatements() {
           <>
             Team <span className="font-semibold text-gray-800">{data.team.NAME}</span>
             {data.team.COLLEGE ? <> · {data.team.COLLEGE}</> : null}
-            {" "}· Request a problem statement from your SPOC; once approved you can submit a solution.
+            {" "}· Submit a solution to any open challenge.
           </>
         ) : (
-          "Your account is not linked to a team yet, so you can browse but not request problem statements."
+          "Your account is not linked to a team yet, so you can browse but not submit."
         )}
       </div>
+      {data.team && (
+        <div className={`mb-5 mx-auto max-w-2xl rounded-xl border px-4 py-3 text-sm text-center ${data.limitReached ? "border-green-300 bg-green-50 text-green-900" : "border-orange-200 bg-[#fff7ec] text-gray-700"}`}>
+          <b>Concept accepted: {data.acceptedCount} of {data.maxAccepted}</b>
+          {data.limitReached
+            ? " · Your team reached the maximum, so you cannot start solutions for new challenges. Solutions already under review can still be finished."
+            : ` · Once ${data.maxAccepted} of your solutions are accepted, your team cannot start new ones.`}
+        </div>
+      )}
 
       <div className="flex flex-wrap justify-center gap-2 mb-6">
         {FILTERS.map(([key, label]) => (
@@ -149,11 +126,11 @@ export default function TeamProblemStatements() {
 
       {visible.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-lg p-8 text-center text-gray-600">
-          {filter === "assigned"
-            ? "No problem statements are assigned to your team yet. Request one from the full list."
-            : filter === "requested"
-              ? "You have no pending requests."
-              : "No problem statements have been published yet."}
+          {filter === "mine"
+            ? "Your team has not submitted a solution yet. Pick an open challenge from the full list."
+            : filter === "open"
+              ? "There are no open challenges right now."
+              : "No challenges have been published yet."}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
@@ -167,7 +144,7 @@ export default function TeamProblemStatements() {
                     <span className="text-xs font-bold text-[#fc9300]">SFS_{p.PROBLEM_ID}</span>
                     <h3 className="text-lg font-semibold text-gray-900 leading-snug">{p.TITLE}</h3>
                   </div>
-                  <TeamState problem={p} />
+                  <ChallengeState problem={p} />
                 </div>
 
                 {p.DESCRIPTION && (
@@ -177,25 +154,21 @@ export default function TeamProblemStatements() {
                       onClick={() => setExpanded((prev) => ({ ...prev, [p.PROBLEM_ID]: !isOpen }))}
                       className="mt-1 text-xs font-semibold text-[#fc9300] hover:underline"
                     >
-                      {isOpen ? "Show less" : "Read full problem statement"}
+                      {isOpen ? "Show less" : "Read full challenge"}
                     </button>
                     {isOpen && <ProblemDetailsFields problem={p} className="mt-3" />}
                   </div>
                 )}
 
                 <div className="text-sm text-gray-600 space-y-1 mb-4">
-                  <div>
-                    Deadline: <span className="font-medium text-gray-800">{formatDate(p.SUB_DEADLINE)}</span>
-                    {p.DEADLINE_PASSED && <span className="ml-2 text-xs font-semibold text-red-600">Closed</span>}
-                  </div>
+                  {p.IS_CLOSED && (
+                    <div className="text-xs font-semibold text-gray-600">Concept Received: this challenge takes no new solutions.</div>
+                  )}
                   {(p.CATEGORY || p.DEPT) && (
                     <div>
                       {p.CATEGORY && <>Category: <span className="font-medium text-gray-800">{p.CATEGORY}</span></>}
                       {p.DEPT && <> · Dept: <span className="font-medium text-gray-800">{p.DEPT}</span></>}
                     </div>
-                  )}
-                  {p.ASSIGNMENT_STATUS === "REQUESTED" && p.REQUESTED_DATE && (
-                    <div>Requested on {formatDate(p.REQUESTED_DATE)}, waiting for your SPOC.</div>
                   )}
                   {sub && (
                     <div>
@@ -222,7 +195,7 @@ export default function TeamProblemStatements() {
                       submissionId={sub.ID}
                       label="Delete submission"
                       className="!rounded-md"
-                      confirmText="Delete your submission for this problem? You can submit again before the deadline."
+                      confirmText="Delete your solution for this challenge? You can submit again while the challenge is open."
                       onDeleted={() => {
                         toast.success("Submission deleted");
                         load();
@@ -235,7 +208,7 @@ export default function TeamProblemStatements() {
           })}
         </div>
       )}
-      <Pagination page={page} totalPages={totalPages} total={total} onChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} label="problem statements" />
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} label="challenges" />
     </div>
   );
 }

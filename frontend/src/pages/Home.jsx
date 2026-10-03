@@ -43,7 +43,7 @@ const ABOUT_POINTS = [
 ];
 
 const KEY_FEATURES = [
-  { title: "Real-Time Industrial Challenges", text: "Problem statements come straight from Sakthi Auto's shop floors and operations, so every solution addresses a real need.", icon: FaLightbulb },
+  { title: "Real-Time Industrial Challenges", text: "Challenges come straight from Sakthi Auto's shop floors and operations, so every solution addresses a real need.", icon: FaLightbulb },
   { title: "Guidance from Industry Experts", text: "Experienced professionals review your work and share feedback that sharpens your solution.", icon: FaUserTie },
   { title: "Collaborative Industry Partnerships", text: "Colleges, faculty and Sakthi Auto work together to turn academic ideas into industrial results.", icon: FaHandshake },
 ];
@@ -220,32 +220,38 @@ const Homepage = () => {
         </div>
 
         <div className="relative z-10 w-full max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-12 items-center">
-            {/* Left Content */}
+          <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+            {/* Left Content: wider column so the title fits on one line */}
             <motion.div
-              className="text-center lg:text-left space-y-8"
+              className="lg:col-span-7 text-center lg:text-left space-y-7"
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
               {/* Main Heading */}
-              <div className="space-y-4">
+              <div className="space-y-5">
+                <motion.span
+                  className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] text-orange-600 shadow-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500" /> Industry–Academia Innovation Challenge
+                </motion.span>
+                {/* one line on every screen: the size steps down with the width instead of wrapping */}
                 <motion.h1
-                  className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight"
+                  className="whitespace-nowrap text-[2.25rem] min-[400px]:text-[2.6rem] leading-none sm:text-6xl lg:text-[3.6rem] xl:text-7xl font-bold tracking-tight"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.2 }}
                 >
-                  <span className="text-orange-600">
-                    Solve for
-                  </span>
-                  <span className="block text-black">
-                    Sakthi
-                  </span>
+                  <span className="text-orange-600">Solve for </span>
+                  <span className="text-black">Sakthi</span>
                 </motion.h1>
+                <div className="mx-auto lg:mx-0 h-1 w-20 rounded-full bg-gradient-to-r from-orange-500 to-red-500" />
 
                 <motion.p
-                  className="text-lg sm:text-xl md:text-2xl text-gray-700 font-medium max-w-2xl mx-auto lg:mx-0"
+                  className="text-lg sm:text-xl text-gray-700 font-medium leading-relaxed max-w-xl mx-auto lg:mx-0"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4 }}
@@ -294,32 +300,33 @@ const Homepage = () => {
               </motion.div>
             </motion.div>
 
-            {/* Right Content - live numbers */}
+            {/* Right Content - live numbers: a row of three on tablets, a stacked column beside the text on desktop */}
             <motion.div
+              className="lg:col-span-5 w-full max-w-xl mx-auto lg:max-w-none"
               initial={{ opacity: 0, x: 50 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.3 }}
             >
-              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4 lg:gap-5">
                 {[
                   { value: stats?.students, label: "Active Students", icon: <FaUsers className="w-6 h-6" />, bg: "from-gray-500 to-gray-600" },
-                  { value: stats?.problems, label: "Problem Statements", icon: <FaLightbulb className="w-6 h-6" />, bg: "from-orange-500 to-orange-600" },
+                  { value: stats?.problems, label: "Challenges", icon: <FaLightbulb className="w-6 h-6" />, bg: "from-orange-500 to-orange-600" },
                   { value: stats?.colleges, label: "Colleges Collaborated", icon: <FaUniversity className="w-6 h-6" />, bg: "from-orange-500 to-red-500" },
                 ].map((stat, i) => (
                   <motion.div
                     key={stat.label}
-                    className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-gray-100 hover:border-orange-200"
+                    className="bg-white/90 backdrop-blur p-5 lg:p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-orange-200"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.8 + i * 0.1 }}
                     whileHover={{ y: -5 }}
                   >
-                    <div className="flex items-center gap-4 sm:flex-col sm:text-center lg:flex-row lg:text-left xl:flex-col xl:text-center">
-                      <div className={`p-3 bg-gradient-to-br ${stat.bg} rounded-xl text-white shadow-lg`}>
+                    <div className="flex items-center gap-4 sm:flex-col sm:text-center lg:flex-row lg:text-left">
+                      <div className={`shrink-0 p-3 bg-gradient-to-br ${stat.bg} rounded-xl text-white shadow-lg`}>
                         {stat.icon}
                       </div>
-                      <div>
-                        <div className="text-3xl font-bold text-gray-900 tabular-nums">
+                      <div className="min-w-0">
+                        <div className="text-3xl font-bold text-gray-900 tabular-nums leading-tight">
                           {stat.value === undefined ? <span className="inline-block w-12 h-7 rounded bg-gray-100 animate-pulse align-middle" /> : stat.value.toLocaleString("en-IN")}
                         </div>
                         <div className="text-sm text-gray-600">{stat.label}</div>

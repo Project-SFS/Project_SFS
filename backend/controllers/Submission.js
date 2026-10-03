@@ -4,7 +4,7 @@ import connection from "../database/db.js";
 import { today, checkProblemOpen } from "../utils/deadline.js";
 import { notifySubmission, notifyReviewed, loadSubmission, notifySubmissionRemoved } from "../utils/notifications.js";
 import { DECISIONS, CHANGES_REQUESTED, APPROVED, REJECTED, CRITERIA, parseMarks, canTeamEdit, lockedMessage, uploadClosedReason, isFinal } from "../utils/review.js";
-import { isAssignedToTeamOf } from "./TeamProblems.js";
+import { newSolutionBlockedReason } from "./TeamProblems.js";
 import { canViewTeamOfLead } from "../utils/teamAccess.js";
 import { withFiles, loadFiles, filePathsOf, unlinkAll, shareToken, SHARE_DAYS } from "../utils/submissionFiles.js";
 
@@ -34,9 +34,9 @@ const SubmitSolution = AsyncHandler(async (req, res) => {
         return res.status(400).json({ message: closedReason });
     }
 
-    if (req.user.ROLE === "STUDENT" && !(await isAssignedToTeamOf(team.LEAD_EMAIL, problemId))) {
-        return res.status(400).json({ message: "This problem statement is not assigned to your team. Request it from your SPOC first." });
-    }
+    // a team with the maximum number of accepted concepts cannot start new solutions (revisions are fine)
+    const blocked = previous ? null : await newSolutionBlockedReason(team.LEAD_EMAIL);
+    if (blocked) return res.status(400).json({ message: blocked });
 
     const SUB_DATE = today();
 
@@ -218,7 +218,7 @@ const Review_submission = AsyncHandler(async (req, res) => {
         return res.status(400).json({ message: "Submission id is required" });
     }
     if (!DECISIONS.includes(decision)) {
-        return res.status(400).json({ message: "Choose Changes needed, Approve or Reject" });
+        return res.status(400).json({ message: "Choose Changes needed, Accept concept or Reject" });
     }
     if (!comment && (decision === CHANGES_REQUESTED || decision === REJECTED)) {
         return res.status(400).json({ message: decision === CHANGES_REQUESTED ? "Write what the team needs to change" : "Write why the solution is rejected" });
@@ -230,7 +230,7 @@ const Review_submission = AsyncHandler(async (req, res) => {
     const [current] = await connection.query("SELECT STATUS FROM SolveForSakthi_Submissions WHERE ID = ?", [subid]);
     if (!current[0]) return res.status(404).json({ message: "Submission not found" });
     if (isFinal(String(current[0].STATUS || "").toUpperCase())) {
-        return res.status(409).json({ message: "This submission is already approved or rejected. That decision is final and cannot be changed." });
+        return res.status(409).json({ message: "This submission already has a final decision (Concept accepted or Rejected) that cannot be changed." });
     }
 
     // marks belong to an approval only: required to approve, ignored (and cleared) for changes / reject
@@ -238,7 +238,7 @@ const Review_submission = AsyncHandler(async (req, res) => {
     if (decision === APPROVED) {
         const parsed = parseMarks(req.body.marks);
         if (parsed.error) return res.status(400).json({ message: parsed.error });
-        if (!parsed.marks) return res.status(400).json({ message: "Give marks for all five criteria to approve" });
+        if (!parsed.marks) return res.status(400).json({ message: "Give marks for all five criteria to accept the concept" });
         marks = parsed.marks;
     }
 

@@ -6,7 +6,7 @@ import { notifyTeamGraduated } from "./notifications.js"
 //   - GRADUATED_AT / GRADUATION_YEAR are set, so the SPOC no longer sees or manages it
 //   - the team login is closed (user STATUS = 'GRADUATED')
 //   - the SPOC and every member are emailed
-// Nothing is deleted: members, problem statements, submissions, reviews and mails stay for the admin.
+// Nothing is deleted: members, challenges, submissions, reviews and mails stay for the admin.
 // Teams without graduation years (created before the field existed) never graduate automatically.
 
 const timeZone = process.env.APP_TIMEZONE || "Asia/Kolkata"

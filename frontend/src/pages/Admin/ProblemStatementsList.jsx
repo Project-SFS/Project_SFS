@@ -1,6 +1,6 @@
 /**
  * @file ProblemStatementsList.jsx
- * @description A page for admins to view and manage all problem statements on the platform.
+ * @description A page for admins to view and manage all challenges on the platform.
  */
 // src/pages/admin/ProblemStatementsList.jsx
 import React, { useState, useEffect } from 'react';
@@ -19,10 +19,10 @@ const ProblemStatementsList = () => {
   const { can } = useAdmin();
   const [zipping, setZipping] = useState(false);
 
-  // one Excel report per problem statement, zipped (filters and columns: Exports page)
+  // one Excel report per challenge, zipped (filters and columns: Exports page)
   const downloadReports = async () => {
     setZipping(true);
-    const busy = toast.loading("Preparing one report per problem statement…");
+    const busy = toast.loading("Preparing one report per challenge…");
     try {
       const name = await downloadFile(`${URL}/admin/export/problem-reports`, { includeEmptyProblems: true }, "problem_reports.zip");
       toast.success(`Downloaded ${name}`, { id: busy });
@@ -82,7 +82,7 @@ const ProblemStatementsList = () => {
           description: p.DESCRIPTION || p.description || '',
           created: p.CREATED_AT || null,
           createdBy: p.created_by_email || p.created_by_name || (p.CREATED_BY ? 'Deleted user' : null),
-          deadline: p.SUB_DEADLINE || p.deadline,
+          closed: Boolean(p.IS_CLOSED),
           submissionsCount: p.submission_count ?? p.submissionsCount ?? 0,
           evaluatedCount: p.evaluated_count ?? 0
         })).filter(p => p.id && p.id !== ''); 
@@ -140,6 +140,8 @@ const ProblemStatementsList = () => {
       if (!matchesSearch) return false;
 
       // one submission is enough to count as "has submissions"
+      if (statusFilter === 'open') return !problem.closed;
+      if (statusFilter === 'closed') return problem.closed;
       if (statusFilter === 'with-submissions') return problem.submissionsCount > 0;
       if (statusFilter === 'no-submissions') return problem.submissionsCount === 0;
       if (statusFilter === 'evaluated') return getEvaluatedCount(problem.id) > 0;
@@ -166,10 +168,10 @@ const ProblemStatementsList = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-semibold text-[#1A202C] mb-1">
-            Problem Statements
+            Challenges
           </h1>
           <p className="text-[#718096] text-sm">
-            Manage, filter, and review submitted problem statements.
+            Manage, filter, and review submitted challenges.
           </p>
         </div>
 
@@ -177,7 +179,7 @@ const ProblemStatementsList = () => {
           <button
             onClick={downloadReports}
             disabled={zipping}
-            title="A ZIP with one Excel report per problem statement and every team's submission in it"
+            title="A ZIP with one Excel report per challenge and every team's submission in it"
             className="flex items-center gap-2 bg-white border border-gray-300 text-[#1A202C] hover:bg-gray-50 px-5 py-2.5 rounded-xl shadow-sm transition-all disabled:opacity-60"
           >
             <FiArchive className="text-lg text-[#FF9900]" />
@@ -196,7 +198,7 @@ const ProblemStatementsList = () => {
             className="flex items-center gap-2 bg-[#FF9900] hover:bg-[#e68900] text-white px-5 py-2.5 rounded-xl shadow-md transition-all"
           >
             <FiPlus className="text-lg" />
-            Create Problem Statement
+            Create Challenge
           </button>
           </>)}
         </div>
@@ -209,7 +211,7 @@ const ProblemStatementsList = () => {
             <FiFileText className="text-[#FF9900] text-2xl" />
             <div>
               <h2 className="text-[#4A5568] font-medium text-base">
-                Total Problem Statements
+                Total Challenges
               </h2>
               <p className="text-2xl font-semibold text-[#1A202C]">{problems.length}</p>
             </div>
@@ -261,7 +263,9 @@ const ProblemStatementsList = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-4 py-2 border border-[#E2E8F0] rounded-xl text-base focus:ring-2 focus:ring-[#FF9900] focus:outline-none transition-all"
           >
-            <option value="all">All problem statements</option>
+            <option value="all">All challenges</option>
+            <option value="open">Open</option>
+            <option value="closed">Concept Received (closed)</option>
             <option value="with-submissions">Has submissions</option>
             <option value="no-submissions">No submissions</option>
             <option value="evaluated">Has evaluated solutions</option>
@@ -285,8 +289,9 @@ const ProblemStatementsList = () => {
         <table className="w-full text-left border-collapse">
           <thead className="bg-[#F7F8FC] text-[#4A5568]">
             <tr>
-              <th className="p-4 font-semibold">PS ID</th>
-              <th className="p-4 font-semibold">Problem Statement</th>
+              <th className="p-4 font-semibold">Challenge ID</th>
+              <th className="p-4 font-semibold">Challenge</th>
+              <th className="p-4 font-semibold">Status</th>
               <th className="p-4 text-center font-semibold">Submissions</th>
               <th className="p-4 text-center font-semibold">Evaluated</th>
               <th className="p-4 font-semibold">Created By</th>
@@ -296,7 +301,7 @@ const ProblemStatementsList = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" className="p-8 text-center">
+                <td colSpan="7" className="p-8 text-center">
                   <div className="flex justify-center items-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FF9900]"></div>
                   </div>
@@ -324,6 +329,11 @@ const ProblemStatementsList = () => {
                         {problem.title}
                       </span>
                     </td>
+                    <td className="p-4 whitespace-nowrap">
+                      {problem.closed
+                        ? <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">Concept Received</span>
+                        : <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Open</span>}
+                    </td>
                     <td className="p-4 text-center text-[#1A202C]">
                       {problem.submissionsCount}
                     </td>
@@ -342,15 +352,15 @@ const ProblemStatementsList = () => {
               })
             ) : (
               <tr>
-                <td colSpan="6" className="p-8 text-center text-gray-500">
-                  No problem statements found.
+                <td colSpan="7" className="p-8 text-center text-gray-500">
+                  No challenges found.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} label="problem statements" />
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={setPage} label="challenges" />
     </div>
   );
 };

@@ -1,9 +1,9 @@
-// Admin permissions. Every admin can see the dashboard, problem statements, submissions and exports;
+// Admin permissions. Every admin can see the dashboard, challenges, submissions and exports;
 // these three unlock the rest. The main admin (IS_SUPER_ADMIN) always has all of them and alone manages admins.
 export const PERMISSIONS = {
-    PROBLEMS: "Upload problems",      // create, edit, delete, import problem statements
+    PROBLEMS: "Upload challenges",    // create, edit, close, delete, import challenges
     EVALUATE: "Evaluate submissions", // review and delete submissions
-    USERS: "Manage users",            // users, teams, approvals, passwords, problem assignment
+    USERS: "Manage users",            // users, teams, approvals, passwords
 }
 export const ALL_PERMISSIONS = Object.keys(PERMISSIONS)
 

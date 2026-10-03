@@ -1,6 +1,6 @@
 /**
  * @file ProblemStatementCreate.jsx
- * @description A form for administrators to create and post new problem statements.
+ * @description A form for administrators to create and post new challenges.
  */
 // src/pages/admin/ProblemStatementCreate.jsx
 import ProblemStatementForm from './ProblemStatementForm'; // We'll define a shared form component

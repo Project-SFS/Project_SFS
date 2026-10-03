@@ -102,7 +102,7 @@ const SpocProfile = () => {
     ["Active teams", stats.ACTIVE_TEAMS ?? 0, FiUsers],
     ["Graduated teams", stats.GRADUATED_TEAMS ?? 0, FiAward],
     ["Submissions", stats.SUBMISSIONS ?? 0, FiUpload],
-    ["Approved", stats.APPROVED ?? 0, FiCheckCircle],
+    ["Concept accepted", stats.APPROVED ?? 0, FiCheckCircle],
   ];
 
   return (
@@ -212,7 +212,7 @@ const SpocProfile = () => {
                   {[
                     ["/spoc/team", "Manage teams", "Create, edit and set team passwords", FiUsers],
                     ["/spoc", "Dashboard", "Overview of your teams", FiTrendingUp],
-                    ["/problemstatements", "Problem statements", "Browse every problem statement", FiClipboard],
+                    ["/problemstatements", "Challenges", "Browse every challenge", FiClipboard],
                   ].map(([to, label, hint, Icon]) => (
                     <Link key={to} to={to} className="flex items-center gap-3 p-3 rounded-xl hover:bg-orange-50 transition group">
                       <div className="bg-gray-100 group-hover:bg-white p-2.5 rounded-xl"><Icon className="text-[#fc9300]" /></div>

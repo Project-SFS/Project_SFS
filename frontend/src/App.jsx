@@ -208,7 +208,7 @@ function App() {
           <Route path="submissions" element={<RequirePermission permission="EVALUATE"><AdminSubmissions /></RequirePermission>} />
           <Route path="submissions/:id/details" element={<SubmissionDetail />} />
 
-          {/* Problem Statement Management (CRUD) */}
+          {/* Challenge Management (CRUD) */}
           <Route path="problems" element={<ProblemStatementsList />} />
           <Route path="problems/create" element={<RequirePermission permission="PROBLEMS"><ProblemStatementCreate /></RequirePermission>} />
           <Route path="problems/import" element={<RequirePermission permission="PROBLEMS"><ProblemImport /></RequirePermission>} />

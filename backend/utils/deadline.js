@@ -6,18 +6,15 @@ const timeZone = process.env.APP_TIMEZONE || "Asia/Kolkata"
 // submissions made between 00:00 and 05:30 IST to the previous day
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone })
 
-// Returns an error message when submissions to this problem are not allowed, otherwise null.
-// The deadline day itself is still open.
-const checkProblemOpen = async (problemId) => {
-    const [rows] = await connection.query("SELECT SUB_DEADLINE FROM SolveForSakthi_Problems WHERE ID = ?", [problemId])
-    if (rows.length === 0) return "Problem not found"
+// There are no deadlines: a challenge takes solutions until an admin closes it ("Concept Received").
+export const CHALLENGE_NOT_FOUND = "Challenge not found"
+export const CHALLENGE_CLOSED = "This challenge is closed (Concept Received) and takes no new solutions"
 
-    const deadline = rows[0].SUB_DEADLINE
-    if (deadline) {
-        const lastDay = deadline instanceof Date ? deadline.toISOString().slice(0, 10) : String(deadline).slice(0, 10)
-        if (today() > lastDay) return "The submission deadline for this problem has passed"
-    }
-    return null
+// Returns an error message when solutions to this challenge are not allowed, otherwise null
+const checkProblemOpen = async (problemId) => {
+    const [rows] = await connection.query("SELECT IS_CLOSED FROM SolveForSakthi_Problems WHERE ID = ?", [problemId])
+    if (rows.length === 0) return CHALLENGE_NOT_FOUND
+    return rows[0].IS_CLOSED ? CHALLENGE_CLOSED : null
 }
 
 export { today, checkProblemOpen }

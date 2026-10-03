@@ -100,12 +100,6 @@ const buildAdminTeams = async (teamId = null) => {
         ${one ? "WHERE t.ID = ?" : ""}
         ORDER BY t.ID DESC`, one ? [teamId] : []);
 
-    const [assignments] = await connection.query(`
-        SELECT tp.TEAM_ID, tp.PROBLEM_ID, tp.STATUS, p.TITLE
-        FROM SolveForSakthi_Team_Problems tp
-        JOIN SolveForSakthi_Problems p ON p.ID = tp.PROBLEM_ID
-        ${one ? "WHERE tp.TEAM_ID = ?" : ""}`, one ? [teamId] : []);
-
     const [submissions] = await connection.query(`
         SELECT s.ID, s.PROBLEM_ID, s.TEAM_EMAIL, s.STATUS, s.EVALUATION_COMMENT, s.EVAL_TOTAL, s.SUB_DATE, p.TITLE
         FROM SolveForSakthi_Submissions s
@@ -122,32 +116,24 @@ const buildAdminTeams = async (teamId = null) => {
 
     return teams.map((team) => {
         const lead = String(team.LEAD_EMAIL || "").toLowerCase();
-        const problems = new Map();
-        for (const a of assignments) {
-            if (a.TEAM_ID === team.ID) problems.set(a.PROBLEM_ID, { PROBLEM_ID: a.PROBLEM_ID, TITLE: a.TITLE, ASSIGNMENT_STATUS: a.STATUS, submission: null });
-        }
-        // a submission keeps counting even if its problem was unassigned later
+        // the challenges the team submitted a solution to (latest solution for each)
+        const list = [];
         for (const [key, s] of latest) {
             if (!lead || !key.startsWith(`${lead}|`)) continue;
-            const entry = problems.get(s.PROBLEM_ID) || { PROBLEM_ID: s.PROBLEM_ID, TITLE: s.TITLE, ASSIGNMENT_STATUS: null, submission: null };
-            entry.submission = { ID: s.ID, STATUS: s.STATUS, COMMENT: s.EVALUATION_COMMENT, TOTAL: s.EVAL_TOTAL, SUB_DATE: s.SUB_DATE };
-            problems.set(s.PROBLEM_ID, entry);
+            list.push({ PROBLEM_ID: s.PROBLEM_ID, TITLE: s.TITLE, submission: { ID: s.ID, STATUS: s.STATUS, COMMENT: s.EVALUATION_COMMENT, TOTAL: s.EVAL_TOTAL, SUB_DATE: s.SUB_DATE } });
         }
-        const list = [...problems.values()];
-        const subs = list.filter((p) => p.submission);
         return {
             ...team,
             HAS_LOGIN: Boolean(team.HAS_LOGIN),
             problems: list,
-            ASSIGNED_COUNT: list.filter((p) => p.ASSIGNMENT_STATUS === "ASSIGNED").length,
-            REQUESTED_COUNT: list.filter((p) => p.ASSIGNMENT_STATUS === "REQUESTED").length,
-            SUBMISSION_COUNT: subs.length,
-            EVALUATED_COUNT: subs.filter((p) => p.submission.STATUS !== "PENDING").length,
+            SUBMISSION_COUNT: list.length,
+            EVALUATED_COUNT: list.filter((p) => p.submission.STATUS !== "PENDING").length,
+            ACCEPTED_COUNT: list.filter((p) => ["APPROVED", "ACCEPTED"].includes(p.submission.STATUS)).length,
         };
     });
 };
 
-// Admin: every registered team with its SPOC / college, members, problem statements and submissions,
+// Admin: every registered team with its SPOC / college, members, challenges and submissions,
 // for the Teams section of the admin Users page (filtered and paged in the browser)
 const Admin_list_teams = AsyncHandler(async (req, res) => {
     res.json(await buildAdminTeams());

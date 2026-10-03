@@ -33,7 +33,7 @@ const NavItem = ({ to, icon, children, isExpanded, onClick }) => (
 // neither the main admin nor have all three permissions
 const NAV = [
   { to: "/admin/dashboard", label: "Dashboard", icon: FiHome },
-  { to: "/admin/problems", label: "Problem Statements", icon: FiFileText },
+  { to: "/admin/problems", label: "Challenges", icon: FiFileText },
   { to: "/admin/submissions", label: "Submissions", icon: FiInbox, permission: "EVALUATE" },
   { to: "/admin/users", label: "Users", icon: FiUsers, permission: "USERS" },
   { to: "/admin/users/create", label: "Create User", icon: FiUserPlus, permission: "USERS" },

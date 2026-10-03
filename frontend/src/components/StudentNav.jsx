@@ -5,8 +5,8 @@ import TeamDetails from "../pages/student/TeamDetails";
 import TeamProblemStatements from "../pages/student/TeamProblemStatements";
 
 const StudentNav = () => {
-  const [active, setActive] = useState("Problem Statements");
-  const tabs = ["Problem Statements", "My Submissions", "Team Details"];
+  const [active, setActive] = useState("Challenges");
+  const tabs = ["Challenges", "My Submissions", "Team Details"];
 
   const pageVariants = {
     initial: { opacity: 0, y: 16 },
@@ -32,7 +32,7 @@ const StudentNav = () => {
             Manage your journey at one place
           </h1>
           <p className="text-sm text-gray-600 mt-2 max-w-2xl mx-auto">
-            Browse problem statements, track submissions, and view your team
+            Browse challenges, track submissions, and view your team
             details in a single, focused interface.
           </p>
         </motion.div>
@@ -75,7 +75,7 @@ const StudentNav = () => {
         {/* Content area */}
         <div className="mt-2">
           <AnimatePresence mode="wait">
-            {active === "Problem Statements" && (
+            {active === "Challenges" && (
               <motion.div
                 key="my-problems"
                 variants={pageVariants}
@@ -84,7 +84,7 @@ const StudentNav = () => {
                 exit="exit"
                 transition={{ duration: 0.25 }}
               >
-                {/* all problem statements; request one from the SPOC, submit once approved */}
+                {/* all challenges; submit a solution to any open one */}
                 <TeamProblemStatements />
               </motion.div>
             )}

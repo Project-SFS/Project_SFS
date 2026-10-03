@@ -12,11 +12,13 @@ const SUBMISSION_FILTERS = [
   ["with", "Has submissions"],
   ["without", "No submissions"],
 ];
+// a team can have up to MAX_ACCEPTED accepted concepts (then it cannot start new solutions)
+const MAX_ACCEPTED = 3;
 const PROBLEM_FILTERS = [
   ["all", "Any"],
-  ["assigned", "Has an assigned problem"],
-  ["requested", "Has a pending request"],
-  ["none", "No problem yet"],
+  ["accepted", "Has an accepted concept"],
+  ["limit", `At the limit (${MAX_ACCEPTED} accepted)`],
+  ["none", "No accepted concept yet"],
 ];
 const EVALUATION_FILTERS = [
   ["all", "Any"],
@@ -97,16 +99,16 @@ const TeamsSection = () => {
   const filtered = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
     return teams
-      .filter((t) => !q || [t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.SPOC_NAME, t.SPOC_EMAIL, t.COLLEGE, t.COLLEGE_CODE, t.ID]
+      .filter((t) => !q || [t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.SPOC_NAME, t.SPOC_EMAIL, t.COLLEGE, t.COLLEGE_CODE]
         .some((v) => String(v ?? "").toLowerCase().includes(q)))
       .filter((t) => filters.status === "all" || teamState(t) === filters.status)
       .filter((t) => filters.college === "all" || t.COLLEGE === filters.college)
       .filter((t) => filters.submissions === "all"
         || (filters.submissions === "with" ? t.SUBMISSION_COUNT > 0 : t.SUBMISSION_COUNT === 0))
       .filter((t) => filters.problem === "all"
-        || (filters.problem === "assigned" && t.ASSIGNED_COUNT > 0)
-        || (filters.problem === "requested" && t.REQUESTED_COUNT > 0)
-        || (filters.problem === "none" && t.ASSIGNED_COUNT === 0 && t.REQUESTED_COUNT === 0))
+        || (filters.problem === "accepted" && t.ACCEPTED_COUNT > 0)
+        || (filters.problem === "limit" && t.ACCEPTED_COUNT >= MAX_ACCEPTED)
+        || (filters.problem === "none" && !t.ACCEPTED_COUNT))
       .filter((t) => filters.evaluation === "all"
         || (filters.evaluation === "evaluated" && t.EVALUATED_COUNT > 0)
         || (filters.evaluation === "awaiting" && t.SUBMISSION_COUNT > t.EVALUATED_COUNT))
@@ -118,12 +120,14 @@ const TeamsSection = () => {
       });
   }, [teams, filters]);
 
-  const { page, setPage, pageItems, total, totalPages } = usePagination(filtered, { resetKey: JSON.stringify(filters) });
+  // teams are numbered 1, 2, 3... across the pages of the current list (the database ID is not shown)
+  const { page, setPage, pageItems, total, totalPages, pageSize } = usePagination(filtered, { resetKey: JSON.stringify(filters) });
+  const serialStart = (page - 1) * pageSize;
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS);
 
   const stats = [
     ["Registered teams", teams.length, FiUsers],
-    ["With a problem assigned", teams.filter((t) => t.ASSIGNED_COUNT > 0).length, FiClipboard],
+    ["With an accepted concept", teams.filter((t) => t.ACCEPTED_COUNT > 0).length, FiClipboard],
     ["Have submitted", teams.filter((t) => t.SUBMISSION_COUNT > 0).length, FiUpload],
     ["Reviewed", teams.filter((t) => t.EVALUATED_COUNT > 0).length, FiCheckCircle],
     ["Graduated (archived)", teams.filter((t) => teamState(t) === "graduated").length, FiAward],
@@ -163,7 +167,7 @@ const TeamsSection = () => {
           <Select label="Status" value={filters.status} onChange={setFilter("status")} options={STATUS_FILTERS} />
           <Select label="College" value={filters.college} onChange={setFilter("college")} options={[["all", "All colleges"], ...colleges.map((c) => [c, c])]} />
           <Select label="Submissions" value={filters.submissions} onChange={setFilter("submissions")} options={SUBMISSION_FILTERS} />
-          <Select label="Problem statement" value={filters.problem} onChange={setFilter("problem")} options={PROBLEM_FILTERS} />
+          <Select label="Concept accepted" value={filters.problem} onChange={setFilter("problem")} options={PROBLEM_FILTERS} />
           <Select label="Review" value={filters.evaluation} onChange={setFilter("evaluation")} options={EVALUATION_FILTERS} />
           <Select label="Sort by" value={filters.sort} onChange={setFilter("sort")} options={SORTS} />
         </div>
@@ -184,11 +188,12 @@ const TeamsSection = () => {
         <table className="min-w-full text-sm">
           <thead className="bg-[#F7F8FC] text-[#718096]">
             <tr>
+              <th className="text-left py-3 px-4 font-semibold">S.No</th>
               <th className="text-left py-3 px-4 font-semibold">Team</th>
               <th className="text-left py-3 px-4 font-semibold">College / SPOC</th>
               <th className="text-left py-3 px-4 font-semibold">Team lead</th>
               <th className="text-center py-3 px-4 font-semibold">Members</th>
-              <th className="text-center py-3 px-4 font-semibold">Problems</th>
+              <th className="text-center py-3 px-4 font-semibold">Concept accepted</th>
               <th className="text-center py-3 px-4 font-semibold">Submissions</th>
               <th className="text-left py-3 px-4 font-semibold">Graduation</th>
               <th className="text-left py-3 px-4 font-semibold">Registered</th>
@@ -196,15 +201,16 @@ const TeamsSection = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="8" className="py-6 text-center text-[#A0AEC0] italic">Loading teams...</td></tr>
+              <tr><td colSpan="9" className="py-6 text-center text-[#A0AEC0] italic">Loading teams...</td></tr>
             ) : error ? (
-              <tr><td colSpan="8" className="py-6 text-center text-red-500">{error}</td></tr>
+              <tr><td colSpan="9" className="py-6 text-center text-red-500">{error}</td></tr>
             ) : pageItems.length > 0 ? (
-              pageItems.map((t) => (
+              pageItems.map((t, i) => (
                 <tr key={t.ID} onClick={() => setSelected(t)} className="border-t border-[#E2E8F0] hover:bg-orange-50/40 cursor-pointer transition-all">
+                  <td className="py-3 px-4 font-medium text-[#1A202C] tabular-nums">{serialStart + i + 1}</td>
                   <td className="py-3 px-4">
                     <div className="font-medium text-[#1A202C]">{t.NAME || "-"}</div>
-                    <div className="text-xs text-[#A0AEC0]">ID {t.ID}{!t.HAS_LOGIN && " · no login yet"}</div>
+                    {!t.HAS_LOGIN && <div className="text-xs text-[#A0AEC0]">no login yet</div>}
                   </td>
                   <td className="py-3 px-4">
                     <div className="text-[#1A202C]">{t.COLLEGE || "-"}</div>
@@ -216,8 +222,8 @@ const TeamsSection = () => {
                   </td>
                   <td className="py-3 px-4 text-center text-[#1A202C]">{t.MEMBER_COUNT}</td>
                   <td className="py-3 px-4 text-center">
-                    <span className="text-[#1A202C] font-medium">{t.ASSIGNED_COUNT}</span>
-                    {t.REQUESTED_COUNT > 0 && <span className="block text-xs text-[#C05621]">{t.REQUESTED_COUNT} requested</span>}
+                    <span className={`font-medium ${t.ACCEPTED_COUNT >= MAX_ACCEPTED ? "text-green-700" : "text-[#1A202C]"}`}>{t.ACCEPTED_COUNT || 0} / {MAX_ACCEPTED}</span>
+                    {t.ACCEPTED_COUNT >= MAX_ACCEPTED && <span className="block text-xs text-green-700">limit reached</span>}
                   </td>
                   <td className="py-3 px-4 text-center">
                     {t.SUBMISSION_COUNT > 0 ? (
@@ -248,7 +254,7 @@ const TeamsSection = () => {
                 </tr>
               ))
             ) : (
-              <tr><td colSpan="8" className="py-6 text-center text-[#A0AEC0] italic">{teams.length ? "No teams match these filters." : "No teams registered yet."}</td></tr>
+              <tr><td colSpan="9" className="py-6 text-center text-[#A0AEC0] italic">{teams.length ? "No teams match these filters." : "No teams registered yet."}</td></tr>
             )}
           </tbody>
         </table>

@@ -1,6 +1,6 @@
 /**
  * @file RecentProblemsTable.jsx
- * @description A table displaying recent problem statements with a live search filter.
+ * @description A table displaying recent challenges with a live search filter.
  */
 
 import React, { useState, useMemo } from "react";

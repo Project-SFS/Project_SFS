@@ -13,6 +13,8 @@ import {
   FiTrash2,
   FiEdit2,
   FiLink,
+  FiLock,
+  FiUnlock,
   FiChevronUp,
   FiChevronDown
 } from 'react-icons/fi';
@@ -30,6 +32,23 @@ const ProblemStatementDetail = () => {
 
   const [linkCopied, setLinkCopied] = useState(false);
   const [teamOpen, setTeamOpen] = useState(null); // team id whose details dialog is open
+  const [closing, setClosing] = useState(false);
+
+  // close ("Concept Received": no new solutions) or reopen the challenge
+  const toggleClosed = async () => {
+    const closeIt = !problem?.closed;
+    if (closeIt && !window.confirm('Close this challenge? It will show as "Concept Received" and teams can no longer submit new solutions. You can reopen it later.')) return;
+    setClosing(true);
+    try {
+      const res = await axios.post(`${URL}/problems/${id}/close`, { closed: closeIt }, { withCredentials: true });
+      setProblem((prev) => ({ ...prev, closed: closeIt, closedAt: closeIt ? new Date().toISOString() : null, closedByEmail: closeIt ? null : null }));
+      toast.success(res.data?.message || (closeIt ? 'Challenge closed' : 'Challenge reopened'));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not change the challenge status');
+    } finally {
+      setClosing(false);
+    }
+  };
   const [problem, setProblem] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,8 +86,10 @@ const ProblemStatementDetail = () => {
             title: p.TITLE || p.title || 'Untitled',
             description: p.DESCRIPTION || p.description || '',
             category: p.CATEGORY || p.category || 'N/A',
-            assignedTeams: p.assigned_team_count ?? null,
-            deadline: p.SUB_DEADLINE || null,
+            teamCount: p.team_count ?? null,
+            closed: Boolean(p.IS_CLOSED),
+            closedAt: p.CLOSED_AT || null,
+            closedByEmail: p.closed_by_email || null,
             domain: p.DOMAIN || '',
             technology: p.TECHNOLOGY || '',
             outcomes: p.EXPECTED_OUTCOMES || '',
@@ -81,7 +102,7 @@ const ProblemStatementDetail = () => {
         }
       } catch (err) {
         console.error(err);
-        toast.error('Failed to load problem statement');
+        toast.error('Failed to load challenge');
       }
     };
 
@@ -145,11 +166,11 @@ const ProblemStatementDetail = () => {
         { id },
         { withCredentials: true }
       );
-      toast.success('Problem statement deleted');
+      toast.success('Challenge deleted');
       navigate('/admin/problems');
     } catch (err) {
       console.error(err);
-      toast.error('Failed to delete problem statement');
+      toast.error('Failed to delete challenge');
     } finally {
       setShowDeleteModal(false);
     }
@@ -186,8 +207,8 @@ const ProblemStatementDetail = () => {
     resetKey: `${searchTerm}|${statusFilter}|${collegeFilter}|${sortOrder}`
   });
 
-  // teams the problem is assigned to (falls back to distinct submitting teams)
-  const teamsEnrolled = problem?.assignedTeams ?? new Set(
+  // teams that submitted a solution to this challenge
+  const teamsEnrolled = problem?.teamCount ?? new Set(
     submissions.map(s => s.team_name).filter(name => name && name !== 'N/A')
   ).size;
 
@@ -200,7 +221,7 @@ const ProblemStatementDetail = () => {
       <div className="min-h-screen bg-[#F7F8FC] flex flex-col items-center justify-center space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#FF9900]"></div>
         <h2 className="text-xl font-semibold text-gray-700">
-          Problem Statement Loading...
+          Challenge Loading...
         </h2>
       </div>
     );
@@ -213,13 +234,13 @@ const ProblemStatementDetail = () => {
     return (
       <div className="min-h-screen bg-gray-50 py-10">
         <div className="max-w-4xl mx-auto bg-white shadow rounded-lg p-8">
-          <h1 className="text-lg text-[#1A202C]">Problem statement not found</h1>
+          <h1 className="text-lg text-[#1A202C]">Challenge not found</h1>
           <p className="text-sm text-[#718096] mt-1">It may have been deleted, or the link is wrong.</p>
           <Button
             onClick={() => navigate('/admin/problems')}
             className="mt-4 !bg-[#FF9900] text-white px-4 py-2 rounded-xl"
           >
-            Back to problem statements
+            Back to challenges
           </Button>
         </div>
       </div>
@@ -245,6 +266,15 @@ const ProblemStatementDetail = () => {
             </Button>
             {can('PROBLEMS') && (<>
             <Button
+              onClick={toggleClosed}
+              disabled={closing}
+              className={`px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm transition-all duration-200 disabled:opacity-60 ${problem.closed ? '!bg-green-600 hover:!bg-green-700 !text-white' : '!bg-gray-800 hover:!bg-black !text-white'}`}
+              title={problem.closed ? 'Take new solutions again' : 'Stop new solutions; the challenge shows as Concept Received'}
+            >
+              {problem.closed ? <FiUnlock className="w-5 h-5" /> : <FiLock className="w-5 h-5" />}
+              <span>{closing ? 'Saving…' : problem.closed ? 'Reopen challenge' : 'Close challenge'}</span>
+            </Button>
+            <Button
               onClick={() => navigate(`/admin/problems/edit/${id}`)}
               className="!bg-white border border-[#FF9900] !text-[#FF9900] hover:!bg-[#FF9900] hover:!text-white px-4 py-2 rounded-xl flex items-center space-x-2 font-medium shadow-sm transition-all duration-200"
             >
@@ -269,7 +299,7 @@ const ProblemStatementDetail = () => {
           </div>
         </div>
         
-        {/* Problem Statement Information Table */}
+        {/* Challenge Information Table */}
         <div className="bg-white shadow-sm rounded-2xl p-6 border border-[#E2E8F0] mb-8">
           <button
             type="button"
@@ -278,7 +308,7 @@ const ProblemStatementDetail = () => {
             className={`w-full flex items-center justify-between gap-3 text-left ${infoOpen ? 'mb-4' : ''}`}
           >
             <span className="min-w-0">
-              <span className="block text-xl font-semibold text-[#1A202C]">Problem Statement Information</span>
+              <span className="block text-xl font-semibold text-[#1A202C]">Challenge Information</span>
               {!infoOpen && <span className="block text-sm text-[#718096] truncate">SFS_{problem.id} · {problem.title}</span>}
             </span>
             <span className="shrink-0 p-2 rounded-full border border-[#E2E8F0] text-[#4A5568] hover:bg-[#F7F8FC]" title={infoOpen ? 'Minimise' : 'Expand'}>
@@ -289,11 +319,11 @@ const ProblemStatementDetail = () => {
           <table className="w-full text-left border-collapse border border-[#E2E8F0] rounded-xl overflow-hidden">
             <tbody>
               <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 w-1/3 text-[#1A202C]">Problem Statement ID</td>
+                <td className="p-4 font-medium bg-[#FF9900]/5 w-1/3 text-[#1A202C]">Challenge ID</td>
                 <td className="p-4 text-[#1A202C]">{problem.id}</td>
               </tr>
               <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Problem Statement Title</td>
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Challenge Title</td>
                 <td className="p-4 text-[#1A202C]">{problem.title}</td>
               </tr>
               <tr className="border-b border-[#E2E8F0]">
@@ -321,9 +351,16 @@ const ProblemStatementDetail = () => {
                 <td className="p-4 text-[#1A202C]">{problem.technology || 'N/A'}</td>
               </tr>
               <tr className="border-b border-[#E2E8F0]">
-                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Submission Deadline</td>
+                <td className="p-4 font-medium bg-[#FF9900]/5 text-[#1A202C]">Status</td>
                 <td className="p-4 text-[#1A202C]">
-                  {problem.deadline ? new Date(problem.deadline).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}
+                  {problem.closed ? (
+                    <span>
+                      <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">Concept Received</span>
+                      <span className="ml-2 text-sm text-[#718096]">closed{problem.closedAt ? ` on ${new Date(problem.closedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}` : ''}{problem.closedByEmail ? ` by ${problem.closedByEmail}` : ''} · no new solutions</span>
+                    </span>
+                  ) : (
+                    <span className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">Open for solutions</span>
+                  )}
                 </td>
               </tr>
               <tr className="border-b border-[#E2E8F0]">
@@ -354,7 +391,7 @@ const ProblemStatementDetail = () => {
         <div className="flex items-center space-x-10 mb-6 px-2">
           <div className="flex items-center space-x-2">
             <FiUsers className="w-6 h-6 text-[#FF9900]" />
-            <span className="font-medium text-[#1A202C]">No. of Teams Enrolled :</span>
+            <span className="font-medium text-[#1A202C]">No. of Teams :</span>
             <input
               type="text"
               value={teamsEnrolled}
@@ -398,7 +435,7 @@ const ProblemStatementDetail = () => {
               <option value="all">All statuses</option>
               <option value="PENDING">Awaiting review</option>
               <option value="CHANGES_REQUESTED">Changes needed</option>
-              <option value="APPROVED">Approved</option>
+              <option value="APPROVED">Concept accepted</option>
               <option value="REJECTED">Rejected</option>
             </select>
           </label>
@@ -517,7 +554,7 @@ const ProblemStatementDetail = () => {
           </table>
           {filteredSubmissions.length === 0 && (
             <p className="p-6 text-center text-[#A0AEC0] italic">
-              {submissions.length ? 'No submissions match the search or filter.' : 'No submissions yet for this problem statement.'}
+              {submissions.length ? 'No submissions match the search or filter.' : 'No submissions yet for this challenge.'}
             </p>
           )}
         </div>
@@ -530,9 +567,9 @@ const ProblemStatementDetail = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden transform transition-all">
               <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Problem Statement</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Challenge</h3>
                 <p className="text-gray-600 mb-6">
-                  Are you sure you want to delete this problem statement? All of its submissions and uploaded files will be deleted too. This action cannot be undone.
+                  Are you sure you want to delete this challenge? All of its submissions and uploaded files will be deleted too. This action cannot be undone.
                 </p>
                 <div className="flex justify-end gap-3">
                   <button

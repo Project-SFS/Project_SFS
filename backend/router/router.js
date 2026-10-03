@@ -7,9 +7,10 @@ import { login, logout, signup, GetAllUsers, verifyEmail, UpdateUser, Admin_crea
 import { Verify_OTP, Verify_OTP_Check } from "../controllers/Verify_OTP.js";
 // import Verify_OTP_Check from "../controllers/Verify_OTP_Check.js";
 import { requireAuth, optionalAuth, requireRole, requirePermission, requireSuperAdmin } from "../middleware/auth.js";
-import { Post_problem, Get_problems, Get_problem_by_id, Delete_problem, Update_problem } from "../controllers/Problems.js";
+import { Post_problem, Get_problems, Get_problem_by_id, Delete_problem, Update_problem, Close_problem } from "../controllers/Problems.js";
 import { Get_cookies } from "../controllers/Cookie.js";
 import { Get_public_stats, Submit_interest } from "../controllers/PublicStats.js";
+import { Import_teams, Team_import_template } from "../controllers/TeamImport.js";
 import { Reset_summary, Reset_send_otp, Reset_confirm } from "../controllers/Reset.js";
 import { Import_problems, Problem_import_template, memoryUpload } from "../controllers/ProblemImport.js";
 import { Export_options, Export_data, Export_problem_reports, List_all_submissions } from "../controllers/Export.js";
@@ -18,7 +19,7 @@ import { Share_submission_file, Delete_submission, Get_all_submissions, SubmitSo
 import { handleSpocApprove, Spoc_approve } from "../controllers/Spoc.js";
 import { sendMailToSpoc } from "../controllers/SendMail.js";
 import { upload, uploadFiles } from "../controllers/Upload.js";
-import { Get_spoc_progress, Assign_problem, Reject_request, Unassign_problem, Get_student_overview, Request_problem, Cancel_request } from "../controllers/TeamProblems.js";
+import { Get_spoc_progress, Get_student_overview } from "../controllers/TeamProblems.js";
 
 const router = Router();
 
@@ -73,17 +74,14 @@ router.route("/fetch_teams/:id").post(requireAuth, Fetch_Teams);
 router.route("/fetch_team_members").post(requireAuth, Fetch_Team_Members);
 router.route("/add_members/:id").post(requireAuth, Add_Team_Members);
 router.route("/update_team").post(requireAuth, Update_team);
+router.route("/teams/import").post(requireAuth, requireRole(['SPOC', 'ADMIN']), memoryUpload, Import_teams); // Excel import of teams (dryRun=true previews)
+router.route("/teams/import/template").get(requireAuth, requireRole(['SPOC', 'ADMIN']), Team_import_template); // empty teams template
 router.route("/check_team_members").post(requireAuth, requireRole(['SPOC', 'ADMIN']), Check_team_members); // email checks before saving a team
 router.route("/delete_team").post(requireAuth, Delete_team);
 router.route("/send_mail_to_spoc").post(requireAuth, requireRole(['ADMIN']), requirePermission('PROBLEMS'), sendMailToSpoc);
 // SPOC assigns problem statements to their teams and tracks their progress
 router.route("/spoc/progress").get(requireAuth, requireRole(['SPOC', 'ADMIN']), Get_spoc_progress);
-router.route("/spoc/assign_problem").post(requireAuth, requireRole(['SPOC', 'ADMIN']), Assign_problem);
-router.route("/spoc/unassign_problem").post(requireAuth, requireRole(['SPOC', 'ADMIN']), Unassign_problem);
-router.route("/spoc/reject_request").post(requireAuth, requireRole(['SPOC', 'ADMIN']), Reject_request);
 router.route("/student/overview").get(requireAuth, requireRole(['STUDENT']), Get_student_overview);
-router.route("/student/request_problem").post(requireAuth, requireRole(['STUDENT']), Request_problem);
-router.route("/student/cancel_request").post(requireAuth, requireRole(['STUDENT']), Cancel_request);
 router.route("/fetch_team_for_students").post(requireAuth, Fetch_Team_For_Students); 
 router.route("/fetch_team_id_email").post(requireAuth, fetch_team_id_email);
 router.route("/get_submissions_by_email").post(requireAuth, fetch_submissions_by_email)
@@ -97,6 +95,7 @@ router.route("/submit_solution").post(requireAuth, SubmitSolution);
 // --- Common/Shared Routes ---
 router.route("/get_problems").get(optionalAuth, Get_problems);
 router.route("/problems/:id").get(optionalAuth, Get_problem_by_id).put(requireAuth, requireRole(['ADMIN']), requirePermission('PROBLEMS'), Update_problem);
+router.route("/problems/:id/close").post(requireAuth, requireRole(['ADMIN']), requirePermission('PROBLEMS'), Close_problem); // close ("Concept Received") or reopen a challenge
 
 
 // Delete Problem Statement

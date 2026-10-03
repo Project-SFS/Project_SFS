@@ -184,11 +184,11 @@ const AdminDashboard = () => {
       {/* Main */}
       <div className="lg:col-span-2 space-y-8">
         <h1 className="text-3xl font-bold text-brand-dark">
-          Dashboard Overview
+          Admin Dashboard
         </h1>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <StatCard title="Total Problems" value={totalProblems} icon={FiClipboard} />
+          <StatCard title="Total Challenges" value={totalProblems} icon={FiClipboard} />
           <StatCard title="Total Submissions" value={totalSubmissions} icon={FiUpload} />
           <StatCard
             title="Pending Approvals"
@@ -227,7 +227,7 @@ const AdminDashboard = () => {
             )}
             {can('PROBLEMS') && (
               <Link to="/admin/problems/create" className="flex justify-between text-orange-400">
-                Create Problem Statement <FiArrowRight />
+                Create Challenge <FiArrowRight />
               </Link>
             )}
             {can('USERS') && (

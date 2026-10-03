@@ -7,16 +7,16 @@ import {
 import { URL } from "../../Utils";
 import { downloadFile } from "../../downloadFile";
 
-// Admin exports to Excel: submissions (one workbook, or a ZIP with one report per problem statement),
+// Admin exports to Excel: submissions (one workbook, or a ZIP with one report per challenge),
 // teams and SPOCs. Every export has filters, a column choice and a live count of matching rows.
 
 const TABS = [
-  { key: "submissions", label: "Submissions", icon: FiFileText, hint: "Every submission with its problem, team, college, review, marks and comments" },
+  { key: "submissions", label: "Submissions", icon: FiFileText, hint: "Every submission with its challenge, team, college, review, marks and comments" },
   { key: "teams", label: "Teams", icon: FiUsers, hint: "Every team with its members, SPOC, problems and results" },
   { key: "spocs", label: "SPOCs", icon: FiUserCheck, hint: "Every SPOC with their college, account status and activity" },
 ];
 
-const STATUSES = [["PENDING", "Awaiting review"], ["CHANGES_REQUESTED", "Changes needed"], ["APPROVED", "Approved"], ["REJECTED", "Rejected"]];
+const STATUSES = [["PENDING", "Awaiting review"], ["CHANGES_REQUESTED", "Changes needed"], ["APPROVED", "Concept accepted"], ["REJECTED", "Rejected"]];
 const SPOC_STATUSES = [["ACTIVE", "Active"], ["PENDING", "Awaiting approval"], ["REJECTED", "Rejected"]];
 
 const EMPTY = {
@@ -142,7 +142,7 @@ const Exports = () => {
       return;
     }
     setBusy(kind);
-    const loading = toast.loading(kind === "zip" ? "Building one report per problem statement…" : "Building the Excel file…");
+    const loading = toast.loading(kind === "zip" ? "Building one report per challenge…" : "Building the Excel file…");
     try {
       const url = kind === "zip" ? `${URL}/admin/export/problem-reports` : `${URL}/admin/export/${tab}`;
       const body = kind === "zip"
@@ -160,7 +160,7 @@ const Exports = () => {
   const problemOptions = (options?.problems || []).map((p) => [String(p.ID), `SFS_${p.ID} · ${p.TITLE}`]);
   const collegeOptions = (options?.colleges || []).map((c) => [c, c]);
   const countText = !preview ? "Counting…" : preview.error ? "Could not count" : tab === "submissions"
-    ? `${preview.count} submission${preview.count === 1 ? "" : "s"} · ${preview.problems} problem statement${preview.problems === 1 ? "" : "s"} · ${preview.teams} team${preview.teams === 1 ? "" : "s"}`
+    ? `${preview.count} submission${preview.count === 1 ? "" : "s"} · ${preview.problems} challenge${preview.problems === 1 ? "" : "s"} · ${preview.teams} team${preview.teams === 1 ? "" : "s"}`
     : `${preview.count} ${tab === "teams" ? "team" : "SPOC"}${preview.count === 1 ? "" : "s"}`;
 
   return (
@@ -205,11 +205,11 @@ const Exports = () => {
                   <label className="block sm:col-span-2 lg:col-span-3">
                     <span className={lbl}>Search</span>
                     <input value={f.search} onChange={(e) => setF("search")(e.target.value)} className={field}
-                      placeholder={tab === "submissions" ? "Team, team lead email, solution title, problem or college…" : tab === "teams" ? "Team name, lead email, college or SPOC…" : "Name, email, college or college code…"} />
+                      placeholder={tab === "submissions" ? "Team, team lead email, solution title, challenge or college…" : tab === "teams" ? "Team name, lead email, college or SPOC…" : "Name, email, college or college code…"} />
                   </label>
 
                   {tab === "submissions" && (<>
-                    <MultiSelect label="Problem statements" options={problemOptions} value={f.problemIds} onChange={setF("problemIds")} placeholder="All problem statements" />
+                    <MultiSelect label="Challenges" options={problemOptions} value={f.problemIds} onChange={setF("problemIds")} placeholder="All challenges" />
                     <MultiSelect label="Status" options={STATUSES} value={f.statuses} onChange={setF("statuses")} placeholder="Every status" />
                     <MultiSelect label="Colleges" options={collegeOptions} value={f.colleges} onChange={setF("colleges")} placeholder="All colleges" />
                     <MultiSelect label="Reviewed by" options={(options.reviewers || []).map((r) => [r, r])} value={f.reviewers} onChange={setF("reviewers")} placeholder="Anyone (or not reviewed)" />
@@ -232,7 +232,7 @@ const Exports = () => {
                     <MultiSelect label="Colleges" options={collegeOptions} value={f.colleges} onChange={setF("colleges")} placeholder="All colleges" />
                     <Select label="Team status" value={f.teamStatus} onChange={setF("teamStatus")} options={[["all", "Every team"], ["active", "Active only"], ["graduated", "Graduated only"], ["removed", "Removed by SPOC"]]} />
                     <Select label="Submissions" value={f.submissions} onChange={setF("submissions")} options={[["all", "All teams"], ["with", "Has submissions"], ["without", "No submissions"]]} />
-                    <MultiSelect label="Assigned problem" options={problemOptions} value={f.problemIds} onChange={setF("problemIds")} placeholder="Any problem" />
+                    <MultiSelect label="Submitted to challenge" options={problemOptions} value={f.problemIds} onChange={setF("problemIds")} placeholder="Any challenge" />
                     {/* members graduate in different years, so the admin chooses how the year is matched */}
                     <div className="sm:col-span-2">
                       <span className={lbl}>Graduation year</span>
@@ -304,8 +304,8 @@ const Exports = () => {
                   <h3 className="font-semibold text-[#1A202C] flex items-center gap-2 mb-2"><FiLayers className="text-[#FF9900]" /> One workbook</h3>
                   <div className="space-y-1.5 mb-4">
                     {[
-                      ["summary", "Summary by problem statement"],
-                      ["byProblem", "By problem statement (teams under each problem)"],
+                      ["summary", "Summary by challenge"],
+                      ["byProblem", "By challenge (teams under each challenge)"],
                       ["all", "All submissions (one table)"],
                       ["reviewHistory", "Review history (every decision and comment)"],
                       ["members", "Team members"],
@@ -323,11 +323,11 @@ const Exports = () => {
 
                   <div className="border-t border-[#E2E8F0] my-5" />
 
-                  <h3 className="font-semibold text-[#1A202C] flex items-center gap-2 mb-1"><FiArchive className="text-[#FF9900]" /> One report per problem</h3>
-                  <p className="text-xs text-[#718096] mb-3">A ZIP with a separate Excel report for every problem statement (its details, counts, every team's submission and the review history) plus an overview file.</p>
+                  <h3 className="font-semibold text-[#1A202C] flex items-center gap-2 mb-1"><FiArchive className="text-[#FF9900]" /> One report per challenge</h3>
+                  <p className="text-xs text-[#718096] mb-3">A ZIP with a separate Excel report for every challenge (its details, counts, every team's submission and the review history) plus an overview file.</p>
                   <label className="flex items-center gap-2 text-sm text-[#4A5568] cursor-pointer mb-3">
                     <input type="checkbox" className="accent-[#FF9900]" checked={sheets.includeEmptyProblems} onChange={(e) => setSheets((prev) => ({ ...prev, includeEmptyProblems: e.target.checked }))} />
-                    Include problem statements without submissions
+                    Include challenges without submissions
                   </label>
                   <button onClick={() => run("zip")} disabled={Boolean(busy)}
                     className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[#FF9900] text-[#FF9900] font-semibold hover:bg-[#FF9900] hover:text-white disabled:opacity-50 transition">

@@ -4,7 +4,7 @@ import { layout, escapeHtml, deliver, background } from "../utils/notifications.
 
 // Live numbers for the home page hero. Public, so only totals - never names or emails.
 //  - students: members of teams that have not graduated
-//  - problems: every published problem statement
+//  - problems: every published challenge
 //  - colleges: distinct colleges with an approved (ACTIVE) SPOC
 const Get_public_stats = AsyncHandler(async (req, res) => {
     const [[row]] = await connection.query(`

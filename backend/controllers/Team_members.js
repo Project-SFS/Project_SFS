@@ -19,7 +19,7 @@ const clean = (value, max) => String(value ?? "").trim().slice(0, max);
 
 // Tidies the submitted members (roles by position: Team Lead, Member 1, Member 2, ...) and checks the
 // non-email fields. Returns { members } or { error }.
-const readMembers = (input) => {
+export const readMembers = (input) => {
   const raw = Array.isArray(input) ? input : [];
   if (raw.length < MIN_TEAM_SIZE || raw.length > MAX_TEAM_SIZE) {
     return { error: `A team needs ${MIN_TEAM_SIZE} to ${MAX_TEAM_SIZE} people, including the team lead` };
@@ -96,6 +96,34 @@ const createLeadLogin = async ({ email, name, college, teamId }) => {
   return password;
 };
 
+// Creates a team from already-validated members (see readMembers + checkTeamEmails): the team, its members
+// and the team lead's login, then emails the members and the lead's login details. Used by the team form and
+// the Excel import. Throws (after undoing the half-created team) when it cannot be saved.
+export const createTeam = async ({ spocId, teamName, members, mentorName, mentorEmail }) => {
+  const lead = members[0];
+  const [spocRows] = await connection.query("SELECT COLLEGE FROM SolveForSakthi_Users WHERE ID = ?", [spocId]);
+  const [result] = await connection.query(
+    "INSERT INTO SolveForSakthi_Team_List (NAME, SPOC_ID, MENTOR_NAME, MENTOR_EMAIL, LEAD_EMAIL, LEAD_PHONE, CREATED_AT) VALUES (?,?,?,?,?,?, SYSUTCDATETIME())",
+    [teamName, spocId, clean(mentorName, 50), clean(mentorEmail, 50), lead.email, lead.phone]
+  );
+  const teamId = result.insertId;
+  let password;
+  try {
+    await insertMembers(teamId, spocId, members);
+    // the team lead's login (the team's account), created together with the team so it is never skipped
+    password = await createLeadLogin({ email: lead.email, name: lead.name, college: spocRows[0]?.COLLEGE, teamId });
+  } catch (err) {
+    // without its members and login the team is useless: undo it
+    console.error("Team could not be created:", err.message);
+    await connection.query("DELETE FROM SolveForSakthi_Team_Members_List WHERE Team_ID = ?", [teamId]);
+    await connection.query("DELETE FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
+    throw err;
+  }
+  welcomeMembers(members, teamName, lead.email);
+  notifyTeamLogin({ email: lead.email, name: lead.name, teamName, password });
+  return teamId;
+};
+
 // POST /check_team_members { members, teamId? } -> { issues } : the email checks only, nothing is saved
 const Check_team_members = AsyncHandler(async (req, res) => {
   const { members, teamId } = req.body;
@@ -115,29 +143,12 @@ const Add_Team_Members = AsyncHandler(async (req, res) => {
   if (!teamName) return res.status(400).json({ message: "Enter a team name" });
   const members = await validateTeam(req, res, Teamdata?.members, null);
   if (!members) return;
-  const lead = members[0];
-  const [spocRows] = await connection.query("SELECT COLLEGE FROM SolveForSakthi_Users WHERE ID = ?", [id]);
-
-  const [result] = await connection.query(
-    "INSERT INTO SolveForSakthi_Team_List (NAME, SPOC_ID, MENTOR_NAME, MENTOR_EMAIL, LEAD_EMAIL, LEAD_PHONE, CREATED_AT) VALUES (?,?,?,?,?,?, SYSUTCDATETIME())",
-    [teamName, id, clean(mentorName, 50), clean(mentorEmail, 50), lead.email, lead.phone]
-  );
-  const teamId = result.insertId;
-  let password;
+  let teamId;
   try {
-    await insertMembers(teamId, id, members);
-    // the team lead's login (the team's account), created in the same request so it is never skipped
-    password = await createLeadLogin({ email: lead.email, name: lead.name, college: spocRows[0]?.COLLEGE, teamId });
-  } catch (err) {
-    // without its members and login the team is useless: undo it so the SPOC can simply try again
-    console.error("Team could not be created:", err.message);
-    await connection.query("DELETE FROM SolveForSakthi_Team_Members_List WHERE Team_ID = ?", [teamId]);
-    await connection.query("DELETE FROM SolveForSakthi_Team_List WHERE ID = ?", [teamId]);
+    teamId = await createTeam({ spocId: id, teamName, members, mentorName, mentorEmail });
+  } catch {
     return res.status(500).json({ message: "The team could not be saved. Please try again." });
   }
-
-  welcomeMembers(members, teamName, lead.email);
-  notifyTeamLogin({ email: lead.email, name: lead.name, teamName, password });
   res.status(200).send(teamId);
 });
 

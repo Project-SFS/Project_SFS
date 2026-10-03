@@ -96,9 +96,11 @@ const Users = () => {
   const query = searchQuery.trim().toLowerCase();
   const filtered = users
     .filter((u) => String(u.ROLE).toUpperCase() === activeTab)
-    .filter((u) => [u.NAME, u.EMAIL, u.COLLEGE, u.COLLEGE_CODE, u.ID].some((v) => String(v ?? "").toLowerCase().includes(query)));
+    .filter((u) => [u.NAME, u.EMAIL, u.COLLEGE, u.COLLEGE_CODE].some((v) => String(v ?? "").toLowerCase().includes(query)));
 
-  const { page, setPage, pageItems, total, totalPages } = usePagination(filtered, { resetKey: `${activeTab}|${query}` });
+  // the database ID is not shown: rows are numbered 1, 2, 3... across the pages of the current list
+  const { page, setPage, pageItems, total, totalPages, pageSize } = usePagination(filtered, { resetKey: `${activeTab}|${query}` });
+  const serialStart = (page - 1) * pageSize;
 
   const confirmDelete = async () => {
     if (!toDelete) return;
@@ -122,7 +124,7 @@ const Users = () => {
         <div>
           <h1 className="text-3xl font-bold text-[#1A202C] mb-1">Users</h1>
           <p className="text-[#718096] text-sm">
-            {section === "teams" ? "Every team registered by the SPOCs, with their problem statements and submissions." : "Manage SPOC and admin accounts."}
+            {section === "teams" ? "Every team registered by the SPOCs, with their challenges and submissions." : "Manage SPOC and admin accounts."}
           </p>
           <div className="inline-flex mt-4 bg-white border border-[#E2E8F0] rounded-xl p-1 shadow-sm">
             {[["accounts", "Accounts", FiUserCheck], ["teams", "Teams", FiUsers]].map(([key, label, Icon]) => (
@@ -209,7 +211,7 @@ const Users = () => {
         <table className="min-w-full text-sm">
           <thead className="bg-[#F7F8FC] text-[#718096]">
             <tr>
-              <th className="text-left py-3 px-5 font-semibold">ID</th>
+              <th className="text-left py-3 px-5 font-semibold">S.No</th>
               <th className="text-left py-3 px-5 font-semibold">Name</th>
               <th className="text-left py-3 px-5 font-semibold">Email</th>
               {activeTab === "SPOC" && <th className="text-left py-3 px-5 font-semibold">College</th>}
@@ -222,9 +224,9 @@ const Users = () => {
             {loading ? (
               <tr><td colSpan="7" className="py-6 text-center text-[#A0AEC0] italic">Loading users...</td></tr>
             ) : pageItems.length > 0 ? (
-              pageItems.map((u) => (
+              pageItems.map((u, i) => (
                 <tr key={u.ID} className="border-t border-[#E2E8F0] hover:bg-gray-50 transition-all">
-                  <td className="py-4 px-5 font-medium text-[#1A202C]">{u.ID}</td>
+                  <td className="py-4 px-5 font-medium text-[#1A202C] tabular-nums">{serialStart + i + 1}</td>
                   <td className="py-4 px-5">
                     <button onClick={() => setDetails(u)} className="text-[#1A202C] hover:text-[#FF9900] transition-colors text-left">
                       {u.NAME || "-"}
@@ -300,7 +302,6 @@ const Users = () => {
             <table className="w-full text-sm">
               <tbody>
                 {[
-                  ["ID", details.ID],
                   ["Role", details.ROLE],
                   ["Email", details.EMAIL],
                   ["Phone", details.PHONE],
@@ -354,7 +355,7 @@ const Users = () => {
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
             <h2 className="text-lg font-semibold text-[#1A202C] flex items-center gap-2"><FiShield className="text-[#FF9900]" /> Admin permissions</h2>
             <p className="text-sm text-[#718096] mt-1 break-all">{permsFor.NAME} · {permsFor.EMAIL}</p>
-            <p className="text-xs text-[#A0AEC0] mt-3">Every admin can see the dashboard, problem statements, submissions and exports. These permissions allow the rest:</p>
+            <p className="text-xs text-[#A0AEC0] mt-3">Every admin can see the dashboard, challenges, submissions and exports. These permissions allow the rest:</p>
             <div className="mt-3 space-y-2">
               {Object.keys(PERMISSION_LABELS).map((p) => (
                 <label key={p} className="flex items-start gap-3 p-3 rounded-xl border border-[#E2E8F0] hover:bg-gray-50 cursor-pointer">

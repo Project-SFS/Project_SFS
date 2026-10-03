@@ -81,7 +81,7 @@ const Reset_send_otp = AsyncHandler(async (req, res) => {
             subject: `${code} is your Solve For Sakthi portal reset code`,
             html: layout({
                 heading: "Confirm the portal reset",
-                intro: `You asked to <b>reset the Solve For Sakthi portal</b>. This deletes every problem statement, team, SPOC, submission, file and email record; only the admin accounts are kept.<br>Your code:<br><span style="display:inline-block;margin-top:12px;font-size:28px;font-weight:bold;letter-spacing:6px;color:#c53030;">${code}</span>`,
+                intro: `You asked to <b>reset the Solve For Sakthi portal</b>. This deletes every challenge, team, SPOC, submission, file and email record; only the admin accounts are kept.<br>Your code:<br><span style="display:inline-block;margin-top:12px;font-size:28px;font-weight:bold;letter-spacing:6px;color:#c53030;">${code}</span>`,
                 outro: "The code is valid for 10 minutes. If you did not ask for this, do not share the code and change your password.",
             }),
         });
@@ -147,7 +147,7 @@ const Reset_confirm = AsyncHandler(async (req, res) => {
         subject: "The Solve For Sakthi portal was reset",
         html: layout({
             heading: "Portal reset completed",
-            intro: `${escapeHtml(req.user.EMAIL)} reset the portal on ${escapeHtml(new Date().toLocaleString("en-IN", { timeZone: process.env.APP_TIMEZONE || "Asia/Kolkata" }))}. Every problem statement, team, SPOC, submission, file and email record was deleted. The admin accounts were kept.`,
+            intro: `${escapeHtml(req.user.EMAIL)} reset the portal on ${escapeHtml(new Date().toLocaleString("en-IN", { timeZone: process.env.APP_TIMEZONE || "Asia/Kolkata" }))}. Every challenge, team, SPOC, submission, file and email record was deleted. The admin accounts were kept.`,
             linkPath: "/admin", linkLabel: "Open the admin panel",
         }),
     }).catch((err) => console.error("Reset confirmation mail failed:", err.message));

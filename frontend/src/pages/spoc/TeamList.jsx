@@ -518,6 +518,7 @@ import { URL } from "../../Utils";
 import Pagination, { usePagination } from "../../components/common/Pagination";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
 import { FiKey } from "react-icons/fi";
+import TeamImportPanel from "../../components/TeamImportPanel";
 
 // A team is the team lead plus 1-4 members (2-5 people); the lead's email is the team's login
 const MIN_TEAM = 2;
@@ -555,6 +556,7 @@ function TeamList({ embedded = false }) {
   // email problems found when the form was submitted, by member position (shown under each email box)
   const [emailErrors, setEmailErrors] = useState({});
   const [checking, setChecking] = useState(false);
+  const [showImport, setShowImport] = useState(false); // bulk team import from Excel
 
   const [mentorName, setMentorName] = useState("");
   const [mentorEmail, setMentorEmail] = useState("");
@@ -783,12 +785,20 @@ function TeamList({ embedded = false }) {
             </p>
           </div>
 
-          <button
-            onClick={() => setShowCreateTeamModal(true)}
-            className="inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-lg bg-[#fc8f00] text-white text-sm font-medium shadow-sm hover:bg-orange-600 transition-colors"
-          >
-            + Create Team
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-lg border border-[#fc8f00] text-[#fc8f00] text-sm font-medium hover:bg-orange-50 transition-colors"
+            >
+              Import from Excel
+            </button>
+            <button
+              onClick={() => setShowCreateTeamModal(true)}
+              className="inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-lg bg-[#fc8f00] text-white text-sm font-medium shadow-sm hover:bg-orange-600 transition-colors"
+            >
+              + Create Team
+            </button>
+          </div>
         </div>
 
         {/* Main Card */}
@@ -1181,6 +1191,23 @@ function TeamList({ embedded = false }) {
               </div>
             </form>
           </motion.div>
+        </div>
+      )}
+      {/* Bulk team import from the Excel template */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={() => setShowImport(false)}>
+          <div className="bg-gray-50 rounded-2xl shadow-2xl w-full max-w-5xl my-8" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 px-6 py-4 border-b border-gray-200 bg-white rounded-t-2xl">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">Import teams from Excel</h3>
+                <p className="text-xs text-gray-500 mt-1">Create many teams at once. The file is checked first; nothing is saved until you confirm.</p>
+              </div>
+              <button onClick={() => setShowImport(false)} className="text-gray-500 hover:text-gray-700 text-xl" aria-label="Close">✕</button>
+            </div>
+            <div className="p-6">
+              <TeamImportPanel onDone={(r) => { allteams(); toast.success(`${r.summary.imported} team(s) created`); }} />
+            </div>
+          </div>
         </div>
       )}
     </div>

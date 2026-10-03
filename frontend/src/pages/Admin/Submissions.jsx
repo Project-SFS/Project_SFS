@@ -8,12 +8,12 @@ import { URL } from '../../Utils';
 import { useAdmin } from '../../components/admin/adminAccess';
 import TeamDetailsModal from '../../components/admin/TeamDetailsModal';
 
-// Every submission across all problem statements, for admins who evaluate. Waiting ones come first
+// Every submission across all challenges, for admins who evaluate. Waiting ones come first
 // by default so the evaluator sees what needs attention.
 const STATUS_CARDS = [
   { key: 'PENDING', label: 'Awaiting review', icon: FiClock, cls: 'text-yellow-700 bg-yellow-50' },
   { key: 'CHANGES_REQUESTED', label: 'Changes needed', icon: FiEdit3, cls: 'text-orange-700 bg-orange-50' },
-  { key: 'APPROVED', label: 'Approved', icon: FiCheckCircle, cls: 'text-green-700 bg-green-50' },
+  { key: 'APPROVED', label: 'Concept accepted', icon: FiCheckCircle, cls: 'text-green-700 bg-green-50' },
   { key: 'REJECTED', label: 'Rejected', icon: FiXCircle, cls: 'text-red-700 bg-red-50' },
 ];
 const SORTS = [
@@ -79,7 +79,7 @@ const Submissions = () => {
     <div className="min-h-screen bg-[#F7F8FC] px-4 sm:px-6 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-[#1A202C] mb-1">Submissions</h1>
-        <p className="text-[#718096] text-sm">Every team's solution across all problem statements. Open one to review it.</p>
+        <p className="text-[#718096] text-sm">Every team's solution across all challenges. Open one to review it.</p>
       </div>
 
       {/* Status cards: click to filter */}
@@ -110,7 +110,7 @@ const Submissions = () => {
           <input
             value={f.search}
             onChange={(e) => set('search')(e.target.value)}
-            placeholder="Search by solution, team, lead email, problem, college, reviewer or #ID..."
+            placeholder="Search by solution, team, lead email, challenge, college, reviewer or #ID..."
             className={`${field} w-full pl-11`}
           />
         </div>
@@ -119,8 +119,8 @@ const Submissions = () => {
             <option value="all">All statuses</option>
             {STATUS_CARDS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
           </select>
-          <select aria-label="Problem statement" value={f.problem} onChange={(e) => set('problem')(e.target.value)} className={`${field} max-w-xs`}>
-            <option value="all">All problem statements</option>
+          <select aria-label="Challenge" value={f.problem} onChange={(e) => set('problem')(e.target.value)} className={`${field} max-w-xs`}>
+            <option value="all">All challenges</option>
             {problems.map(([id, title]) => <option key={id} value={id}>SFS_{id} · {title}</option>)}
           </select>
           <select aria-label="College" value={f.college} onChange={(e) => set('college')(e.target.value)} className={field}>
@@ -162,7 +162,7 @@ const Submissions = () => {
                 <thead className="bg-[#F7F8FC] text-left text-[#4A5568]">
                   <tr>
                     <th className="px-5 py-3 font-semibold">Solution</th>
-                    <th className="px-5 py-3 font-semibold">Problem</th>
+                    <th className="px-5 py-3 font-semibold">Challenge</th>
                     <th className="px-5 py-3 font-semibold">Team · College</th>
                     <th className="px-5 py-3 font-semibold">Submitted</th>
                     <th className="px-5 py-3 font-semibold">Status</th>

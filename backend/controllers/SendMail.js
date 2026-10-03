@@ -14,11 +14,11 @@ const sendMailToSpoc = AsyncHandler(async (req, res) => {
     const email = async (data, problem) => {
         const info = await sendMail({
             to: data.EMAIL,
-            subject: `New problem statement: ${problem}`,
+            subject: `New challenge: ${problem}`,
             html: layout({
-                heading: "A new problem statement is available",
-                intro: `Hello ${escapeHtml(data.NAME || "")}, a new problem statement has been published for Solve For Sakthi ${new Date().getFullYear()}. Your teams can request it from their team portal, or you can assign it to them under Team Progress.`,
-                rows: [["Problem", problem]],
+                heading: "A new challenge is available",
+                intro: `Hello ${escapeHtml(data.NAME || "")}, a new challenge has been published for Solve For Sakthi ${new Date().getFullYear()}. Your teams can request it from their team portal, or you can assign it to them under Team Progress.`,
+                rows: [["Challenge", problem]],
                 linkPath: "/spoc", linkLabel: "Open SPOC portal",
             })
         });

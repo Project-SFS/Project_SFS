@@ -23,7 +23,7 @@ const DECISIONS = [
     placeholder: 'Tell the team exactly what to change or add...',
   },
   {
-    value: 'APPROVED', label: 'Approve', result: 'Approved', icon: FiCheckCircle,
+    value: 'APPROVED', label: 'Accept concept', result: 'Concept accepted', icon: FiCheckCircle,
     hint: 'The solution is accepted. Final: nobody can change it afterwards.',
     active: 'border-green-400 bg-green-50 ring-2 ring-green-200', iconCls: 'text-green-600',
     button: 'bg-green-600 hover:bg-green-700', commentRequired: false,
@@ -290,7 +290,7 @@ const SubmissionDetail = () => {
   const isApproval = chosen?.value === 'APPROVED';
   const marksProblem = !isApproval ? ''
     : !marksValid ? 'Each mark must be a whole number from 0 to 20.'
-    : !allMarks ? `Give marks for all five criteria to approve (${filledMarks.length}/${EVAL_CRITERIA.length} filled).`
+    : !allMarks ? `Give marks for all five criteria to accept the concept (${filledMarks.length}/${EVAL_CRITERIA.length} filled).`
     : '';
 
   const sendReview = async () => {
@@ -374,7 +374,7 @@ const SubmissionDetail = () => {
           <table className="w-full text-left border-collapse border border-[#E2E8F0] rounded-xl overflow-hidden">
             <tbody>
               <InfoRow label="Submission ID">{submission.submission_id}</InfoRow>
-              <InfoRow label="Problem Title">{submission.problem_title}</InfoRow>
+              <InfoRow label="Challenge">{submission.problem_title}</InfoRow>
               <InfoRow label="Submission Title">{submission.submission_title}</InfoRow>
               <InfoRow label="Description"><span className="whitespace-pre-line">{submission.description}</span></InfoRow>
               <InfoRow label="Team Name">
@@ -436,7 +436,7 @@ const SubmissionDetail = () => {
             <FiLock className={`text-xl shrink-0 mt-0.5 ${statusMeta(status).text}`} />
             <div>
               <div className="font-semibold text-[#1A202C]">Final decision: {statusMeta(status).label}</div>
-              This submission was {status === 'APPROVED' ? 'approved' : 'rejected'}. That decision is final and can no longer be changed. Only submissions awaiting review or with changes needed can be reviewed.
+              This submission was {status === 'APPROVED' ? 'accepted (Concept accepted)' : 'rejected'}. That decision is final and can no longer be changed. Only submissions awaiting review or with changes needed can be reviewed.
             </div>
           </div>
         ) : !canEvaluate ? (
@@ -449,7 +449,7 @@ const SubmissionDetail = () => {
           <p className="text-sm text-[#718096] mb-6">
             {status === 'PENDING'
               ? 'Choose a decision and write your comment. The team and their SPOC are emailed straight away.'
-              : 'Changes were requested and the team has not sent a revision yet. You can still give a new decision; it is emailed again. Approve and Reject are final.'}
+              : 'Changes were requested and the team has not sent a revision yet. You can still give a new decision; it is emailed again. Accept concept and Reject are final.'}
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" role="radiogroup" aria-label="Decision">
@@ -521,7 +521,7 @@ const SubmissionDetail = () => {
           )}
           {chosen && !isApproval && (
             <p className="mb-6 text-sm text-[#718096] bg-[#F7F8FC] border border-[#E2E8F0] rounded-xl px-4 py-3">
-              No marks for this decision. Marks are given only when a solution is approved, and they are not included in this email.
+              No marks for this decision. Marks are given only when a concept is accepted, and they are not included in this email.
             </p>
           )}
 
@@ -543,7 +543,7 @@ const SubmissionDetail = () => {
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4">
             <p className="text-sm text-[#718096]">
-              {!chosen ? 'Choose Changes needed, Approve or Reject.'
+              {!chosen ? 'Choose Changes needed, Accept concept or Reject.'
                 : marksProblem ? <span className="text-red-600">{marksProblem}</span>
                 : commentMissing ? 'A comment is required for this decision.'
                 : `The team lead and their SPOC will receive: ${chosen.result}${isApproval && allMarks ? ` with ${marksTotal}/${EVAL_TOTAL_MAX} marks` : ''}${comment.trim() ? ' and your comment' : ''}.`}

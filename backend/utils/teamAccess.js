@@ -5,7 +5,7 @@ import { hasPermission } from "./permissions.js"
 //   ADMIN      - every team (view + manage)
 //   SPOC       - only the teams they created and that have not graduated (view + manage)
 //   STUDENT    - only the team they lead (view only)
-// Problem statements themselves are public; team details, members and submissions are not.
+// Challenges themselves are public; team details, members and submissions are not.
 
 const role = (req) => String(req.user?.ROLE || "").toUpperCase()
 const sameEmail = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase()

@@ -8,9 +8,9 @@ import {
 import { URL } from "../../Utils";
 import Pagination, { usePagination } from "../../components/common/Pagination";
 
-// Admin: add many problem statements at once from the Excel template.
+// Admin: add many challenges at once from the Excel template.
 // Step 1 checks the file (nothing is saved), step 2 imports the rows that passed.
-const TEMPLATE_HEADERS = ["S.No", "Problem Title", "Category", "Problem Description", "Domain", "Expected Outcomes", "Requirements", "Technology"];
+const TEMPLATE_HEADERS = ["S.No", "Challenge Title", "Category", "Challenge Description", "Domain", "Expected Outcomes", "Requirements", "Technology"];
 
 const STATUS = {
   ready: { label: "Ready", cls: "bg-green-100 text-green-800", icon: FiCheckCircle },
@@ -24,16 +24,10 @@ const VIEWS = [
   ["skipped", "Will be skipped"],
 ];
 
-const todayIso = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
-
 const ProblemImport = () => {
   const navigate = useNavigate();
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
-  const [deadline, setDeadline] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [checking, setChecking] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -67,12 +61,11 @@ const ProblemImport = () => {
   const send = (dryRun) => {
     const form = new FormData();
     form.append("file", file);
-    form.append("deadline", deadline);
     form.append("dryRun", String(dryRun));
     return axios.post(`${URL}/admin/problems/import`, form, { withCredentials: true });
   };
 
-  const canCheck = file && deadline && !checking && !importing;
+  const canCheck = file && !checking && !importing;
 
   const checkFile = async (e) => {
     e.preventDefault();
@@ -122,12 +115,12 @@ const ProblemImport = () => {
     <div className="min-h-screen bg-[#F7F8FC] px-6 py-8">
       <div className="max-w-6xl mx-auto">
         <button onClick={() => navigate("/admin/problems")} className="inline-flex items-center gap-2 text-sm font-medium text-[#718096] hover:text-[#FF9900] mb-5">
-          <FiArrowLeft /> Back to problem statements
+          <FiArrowLeft /> Back to challenges
         </button>
 
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#1A202C] mb-1">Import Problem Statements</h1>
-          <p className="text-[#718096] text-sm">Add many problem statements at once from the Excel template. Every file is checked first; nothing is saved until you confirm.</p>
+          <h1 className="text-3xl font-bold text-[#1A202C] mb-1">Import Challenges</h1>
+          <p className="text-[#718096] text-sm">Add many challenges at once from the Excel template. Every file is checked first; nothing is saved until you confirm.</p>
         </div>
 
         {/* Result after importing */}
@@ -137,7 +130,7 @@ const ProblemImport = () => {
               <FiCheckCircle className="text-3xl text-green-600 shrink-0" />
               <div className="flex-1">
                 <h2 className="text-lg font-semibold text-green-800">
-                  {result.summary.imported} problem statement{result.summary.imported === 1 ? "" : "s"} imported
+                  {result.summary.imported} challenge{result.summary.imported === 1 ? "" : "s"} imported
                 </h2>
                 <p className="text-sm text-green-700 mt-1">
                   They are live now, and every active SPOC has been emailed the list.
@@ -145,7 +138,7 @@ const ProblemImport = () => {
                 </p>
                 <div className="flex flex-wrap gap-3 mt-4">
                   <Link to="/admin/problems" className="px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700">
-                    View problem statements
+                    View challenges
                   </Link>
                   <button
                     onClick={() => { setResult(null); setFile(null); }}
@@ -174,12 +167,12 @@ const ProblemImport = () => {
           <section className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm p-6">
             <div className="text-xs font-bold text-[#FF9900] mb-1">STEP 1</div>
             <h2 className="font-semibold text-[#1A202C] mb-2">Fill in the template</h2>
-            <p className="text-sm text-[#718096] mb-4">One problem statement per row. Keep the header row exactly as it is.</p>
+            <p className="text-sm text-[#718096] mb-4">One challenge per row. Keep the header row exactly as it is.</p>
             <ol className="text-sm text-[#4A5568] space-y-1 mb-5 list-decimal list-inside">
               {TEMPLATE_HEADERS.map((h) => (
                 <li key={h}>
                   {h}
-                  {["Problem Title", "Category", "Problem Description"].includes(h) && <span className="text-red-500"> *</span>}
+                  {["Challenge Title", "Category", "Challenge Description"].includes(h) && <span className="text-red-500"> *</span>}
                   {h === "Category" && <span className="text-xs text-[#A0AEC0]"> (Software, Hardware or Combined)</span>}
                 </li>
               ))}
@@ -232,11 +225,7 @@ const ProblemImport = () => {
             )}
             <input ref={inputRef} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={(e) => { pickFile(e.target.files?.[0]); e.target.value = null; }} />
 
-            <label className="block max-w-sm">
-              <span className="text-sm font-semibold text-[#4A5568]">Submission deadline <span className="text-red-500">*</span></span>
-              <input type="date" min={todayIso()} value={deadline} onChange={(e) => { setDeadline(e.target.value); setPreview(null); }} className={`${input} mt-1.5`} required />
-            </label>
-            <p className="text-xs text-[#718096] -mt-2">The deadline applies to every problem statement in this file. The category comes from each row's Category column.</p>
+            <p className="text-xs text-[#718096]">The category comes from each row's Category column. Imported challenges are open straight away and stay open until an admin closes them.</p>
 
             {error && (
               <div className="flex gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -271,7 +260,7 @@ const ProblemImport = () => {
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-green-600 text-white text-sm font-semibold shadow-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FiUploadCloud />
-                {importing ? "Importing…" : summary.ready === 0 ? "Nothing to import" : `Import ${summary.ready} problem statement${summary.ready === 1 ? "" : "s"}`}
+                {importing ? "Importing…" : summary.ready === 0 ? "Nothing to import" : `Import ${summary.ready} challenge${summary.ready === 1 ? "" : "s"}`}
               </button>
             </div>
 
@@ -343,7 +332,7 @@ const ProblemImport = () => {
                             <td colSpan="7" className="px-6 py-4 max-w-0">
                               <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                 {[
-                                  ["Problem Description", r.description],
+                                  ["Challenge Description", r.description],
                                   ["Expected Outcomes", r.outcomes],
                                   ["Requirements", r.requirements],
                                   ["Technology", r.technology],

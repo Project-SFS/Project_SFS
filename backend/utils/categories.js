@@ -1,4 +1,4 @@
-// Problem statement categories: the stored value (lower case) and the label people see.
+// Challenge categories: the stored value (lower case) and the label people see.
 export const CATEGORIES = {
     software: "Software",
     hardware: "Hardware",

@@ -91,7 +91,7 @@ const ResetPortal = () => {
           <FiAlertTriangle className="text-2xl text-red-600 shrink-0" />
           <div className="text-sm text-red-900">
             <div className="font-semibold text-base mb-1">This permanently deletes everything</div>
-            Every problem statement, team, member, SPOC account, team login, submission, uploaded file, review and email record is deleted.
+            Every challenge, team, member, SPOC account, team login, submission, uploaded file, review and email record is deleted.
             Only the <b>admin accounts</b> are kept (listed below). There is no undo. Export anything you need first (Exports page).
           </div>
         </div>

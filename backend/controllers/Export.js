@@ -25,7 +25,7 @@ const loadSubmissions = async () => {
         SELECT s.ID, s.PROBLEM_ID, s.TEAM_EMAIL, s.SOL_TITLE, s.SOL_DESCRIPTION, s.SOL_LINK, s.FILES, s.SUB_DATE, s.STATUS,
                s.EVALUATION_COMMENT, s.EVALUATED_AT, s.EVALUATED_BY,
                s.EVAL_UNDERSTANDING, s.EVAL_SOLUTION, s.EVAL_TOOLS, s.EVAL_PRESENTATION, s.EVAL_ACCEPTANCE, s.EVAL_TOTAL,
-               p.TITLE AS PROBLEM_TITLE, p.CATEGORY, p.DOMAIN, p.SUB_DEADLINE,
+               p.TITLE AS PROBLEM_TITLE, p.CATEGORY, p.DOMAIN, p.IS_CLOSED,
                t.ID AS TEAM_ID, t.NAME AS TEAM_NAME, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.GRADUATED_AT, t.REMOVED_AT,
                COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
                spoc.ID AS SPOC_ID, spoc.NAME AS SPOC_NAME, spoc.EMAIL AS SPOC_EMAIL, spoc.PHONE AS SPOC_PHONE, spoc.COLLEGE, spoc.COLLEGE_CODE,
@@ -50,21 +50,19 @@ const loadTeams = async () => {
         LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
         ORDER BY t.ID`);
     const [members] = await connection.query("SELECT Team_ID, ROLE, NAME, EMAIL, PHONE, GENDER, GRAD_YEAR FROM SolveForSakthi_Team_Members_List ORDER BY Team_ID, ID");
-    const [assignments] = await connection.query(`
-        SELECT tp.TEAM_ID, tp.PROBLEM_ID, tp.STATUS, p.TITLE FROM SolveForSakthi_Team_Problems tp
-        JOIN SolveForSakthi_Problems p ON p.ID = tp.PROBLEM_ID`);
-    const [subs] = await connection.query("SELECT TEAM_EMAIL, PROBLEM_ID, STATUS, EVAL_TOTAL FROM SolveForSakthi_Submissions");
+    const [subs] = await connection.query(`
+        SELECT s.TEAM_EMAIL, s.PROBLEM_ID, s.STATUS, s.EVAL_TOTAL, p.TITLE
+        FROM SolveForSakthi_Submissions s LEFT JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID`);
     return teams.map((t) => {
         const lead = String(t.LEAD_EMAIL || "").toLowerCase();
         const teamSubs = subs.filter((s) => lead && String(s.TEAM_EMAIL || "").toLowerCase() === lead);
         const count = (st) => teamSubs.filter((s) => statusOf(s.STATUS) === st).length;
         const marks = teamSubs.map((s) => s.EVAL_TOTAL).filter((m) => m != null);
-        const mine = assignments.filter((a) => a.TEAM_ID === t.ID);
         return {
             ...t,
             members: members.filter((m) => m.Team_ID === t.ID),
-            assigned: mine.filter((a) => a.STATUS === "ASSIGNED"),
-            requested: mine.filter((a) => a.STATUS === "REQUESTED"),
+            // the challenges the team submitted a solution to
+            challenges: teamSubs.map((x) => ({ PROBLEM_ID: x.PROBLEM_ID, TITLE: x.TITLE })),
             SUBMISSIONS: teamSubs.length,
             AWAITING: count("PENDING"), CHANGES: count("CHANGES_REQUESTED"), APPROVED: count("APPROVED"), REJECTED: count("REJECTED"),
             BEST_MARKS: marks.length ? Math.max(...marks) : null,
@@ -98,11 +96,11 @@ const SUBMISSION_COLUMNS = [
     { key: "file", header: "Files attached", group: "Submission", width: 12, type: "number", value: (r) => Number(r.FILE_COUNT) || 0 },
     { key: "submittedOn", header: "Submitted on", group: "Submission", width: 14, type: "date", value: (r) => asDate(day(r.SUB_DATE)) },
     { key: "status", header: "Status", group: "Submission", width: 17, value: (r) => label(r.STATUS) },
-    { key: "problemId", header: "Problem ID", group: "Problem", width: 12, value: (r) => (r.PROBLEM_ID ? `SFS_${r.PROBLEM_ID}` : "") },
-    { key: "problemTitle", header: "Problem title", group: "Problem", width: 36, value: (r) => r.PROBLEM_TITLE },
-    { key: "category", header: "Category", group: "Problem", width: 12, value: (r) => r.CATEGORY },
-    { key: "domain", header: "Domain", group: "Problem", width: 18, value: (r) => r.DOMAIN },
-    { key: "deadline", header: "Problem deadline", group: "Problem", width: 15, type: "date", value: (r) => asDate(day(r.SUB_DEADLINE)) },
+    { key: "problemId", header: "Challenge ID", group: "Challenge", width: 12, value: (r) => (r.PROBLEM_ID ? `SFS_${r.PROBLEM_ID}` : "") },
+    { key: "problemTitle", header: "Challenge title", group: "Challenge", width: 36, value: (r) => r.PROBLEM_TITLE },
+    { key: "category", header: "Category", group: "Challenge", width: 12, value: (r) => r.CATEGORY },
+    { key: "domain", header: "Domain", group: "Challenge", width: 18, value: (r) => r.DOMAIN },
+    { key: "challengeStatus", header: "Challenge status", group: "Challenge", width: 17, value: (r) => (r.PROBLEM_ID ? (r.IS_CLOSED ? "Concept Received" : "Open") : "") },
     { key: "teamId", header: "Team ID", group: "Team", width: 9, type: "number", value: (r) => r.TEAM_ID },
     { key: "teamName", header: "Team name", group: "Team", width: 22, value: (r) => r.TEAM_NAME },
     { key: "leadEmail", header: "Team lead email", group: "Team", width: 28, value: (r) => r.TEAM_EMAIL },
@@ -139,14 +137,13 @@ const TEAM_COLUMNS = [
     { key: "collegeCode", header: "College code", group: "College & SPOC", width: 13, value: (t) => t.COLLEGE_CODE },
     { key: "spocName", header: "SPOC name", group: "College & SPOC", width: 20, value: (t) => t.SPOC_NAME },
     { key: "spocEmail", header: "SPOC email", group: "College & SPOC", width: 28, value: (t) => t.SPOC_EMAIL },
-    { key: "assigned", header: "Problems assigned", group: "Problems & results", width: 40, value: (t) => t.assigned.map((a) => `SFS_${a.PROBLEM_ID} ${a.TITLE}`).join("; ") },
-    { key: "requested", header: "Pending requests", group: "Problems & results", width: 30, value: (t) => t.requested.map((a) => `SFS_${a.PROBLEM_ID} ${a.TITLE}`).join("; ") },
-    { key: "submissions", header: "Submissions", group: "Problems & results", width: 12, type: "number", value: (t) => t.SUBMISSIONS },
-    { key: "awaiting", header: "Awaiting review", group: "Problems & results", width: 12, type: "number", value: (t) => t.AWAITING },
-    { key: "changes", header: "Changes needed", group: "Problems & results", width: 12, type: "number", value: (t) => t.CHANGES },
-    { key: "approved", header: "Approved", group: "Problems & results", width: 11, type: "number", value: (t) => t.APPROVED },
-    { key: "rejected", header: "Rejected", group: "Problems & results", width: 11, type: "number", value: (t) => t.REJECTED },
-    { key: "bestMarks", header: `Best marks (/${MARKS_TOTAL})`, group: "Problems & results", width: 13, type: "number", value: (t) => t.BEST_MARKS },
+    { key: "challenges", header: "Challenges submitted to", group: "Challenges & results", width: 40, value: (t) => t.challenges.map((a) => `SFS_${a.PROBLEM_ID} ${a.TITLE || ""}`.trim()).join("; ") },
+    { key: "submissions", header: "Submissions", group: "Challenges & results", width: 12, type: "number", value: (t) => t.SUBMISSIONS },
+    { key: "awaiting", header: "Awaiting review", group: "Challenges & results", width: 12, type: "number", value: (t) => t.AWAITING },
+    { key: "changes", header: "Changes needed", group: "Challenges & results", width: 12, type: "number", value: (t) => t.CHANGES },
+    { key: "approved", header: "Concept accepted", group: "Challenges & results", width: 14, type: "number", value: (t) => t.APPROVED },
+    { key: "rejected", header: "Rejected", group: "Challenges & results", width: 11, type: "number", value: (t) => t.REJECTED },
+    { key: "bestMarks", header: `Best marks (/${MARKS_TOTAL})`, group: "Challenges & results", width: 13, type: "number", value: (t) => t.BEST_MARKS },
 ];
 
 const SPOC_COLUMNS = [
@@ -209,7 +206,7 @@ const filterTeams = (teams, f = {}) => {
         inList(list(f.colleges), t.COLLEGE)
         && matchesTeamStatus(t, f.teamStatus)
         && (!f.submissions || f.submissions === "all" || (f.submissions === "with" ? t.SUBMISSIONS > 0 : t.SUBMISSIONS === 0))
-        && (list(f.problemIds).length === 0 || t.assigned.some((a) => list(f.problemIds).includes(String(a.PROBLEM_ID))))
+        && (list(f.problemIds).length === 0 || t.challenges.some((a) => list(f.problemIds).includes(String(a.PROBLEM_ID))))
         && matchesGraduation(t, f)
         && (!q || [t.NAME, t.LEAD_EMAIL, t.COLLEGE, t.SPOC_NAME].some((v) => String(v || "").toLowerCase().includes(q))));
 };
@@ -280,7 +277,7 @@ const addInfoSheet = (workbook, { title, user, filters, counts }) => {
 const describeFilters = (type, f = {}, lookups) => {
     const out = [];
     const names = (ids, map) => list(ids).map((id) => map.get(String(id)) || id).join(", ");
-    if (list(f.problemIds).length) out.push(["Problem statements", names(f.problemIds, lookups.problems)]);
+    if (list(f.problemIds).length) out.push(["Challenges", names(f.problemIds, lookups.problems)]);
     if (list(f.statuses).length) out.push(["Submission status", list(f.statuses).map((s) => DECISION_LABELS[s] || s).join(", ")]);
     if (list(f.colleges).length) out.push(["Colleges", list(f.colleges).join(", ")]);
     if (list(f.reviewers).length) out.push(["Reviewed by", list(f.reviewers).join(", ")]);
@@ -300,8 +297,8 @@ const describeFilters = (type, f = {}, lookups) => {
 // Submissions workbook: summary per problem, a sheet grouped by problem, the flat list and optional extras
 const buildSubmissionsWorkbook = async (workbook, rows, columns, sheets, filters, user) => {
     const [problems] = await connection.query(`
-        SELECT p.ID, p.TITLE, p.CATEGORY, p.DOMAIN, p.SUB_DEADLINE,
-               (SELECT COUNT(*) FROM SolveForSakthi_Team_Problems tp WHERE tp.PROBLEM_ID = p.ID AND tp.STATUS = 'ASSIGNED') AS ASSIGNED_TEAMS
+        SELECT p.ID, p.TITLE, p.CATEGORY, p.DOMAIN, p.IS_CLOSED,
+               (SELECT COUNT(DISTINCT s.TEAM_EMAIL) FROM SolveForSakthi_Submissions s WHERE s.PROBLEM_ID = p.ID) AS TEAM_COUNT
         FROM SolveForSakthi_Problems p ORDER BY p.ID`);
     const chosenProblems = list(filters.problemIds);
     const problemList = problems.filter((p) => chosenProblems.length === 0 || chosenProblems.includes(String(p.ID)));
@@ -313,19 +310,18 @@ const buildSubmissionsWorkbook = async (workbook, rows, columns, sheets, filters
     const problemOf = new Map(problems.map((p) => [p.ID, p]));
 
     if (sheets.summary !== false) {
-        const sheet = workbook.addWorksheet("Summary by problem", { views: [{ state: "frozen", ySplit: 1 }] });
-        const head = ["Problem ID", "Problem title", "Category", "Deadline", "Teams assigned", "Submissions", "Awaiting review", "Changes needed", "Approved", "Rejected", "Average marks", "Highest marks"];
-        sheet.columns = head.map((h, i) => ({ header: h, width: [12, 40, 12, 14, 14, 13, 14, 14, 11, 11, 13, 13][i] }));
-        sheet.getColumn(4).numFmt = "dd-mmm-yyyy";
+        const sheet = workbook.addWorksheet("Summary by challenge", { views: [{ state: "frozen", ySplit: 1 }] });
+        const head = ["Challenge ID", "Challenge title", "Category", "Status", "Teams", "Submissions", "Awaiting review", "Changes needed", "Concept accepted", "Rejected", "Average marks", "Highest marks"];
+        sheet.columns = head.map((h, i) => ({ header: h, width: [12, 40, 12, 17, 10, 13, 14, 14, 15, 11, 13, 13][i] }));
         styleHeader(sheet.getRow(1));
         const totals = Array(8).fill(0);
         for (const [id, subs] of byProblem) {
             const p = problemOf.get(id) || {};
             const count = (st) => subs.filter((s) => statusOf(s.STATUS) === st).length;
             const marks = subs.map((s) => s.EVAL_TOTAL).filter((m) => m != null);
-            const values = [p.ASSIGNED_TEAMS ?? 0, subs.length, count("PENDING"), count("CHANGES_REQUESTED"), count("APPROVED"), count("REJECTED")];
+            const values = [p.TEAM_COUNT ?? 0, subs.length, count("PENDING"), count("CHANGES_REQUESTED"), count("APPROVED"), count("REJECTED")];
             values.forEach((v, i) => { totals[i] += v; });
-            sheet.addRow([id ? `SFS_${id}` : "", p.TITLE || "(deleted problem)", p.CATEGORY || "", asDate(day(p.SUB_DEADLINE)), ...values,
+            sheet.addRow([id ? `SFS_${id}` : "", p.TITLE || "(deleted challenge)", p.CATEGORY || "", p.ID ? (p.IS_CLOSED ? "Concept Received" : "Open") : "", ...values,
                 marks.length ? Math.round((marks.reduce((a, b) => a + b, 0) / marks.length) * 10) / 10 : null,
                 marks.length ? Math.max(...marks) : null]);
         }
@@ -336,13 +332,13 @@ const buildSubmissionsWorkbook = async (workbook, rows, columns, sheets, filters
 
     if (sheets.byProblem !== false) {
         // each problem as a band, followed by the teams that submitted to it
-        const sheet = workbook.addWorksheet("By problem statement");
+        const sheet = workbook.addWorksheet("By challenge");
         sheet.columns = columns.map((c) => ({ key: c.key, width: c.width || 16 }));
         columns.forEach((c, i) => formatColumn(sheet.getColumn(i + 1), c));
         for (const [id, subs] of byProblem) {
             if (subs.length === 0 && sheets.includeEmptyProblems === false) continue;
             const p = problemOf.get(id) || {};
-            const band = sheet.addRow([`SFS_${id} · ${p.TITLE || "(deleted problem)"}${p.CATEGORY ? ` · ${p.CATEGORY}` : ""}${p.SUB_DEADLINE ? ` · deadline ${day(p.SUB_DEADLINE)}` : ""} — ${subs.length} submission${subs.length === 1 ? "" : "s"}`]);
+            const band = sheet.addRow([`SFS_${id} · ${p.TITLE || "(deleted challenge)"}${p.CATEGORY ? ` · ${p.CATEGORY}` : ""}${p.IS_CLOSED ? " · Concept Received" : ""} — ${subs.length} submission${subs.length === 1 ? "" : "s"}`]);
             sheet.mergeCells(band.number, 1, band.number, Math.max(columns.length, 1));
             band.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } };
             band.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF494949" } };
@@ -371,7 +367,7 @@ const buildSubmissionsWorkbook = async (workbook, rows, columns, sheets, filters
         addTableSheet(workbook, "Review history", [
             { key: "sub", header: "Submission ID", width: 13, value: (r) => r.SUBMISSION_ID },
             { key: "team", header: "Team", width: 22, value: (r) => subOf.get(r.SUBMISSION_ID)?.TEAM_NAME },
-            { key: "problem", header: "Problem", width: 32, value: (r) => { const s = subOf.get(r.SUBMISSION_ID); return s ? `SFS_${s.PROBLEM_ID} ${s.PROBLEM_TITLE || ""}` : ""; } },
+            { key: "problem", header: "Challenge", width: 32, value: (r) => { const s = subOf.get(r.SUBMISSION_ID); return s ? `SFS_${s.PROBLEM_ID} ${s.PROBLEM_TITLE || ""}` : ""; } },
             { key: "decision", header: "Decision", width: 16, value: (r) => label(r.DECISION) },
             { key: "by", header: "Reviewed by", width: 28, value: (r) => r.REVIEWER_EMAIL },
             { key: "at", header: "Reviewed on", width: 18, type: "datetime", value: (r) => asDate(r.REVIEWED_AT) },
@@ -450,7 +446,7 @@ const Export_data = AsyncHandler(async (req, res) => {
 
     // the info sheet goes first; ExcelJS keeps sheets in the order they are added
     const counts = [[type === "spocs" ? "SPOCs" : type === "teams" ? "Teams" : "Submissions", rows.length]];
-    if (type === "submissions") counts.push(["Problem statements with submissions", new Set(rows.map((r) => r.PROBLEM_ID)).size], ["Teams", new Set(rows.map((r) => r.TEAM_EMAIL)).size]);
+    if (type === "submissions") counts.push(["Challenges with submissions", new Set(rows.map((r) => r.PROBLEM_ID)).size], ["Teams", new Set(rows.map((r) => r.TEAM_EMAIL)).size]);
     addInfoSheet(workbook, { title: `Solve For Sakthi · ${titles[type]}`, user: req.user, filters: describeFilters(type, filters, lookups), counts });
 
     if (type === "submissions") {
@@ -473,7 +469,7 @@ const Export_data = AsyncHandler(async (req, res) => {
     res.end();
 });
 
-// One problem statement's report: problem details and counts on top, every submission below, and the
+// One challenge's report: problem details and counts on top, every submission below, and the
 // review history on a second sheet
 const buildProblemReport = (problem, subs, columns, reviews, user) => {
     const workbook = new ExcelJS.Workbook();
@@ -484,7 +480,7 @@ const buildProblemReport = (problem, subs, columns, reviews, user) => {
     columns.forEach((c, i) => formatColumn(sheet.getColumn(i + 1), c));
     const span = Math.max(columns.length, 4);
 
-    const title = sheet.addRow([`SFS_${problem.ID} · ${problem.TITLE || "(deleted problem)"}`]);
+    const title = sheet.addRow([`SFS_${problem.ID} · ${problem.TITLE || "(deleted challenge)"}`]);
     sheet.mergeCells(title.number, 1, title.number, span);
     title.font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
     title.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF494949" } };
@@ -494,9 +490,9 @@ const buildProblemReport = (problem, subs, columns, reviews, user) => {
     const marks = subs.map((x) => x.EVAL_TOTAL).filter((m) => m != null);
     const facts = [
         ["Category", problem.CATEGORY || "—"], ["Domain", problem.DOMAIN || "—"],
-        ["Deadline", day(problem.SUB_DEADLINE) || "—"], ["Teams assigned", problem.ASSIGNED_TEAMS ?? 0],
+        ["Status", problem.IS_CLOSED ? "Concept Received" : "Open"], ["Teams", problem.TEAM_COUNT ?? 0],
         ["Submissions", subs.length], ["Awaiting review", count("PENDING")], ["Changes needed", count("CHANGES_REQUESTED")],
-        ["Approved", count("APPROVED")], ["Rejected", count("REJECTED")],
+        ["Concept accepted", count("APPROVED")], ["Rejected", count("REJECTED")],
         ["Average marks", marks.length ? `${Math.round((marks.reduce((a, b) => a + b, 0) / marks.length) * 10) / 10} / ${MARKS_TOTAL}` : "—"],
         ["Highest marks", marks.length ? `${Math.max(...marks)} / ${MARKS_TOTAL}` : "—"],
         ["Generated", `${new Date().toLocaleString("en-IN", { timeZone, dateStyle: "medium", timeStyle: "short" })} by ${user?.EMAIL || ""}`],
@@ -509,7 +505,7 @@ const buildProblemReport = (problem, subs, columns, reviews, user) => {
     sheet.addRow([]);
 
     if (subs.length === 0) {
-        sheet.addRow(["No submissions for this problem statement (with the selected filters)."]).font = { italic: true, color: { argb: "FF888888" } };
+        sheet.addRow(["No submissions for this challenge (with the selected filters)."]).font = { italic: true, color: { argb: "FF888888" } };
     } else {
         const head = sheet.addRow(columns.map((c) => c.header));
         styleHeader(head);
@@ -537,20 +533,20 @@ const buildProblemReport = (problem, subs, columns, reviews, user) => {
 const safeName = (text) => String(text || "").replace(/[\\/:*?"<>|\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 
 // POST /admin/export/problem-reports  body { filters, columns, includeEmptyProblems }
-// A ZIP with one Excel report per problem statement, plus an overview workbook
+// A ZIP with one Excel report per challenge, plus an overview workbook
 const Export_problem_reports = AsyncHandler(async (req, res) => {
     const { filters = {}, columns: keys = [], includeEmptyProblems = true } = req.body || {};
     const rows = filterSubmissions(await loadSubmissions(), filters);
     // each report is about one problem, so the problem columns are left out unless chosen explicitly
-    const columns = pickColumns(SUBMISSION_COLUMNS, keys).filter((c) => list(keys).length || !["problemId", "problemTitle", "category", "domain", "deadline"].includes(c.key));
+    const columns = pickColumns(SUBMISSION_COLUMNS, keys).filter((c) => list(keys).length || !["problemId", "problemTitle", "category", "domain", "challengeStatus"].includes(c.key));
     const [problems] = await connection.query(`
-        SELECT p.ID, p.TITLE, p.CATEGORY, p.DOMAIN, p.SUB_DEADLINE,
-               (SELECT COUNT(*) FROM SolveForSakthi_Team_Problems tp WHERE tp.PROBLEM_ID = p.ID AND tp.STATUS = 'ASSIGNED') AS ASSIGNED_TEAMS
+        SELECT p.ID, p.TITLE, p.CATEGORY, p.DOMAIN, p.IS_CLOSED,
+               (SELECT COUNT(DISTINCT s.TEAM_EMAIL) FROM SolveForSakthi_Submissions s WHERE s.PROBLEM_ID = p.ID) AS TEAM_COUNT
         FROM SolveForSakthi_Problems p ORDER BY p.ID`);
     const chosen = list(filters.problemIds);
     const included = problems.filter((p) => (chosen.length === 0 || chosen.includes(String(p.ID)))
         && (includeEmptyProblems || rows.some((r) => r.PROBLEM_ID === p.ID)));
-    if (included.length === 0) return res.status(400).json({ message: "No problem statements match these filters" });
+    if (included.length === 0) return res.status(400).json({ message: "No challenges match these filters" });
 
     const ids = rows.map((r) => r.ID);
     const [reviews] = ids.length ? await connection.query(`
@@ -560,7 +556,7 @@ const Export_problem_reports = AsyncHandler(async (req, res) => {
         ORDER BY r.SUBMISSION_ID, r.ID`) : [[]];
 
     const zip = new JSZip();
-    const folder = zip.folder("Problem statement reports");
+    const folder = zip.folder("Challenge reports");
     for (const p of included) {
         const subs = rows.filter((r) => r.PROBLEM_ID === p.ID);
         const subIds = new Set(subs.map((x) => x.ID));
@@ -572,14 +568,14 @@ const Export_problem_reports = AsyncHandler(async (req, res) => {
     const overview = new ExcelJS.Workbook();
     const lookups = { problems: new Map(problems.map((x) => [String(x.ID), `SFS_${x.ID} ${x.TITLE}`])) };
     addInfoSheet(overview, {
-        title: "Solve For Sakthi · Problem statement reports",
+        title: "Solve For Sakthi · Challenge reports",
         user: req.user,
         filters: describeFilters("submissions", filters, lookups),
-        counts: [["Problem statements (one report each)", included.length], ["Submissions", rows.filter((r) => included.some((p) => p.ID === r.PROBLEM_ID)).length]],
+        counts: [["Challenges (one report each)", included.length], ["Submissions", rows.filter((r) => included.some((p) => p.ID === r.PROBLEM_ID)).length]],
     });
     await buildSubmissionsWorkbook(overview, rows.filter((r) => included.some((p) => p.ID === r.PROBLEM_ID)), columns,
         { summary: true, byProblem: false, all: false }, { ...filters, problemIds: included.map((p) => String(p.ID)) }, req.user);
-    zip.file("All problems - summary.xlsx", await overview.xlsx.writeBuffer());
+    zip.file("All challenges - summary.xlsx", await overview.xlsx.writeBuffer());
 
     const stamp = new Date().toLocaleDateString("en-CA", { timeZone });
     res.setHeader("Content-Type", "application/zip");
@@ -594,7 +590,7 @@ const List_all_submissions = AsyncHandler(async (req, res) => {
     const rows = await loadSubmissions();
     const out = rows
         .map((r) => ({
-            ID: r.ID, PROBLEM_ID: r.PROBLEM_ID, PROBLEM_TITLE: r.PROBLEM_TITLE, CATEGORY: r.CATEGORY, SUB_DEADLINE: day(r.SUB_DEADLINE),
+            ID: r.ID, PROBLEM_ID: r.PROBLEM_ID, PROBLEM_TITLE: r.PROBLEM_TITLE, CATEGORY: r.CATEGORY, IS_CLOSED: Boolean(r.IS_CLOSED),
             SOL_TITLE: r.SOL_TITLE, SUB_DATE: day(r.SUB_DATE), STATUS: statusOf(r.STATUS),
             TEAM_ID: r.TEAM_ID, TEAM_NAME: r.TEAM_NAME, TEAM_EMAIL: r.TEAM_EMAIL, COLLEGE: r.COLLEGE,
             EVAL_TOTAL: r.EVAL_TOTAL, EVALUATED_AT: r.EVALUATED_AT, REVIEWER_EMAIL: r.REVIEWER_EMAIL, REVIEW_COUNT: Number(r.REVIEW_COUNT) || 0,

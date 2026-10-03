@@ -3,7 +3,7 @@ import connection from "../database/db.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import { today, checkProblemOpen } from "../utils/deadline.js";
 import { notifySubmission } from "../utils/notifications.js";
-import { isAssignedToTeamOf } from "./TeamProblems.js";
+import { newSolutionBlockedReason } from "./TeamProblems.js";
 import multer from "multer"
 import { canTeamEdit, lockedMessage, uploadClosedReason } from "../utils/review.js";
 import { MAX_FILES, MAX_FILE_MB, KINDS, kindFromName, contentMatches, filePathsOf, unlinkAll } from "../utils/submissionFiles.js";
@@ -54,8 +54,8 @@ const uploadFiles = AsyncHandler(async(req, res) => {
         return res.status(400).json({ message: "problemId, email and title are required" });
     }
 
-    // One submission per team per problem: while it is awaiting review or changes were requested, a new
-    // upload replaces it (and goes back for review); once approved or rejected it is locked
+    // One solution per team per challenge: while it is awaiting review or changes were requested, a new
+    // upload replaces it (and goes back for review); once accepted or rejected it is locked
     const [existing] = await connection.query("SELECT TOP 1 ID, STATUS, FILES FROM SolveForSakthi_Submissions WHERE TEAM_EMAIL = ? AND PROBLEM_ID = ? ORDER BY ID DESC", [email, problemId]);
     const previous = existing[0];
 
@@ -65,9 +65,11 @@ const uploadFiles = AsyncHandler(async(req, res) => {
         return res.status(400).json({ message: closedReason });
     }
 
-    if (req.user.ROLE === "STUDENT" && !(await isAssignedToTeamOf(email, problemId))) {
+    // a team with the maximum number of accepted concepts cannot start new solutions (revisions are fine)
+    const blocked = previous ? null : await newSolutionBlockedReason(email);
+    if (blocked) {
         removeUploaded(files);
-        return res.status(400).json({ message: "This problem statement is not assigned to your team. Request it from your SPOC first." });
+        return res.status(400).json({ message: blocked });
     }
 
     if (previous && !canTeamEdit(previous.STATUS)) {

@@ -64,7 +64,7 @@ const signup = AsyncHandler(async (req, res) => {
                         subject: "Your Solve For Sakthi team login",
                         html: layout({
                 heading: "Your team account is ready",
-                intro: `Hello ${escapeHtml(name)}, your SPOC created your team's account for Solve For Sakthi. Log in with the details below to request problem statements and submit solutions.`,
+                intro: `Hello ${escapeHtml(name)}, your SPOC created your team's account for Solve For Sakthi. Log in with the details below to request challenges and submit solutions.`,
                 rows: [["Login email", email], ["Password", password]],
                 outro: "Please keep these details private.",
                 linkPath: "/login", linkLabel: "Log in",

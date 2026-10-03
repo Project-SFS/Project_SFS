@@ -119,114 +119,12 @@ const notifyAccountDecision = (userId, approved) => background("account decision
     })
 })
 
-// SPOC assigned a problem statement to one of their teams (directly, or by approving the team's request)
 // Short text for an email (problem fields can be long)
 const clip = (value, max = 600) => {
     const text = String(value ?? "").trim()
     return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text
 }
 const paragraph = (value) => escapeHtml(value).replace(/\n/g, "<br>")
-
-// A problem statement was assigned to a team (directly or by approving its request). The team lead and each
-// member get their own email explaining, in simple words, what kind of solution is expected.
-const notifyTeamAssigned = (teamId, problemId, approvedRequest = false) => background("team assigned", async () => {
-    const [rows] = await connection.query(`
-        SELECT t.NAME AS TEAM_NAME, t.LEAD_EMAIL, p.ID AS PROBLEM_ID, p.TITLE, p.CATEGORY, p.SUB_DEADLINE,
-               p.DESCRIPTION, p.EXPECTED_OUTCOMES, p.REQUIREMENTS, p.TECHNOLOGY, p.DOMAIN
-        FROM SolveForSakthi_Team_List t, SolveForSakthi_Problems p
-        WHERE t.ID = ? AND p.ID = ?`, [teamId, problemId])
-    const row = rows[0]
-    if (!row) return
-    const [members] = await connection.query("SELECT NAME, EMAIL FROM SolveForSakthi_Team_Members_List WHERE Team_ID = ?", [teamId])
-
-    const box = (title, body) => body ? `<div style="margin:0 0 14px;"><div style="font-weight:bold;color:#2f3640;margin-bottom:4px;">${title}</div><div>${body}</div></div>` : ""
-    const steps = [
-        ["Understand the problem", "Explain the problem in your own words: who faces it and why it matters."],
-        ["Your solution and idea", "Describe how you will solve it and what makes your idea new or better."],
-        ["Tools and technology", "List the tools, software, hardware or methods you use, and why."],
-        ["Clear presentation", "Make simple slides or a document with diagrams, screenshots or photos."],
-        ["Useful for industry", "Show that it can really be used: benefits, rough cost and how to put it in place."],
-    ]
-    const outro = `
-        ${box("About this problem", paragraph(clip(row.DESCRIPTION)))}
-        ${box("What we expect from your solution", paragraph(clip(row.EXPECTED_OUTCOMES)))}
-        ${box("Requirements", paragraph(clip(row.REQUIREMENTS)))}
-        ${box("Suggested technology", paragraph(clip(row.TECHNOLOGY, 300)))}
-        <div style="margin:0 0 14px;padding:14px 16px;background:#fff7ec;border-left:4px solid #fc9300;border-radius:6px;">
-          <div style="font-weight:bold;color:#2f3640;margin-bottom:8px;">How to prepare your solution (simple checklist)</div>
-          <ol style="margin:0;padding-left:20px;">
-            ${steps.map(([title, text]) => `<li style="margin:0 0 6px;"><b>${title}:</b> ${text}</li>`).join("")}
-          </ol>
-          <div style="margin-top:8px;font-size:13px;color:#4a5568;">Each point carries 20 marks (100 in total).</div>
-        </div>
-        ${box("What to upload", `Up to <b>3 files</b>, each a <b>PDF</b> or <b>PowerPoint (.pptx)</b> of at most <b>20 MB</b>, for example your slides and a short report. A video or Google Drive link to a demo is optional. Submit before <b>${escapeHtml(formatDate(row.SUB_DEADLINE))}</b>; you can replace your files until they are reviewed.`)}`
-
-    const recipients = new Map()
-    const add = (email, name, isLead = false) => { const key = String(email || "").trim().toLowerCase(); if (key && !recipients.has(key)) recipients.set(key, { email: String(email).trim(), name, isLead }) }
-    const leadMember = members.find((m) => String(m.EMAIL || "").trim().toLowerCase() === String(row.LEAD_EMAIL || "").trim().toLowerCase())
-    add(row.LEAD_EMAIL, leadMember?.NAME || "", true)
-    members.forEach((m) => add(m.EMAIL, m.NAME))
-
-    for (const r of recipients.values()) {
-        deliver("team assigned", {
-            to: r.email,
-            subject: approvedRequest ? `Request approved: ${row.TITLE}` : `New problem statement for your team: ${row.TITLE}`,
-            html: layout({
-                heading: approvedRequest ? "Your SPOC approved your request" : "Your SPOC assigned a problem statement to your team",
-                intro: `${r.name ? `Hello ${escapeHtml(r.name)}, t` : "T"}eam <b>${escapeHtml(row.TEAM_NAME)}</b> can now work on <b>SFS_${row.PROBLEM_ID} · ${escapeHtml(row.TITLE)}</b>. Here is what kind of solution we expect.`,
-                rows: [["Problem", `SFS_${row.PROBLEM_ID} · ${row.TITLE}`], ["Category", row.CATEGORY || "—"], ["Domain", row.DOMAIN || "—"], ["Submission deadline", formatDate(row.SUB_DEADLINE)]],
-                outro,
-                // only the lead's email is the team login; members get the public problem page
-                ...(r.isLead
-                    ? { linkPath: `/student/submit-solution?problemId=${row.PROBLEM_ID}`, linkLabel: "Open the problem and submit" }
-                    : { linkPath: `/problemstatements?problem=${row.PROBLEM_ID}`, linkLabel: "View the problem statement" }),
-            }),
-        })
-    }
-})
-
-// Team + problem + the team's SPOC, for request mails
-const loadTeamProblem = async (teamId, problemId) => {
-    const [rows] = await connection.query(`
-        SELECT t.NAME AS TEAM_NAME, t.LEAD_EMAIL, p.TITLE, p.CATEGORY, p.SUB_DEADLINE,
-               spoc.EMAIL AS SPOC_EMAIL, spoc.NAME AS SPOC_NAME, spoc.COLLEGE
-        FROM SolveForSakthi_Team_List t
-        JOIN SolveForSakthi_Problems p ON p.ID = ?
-        LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
-        WHERE t.ID = ?`, [problemId, teamId])
-    return rows[0]
-}
-
-// A team asked its SPOC for a problem statement
-const notifyProblemRequested = (teamId, problemId) => background("problem requested", async () => {
-    const row = await loadTeamProblem(teamId, problemId)
-    if (!row) return
-    deliver("problem requested", {
-        to: row.SPOC_EMAIL,
-        subject: `Team ${row.TEAM_NAME} requested a problem statement: ${row.TITLE}`,
-        html: layout({
-            heading: "A team requested a problem statement",
-            intro: `Hello ${escapeHtml(row.SPOC_NAME || "")}, team <b>${escapeHtml(row.TEAM_NAME)}</b> would like to work on the problem statement below. Approve or reject the request under Team Progress.`,
-            rows: [["Team", row.TEAM_NAME], ["Team lead", row.LEAD_EMAIL], ["Problem", row.TITLE], ["Submission deadline", formatDate(row.SUB_DEADLINE)]],
-            linkPath: "/spoc", linkLabel: "Review request",
-        }),
-    })
-})
-
-// SPOC declined a team's request
-const notifyRequestRejected = (teamId, problemId) => background("request rejected", async () => {
-    const row = await loadTeamProblem(teamId, problemId)
-    if (!row) return
-    deliver("request rejected", {
-        to: row.LEAD_EMAIL,
-        subject: `Request not approved: ${row.TITLE}`,
-        html: layout({
-            heading: "Your SPOC did not approve your request",
-            intro: `Your SPOC did not approve team <b>${escapeHtml(row.TEAM_NAME)}</b>'s request for <b>${escapeHtml(row.TITLE)}</b>. Please talk to your SPOC, or request another problem statement.`,
-            linkPath: "/student", linkLabel: "Open team portal",
-        }),
-    })
-})
 
 // A team submitted (or replaced) a solution: tell the platform admins (they evaluate), and confirm to the team lead
 // Active admins allowed to evaluate submissions
@@ -239,7 +137,7 @@ const notifySubmission = (submissionId, replaced) => background("submission", as
     const s = await loadSubmission(submissionId)
     if (!s) return
     const college = s.COLLEGE || "a college"
-    const rows = [["Problem", s.PROBLEM_TITLE], ["Team", s.TEAM_NAME || s.TEAM_EMAIL], ["College", college], ["Solution title", s.SOL_TITLE || "—"], ["Submitted on", formatDate(s.SUB_DATE)]]
+    const rows = [["Challenge", s.PROBLEM_TITLE], ["Team", s.TEAM_NAME || s.TEAM_EMAIL], ["College", college], ["Solution title", s.SOL_TITLE || "—"], ["Submitted on", formatDate(s.SUB_DATE)]]
 
     // only admins who can evaluate (the main admin, or the "Evaluate submissions" permission) are told;
     // one email each, so no admin sees the others' addresses
@@ -262,7 +160,7 @@ const notifySubmission = (submissionId, replaced) => background("submission", as
         subject: `We received your solution for ${s.PROBLEM_TITLE}`,
         html: layout({
             heading: replaced ? "Your solution was updated" : "Your solution was received",
-            intro: `Thanks! Your ${replaced ? "updated " : ""}solution for <b>${escapeHtml(s.PROBLEM_TITLE)}</b> has been received and is waiting for evaluation. You can still replace it until it is evaluated or the deadline passes.`,
+            intro: `Thanks! Your ${replaced ? "updated " : ""}solution for <b>${escapeHtml(s.PROBLEM_TITLE)}</b> has been received and is waiting for evaluation. You can still replace it until it is evaluated.`,
             rows,
             linkPath: "/student", linkLabel: "View my submissions",
         }),
@@ -274,8 +172,8 @@ const notifySubmission = (submissionId, replaced) => background("submission", as
 const REVIEW_MAIL = {
     CHANGES_REQUESTED: { subject: "Changes needed", heading: "Changes needed for your solution", color: "#c05621",
         intro: "The Solve For Sakthi panel reviewed your solution and needs some changes before it can be approved. Please read the comment below, update your solution and upload it again." },
-    APPROVED: { subject: "Approved", heading: "Your solution is approved", color: "#2f855a",
-        intro: "Congratulations! The Solve For Sakthi panel reviewed your solution and approved it." },
+    APPROVED: { subject: "Concept accepted", heading: "Your concept is accepted", color: "#2f855a",
+        intro: "Congratulations! The Solve For Sakthi panel reviewed your solution and accepted your concept." },
     REJECTED: { subject: "Rejected", heading: "Your solution was not approved", color: "#c53030",
         intro: "The Solve For Sakthi panel reviewed your solution and could not approve it." },
 }
@@ -290,7 +188,7 @@ const notifyReviewed = (submissionId) => background("reviewed", async () => {
     const details = {
             rows: [
                 ["Status", mail.subject],
-                ["Problem", s.PROBLEM_TITLE],
+                ["Challenge", s.PROBLEM_TITLE],
                 ["Your solution", s.SOL_TITLE || "—"],
                 // the evaluation marks, for an approval only
                 ...(showMarks
@@ -352,22 +250,22 @@ const notifySubmissionRemoved = (s) => background("submission removed", async ()
         subject: `Your submission for ${s.PROBLEM_TITLE} was removed`,
         html: layout({
             heading: "Your submission was removed",
-            intro: `The organisers removed team <b>${escapeHtml(s.TEAM_NAME || s.TEAM_EMAIL)}</b>'s submission for <b>${escapeHtml(s.PROBLEM_TITLE)}</b>. The problem statement is still assigned to your team, so please submit your solution again before the deadline.`,
-            rows: [["Problem", s.PROBLEM_TITLE], ["Removed solution", s.SOL_TITLE || "—"], ["Originally submitted", formatDate(s.SUB_DATE)]],
+            intro: `The organisers removed team <b>${escapeHtml(s.TEAM_NAME || s.TEAM_EMAIL)}</b>'s submission for <b>${escapeHtml(s.PROBLEM_TITLE)}</b>. You can submit a solution to this challenge again while it is open.`,
+            rows: [["Challenge", s.PROBLEM_TITLE], ["Removed solution", s.SOL_TITLE || "—"], ["Originally submitted", formatDate(s.SUB_DATE)]],
             linkPath: "/student", linkLabel: "Submit again",
         }),
     })
 })
 
-// Problem statements were imported from Excel: one mail per SPOC listing them (instead of one mail per problem)
-// Problem statements were imported from Excel: ONE short mail per SPOC (never one per problem, never cc).
+// Challenges were imported from Excel: one mail per SPOC listing them (instead of one mail per problem)
+// Challenges were imported from Excel: ONE short mail per SPOC (never one per problem, never cc).
 // It previews the first two problems and links to the full list for the rest.
 const PUBLISH_PREVIEW = 2
 const notifyProblemsPublished = (problemIds) => background("problems published", async () => {
     const ids = (problemIds || []).map(Number).filter(Number.isInteger)
     if (!ids.length) return
     const [problems] = await connection.query(
-        `SELECT ID, TITLE, CATEGORY, DOMAIN, DESCRIPTION, SUB_DEADLINE FROM SolveForSakthi_Problems WHERE ID IN (${ids.map(() => "?").join(", ")}) ORDER BY ID`, ids)
+        `SELECT ID, TITLE, CATEGORY, DOMAIN, DESCRIPTION FROM SolveForSakthi_Problems WHERE ID IN (${ids.map(() => "?").join(", ")}) ORDER BY ID`, ids)
     if (!problems.length) return
     const [spocs] = await connection.query("SELECT EMAIL, NAME FROM SolveForSakthi_Users WHERE ROLE = 'SPOC' AND STATUS = 'ACTIVE'")
     const total = problems.length
@@ -377,20 +275,19 @@ const notifyProblemsPublished = (problemIds) => background("problems published",
           <div style="font-size:12px;color:#fc9300;font-weight:bold;">SFS_${p.ID}${p.CATEGORY ? ` · ${escapeHtml(String(p.CATEGORY).charAt(0).toUpperCase() + String(p.CATEGORY).slice(1))}` : ""}${p.DOMAIN ? ` · ${escapeHtml(p.DOMAIN)}` : ""}</div>
           <div style="font-weight:bold;color:#2f3640;margin:2px 0 4px;">${escapeHtml(p.TITLE)}</div>
           ${p.DESCRIPTION ? `<div style="font-size:13px;color:#4a5568;">${escapeHtml(clip(p.DESCRIPTION, 160))}</div>` : ""}
-          <div style="font-size:12px;color:#718096;margin-top:6px;">Deadline: ${escapeHtml(formatDate(p.SUB_DEADLINE))}</div>
         </div>`
     const outro = `${problems.slice(0, PUBLISH_PREVIEW).map(card).join("")}${more > 0
-        ? `<p style="margin:4px 0 0;font-weight:bold;color:#2f3640;">+ ${more} more problem statement${more === 1 ? "" : "s"}. Use the button below to view them all.</p>`
+        ? `<p style="margin:4px 0 0;font-weight:bold;color:#2f3640;">+ ${more} more challenge${more === 1 ? "" : "s"}. Use the button below to view them all.</p>`
         : ""}`
     for (const spoc of spocs) {
         deliver("problems published", {
             to: spoc.EMAIL,
-            subject: total === 1 ? `New problem statement: ${problems[0].TITLE}` : `${total} new problem statements on Solve For Sakthi`,
+            subject: total === 1 ? `New challenge: ${problems[0].TITLE}` : `${total} new challenges on Solve For Sakthi`,
             html: layout({
-                heading: total === 1 ? "A new problem statement is available" : `${total} new problem statements are available`,
-                intro: `Hello ${escapeHtml(spoc.NAME || "")}, ${total === 1 ? "a new problem statement has" : `${total} new problem statements have`} been published for Solve For Sakthi ${new Date().getFullYear()}. Your teams can request them, or you can assign them under Team Progress.`,
+                heading: total === 1 ? "A new challenge is available" : `${total} new challenges are available`,
+                intro: `Hello ${escapeHtml(spoc.NAME || "")}, ${total === 1 ? "a new challenge has" : `${total} new challenges have`} been published for Solve For Sakthi ${new Date().getFullYear()}. Your teams can submit solutions to them straight away from their team portal.`,
                 outro,
-                linkPath: "/problemstatements", linkLabel: total > PUBLISH_PREVIEW ? `View all ${total} problem statements` : "View problem statements",
+                linkPath: "/problemstatements", linkLabel: total > PUBLISH_PREVIEW ? `View all ${total} challenges` : "View challenges",
             }),
         })
     }
@@ -458,70 +355,10 @@ const notifyTeamLogin = ({ email, name, teamName, password }) => background("tea
         subject: "Your Solve For Sakthi team login",
         html: layout({
             heading: "Your team account is ready",
-            intro: `Hello ${escapeHtml(name || "")}, your SPOC created team <b>${escapeHtml(teamName)}</b> on Solve For Sakthi with you as the team lead. Log in with the details below to request problem statements and submit your team's solutions.`,
+            intro: `Hello ${escapeHtml(name || "")}, your SPOC created team <b>${escapeHtml(teamName)}</b> on Solve For Sakthi with you as the team lead. Log in with the details below to explore the challenges and submit your team's solutions.`,
             rows: [["Team", teamName], ["Login email", email], ["Password", password]],
             outro: "Please keep these details private. If you forget the password, ask your SPOC to set a new one.",
             linkPath: "/login", linkLabel: "Log in",
-        }),
-    })
-})
-
-const dayText = (value) => (value ? formatDate(value) : "not set")
-
-// An admin moved a problem's deadline: each assigned team lead, and each of their SPOCs in a separate email
-// (one per SPOC, listing their teams; never cc)
-const notifyDeadlineChanged = (problemId, oldDeadline, newDeadline) => background("deadline changed", async () => {
-    const [teams] = await connection.query(`
-        SELECT t.NAME AS TEAM_NAME, t.LEAD_EMAIL, p.TITLE, spoc.EMAIL AS SPOC_EMAIL
-        FROM SolveForSakthi_Team_Problems tp
-        JOIN SolveForSakthi_Team_List t ON t.ID = tp.TEAM_ID
-        JOIN SolveForSakthi_Problems p ON p.ID = tp.PROBLEM_ID
-        LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
-        WHERE tp.PROBLEM_ID = ? AND tp.STATUS = 'ASSIGNED' AND t.GRADUATED_AT IS NULL`, [problemId])
-    const extended = !oldDeadline || newDeadline > oldDeadline
-    const spocs = new Map() // SPOC email -> their team names
-    for (const team of teams) {
-        if (team.SPOC_EMAIL) spocs.set(team.SPOC_EMAIL, [...(spocs.get(team.SPOC_EMAIL) || []), team.TEAM_NAME])
-        deliver("deadline changed -> team", {
-            to: team.LEAD_EMAIL,
-            subject: `Deadline ${extended ? "extended" : "changed"}: ${team.TITLE} (now ${dayText(newDeadline)})`,
-            html: layout({
-                heading: extended ? "The deadline has been extended" : "The deadline has changed",
-                intro: `The submission deadline for <b>${escapeHtml(team.TITLE)}</b>, assigned to team <b>${escapeHtml(team.TEAM_NAME)}</b>, ${extended ? "has been extended" : "has been changed"}.`,
-                rows: [["Problem", team.TITLE], ["Team", team.TEAM_NAME], ["Previous deadline", dayText(oldDeadline)], ["New deadline", dayText(newDeadline)]],
-                linkPath: "/student", linkLabel: "Open team portal",
-            }),
-        })
-    }
-    const title = teams[0]?.TITLE
-    for (const [spocEmail, teamNames] of spocs) {
-        deliver("deadline changed -> SPOC", {
-            to: spocEmail,
-            subject: `Deadline ${extended ? "extended" : "changed"}: ${title} (now ${dayText(newDeadline)})`,
-            html: layout({
-                heading: extended ? "A deadline for your teams has been extended" : "A deadline for your teams has changed",
-                intro: `The submission deadline for <b>${escapeHtml(title)}</b> ${extended ? "has been extended" : "has been changed"}. Your team${teamNames.length === 1 ? "" : "s"} below ${teamNames.length === 1 ? "has" : "have"} been emailed.`,
-                rows: [["Problem", title], ["Previous deadline", dayText(oldDeadline)], ["New deadline", dayText(newDeadline)], ...teamNames.map((name, i) => [i === 0 ? "Your teams" : "", name])],
-                linkPath: "/spoc", linkLabel: "Open Team Progress",
-            }),
-        })
-    }
-})
-
-// Two days (or less) before a deadline: remind a team lead (once per team, problem and deadline)
-const notifyDeadlineReminder = ({ teamName, leadEmail, problemId, title, deadline, daysLeft, submissionStatus }) => background("deadline reminder", async () => {
-    const when = daysLeft <= 0 ? "today" : daysLeft === 1 ? "tomorrow" : `in ${daysLeft} days`
-    const state = !submissionStatus ? "You have not submitted a solution yet."
-        : submissionStatus === "CHANGES_REQUESTED" ? "The evaluator asked for changes to your solution; please upload your revised solution."
-        : "You have already submitted a solution. You can still replace it until it is reviewed or the deadline passes."
-    deliver("deadline reminder", {
-        to: leadEmail,
-        subject: `Reminder: ${title} is due ${when} (${dayText(deadline)})`,
-        html: layout({
-            heading: daysLeft <= 0 ? "Today is the last day to submit" : `Only ${daysLeft} day${daysLeft === 1 ? "" : "s"} left to submit`,
-            intro: `Team <b>${escapeHtml(teamName)}</b>, the submission deadline for <b>${escapeHtml(title)}</b> is <b>${escapeHtml(dayText(deadline))}</b>. ${escapeHtml(state)}`,
-            rows: [["Problem", title], ["Deadline", dayText(deadline)]],
-            linkPath: `/student/submit-solution?problemId=${problemId}`, linkLabel: submissionStatus ? "Open my submission" : "Submit solution",
         }),
     })
 })
@@ -540,4 +377,4 @@ const notifyOwnPasswordChanged = ({ email, name }) => background("own password c
     })
 })
 
-export { evaluatorAdmins, deliver, background, notifyTeamLogin, notifyOwnPasswordChanged, notifyDeadlineChanged, notifyDeadlineReminder, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifyTeamAssigned, notifyProblemRequested, notifyRequestRejected, notifySubmission, notifyReviewed }
+export { evaluatorAdmins, deliver, background, notifyTeamLogin, notifyOwnPasswordChanged, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifySubmission, notifyReviewed }

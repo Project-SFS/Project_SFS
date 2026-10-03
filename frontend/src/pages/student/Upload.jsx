@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { toast, Toaster } from 'react-hot-toast'
 import {
-    FiArrowLeft, FiCalendar, FiCheckCircle, FiClock, FiFileText, FiInfo,
+    FiArrowLeft, FiCheckCircle, FiFileText, FiInfo,
     FiLink, FiTag, FiUploadCloud, FiX, FiAlertTriangle, FiAward, FiMessageSquare,
 } from 'react-icons/fi'
 import Header from '../../components/Header'
@@ -18,7 +18,7 @@ const DESCRIPTION_MAX = 1000
 
 // the three review outcomes, explained in the side panel
 const OUTCOMES = [
-    ['CHANGES_REQUESTED', 'The evaluator tells you what to improve. Update your solution and upload it again, even after the deadline.'],
+    ['CHANGES_REQUESTED', 'The evaluator tells you what to improve. Update your solution and upload it again, even if the challenge was closed meanwhile.'],
     ['APPROVED', 'Your solution is accepted.'],
     ['REJECTED', 'Your solution is not accepted. The comment explains why.'],
 ]
@@ -26,15 +26,6 @@ const OUTCOMES = [
 const formatDate = (value) =>
     value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'
 
-// whole days from today until the deadline (0 = due today, negative = passed)
-const daysLeft = (deadline) => {
-    if (!deadline) return null
-    const end = new Date(deadline)
-    end.setHours(0, 0, 0, 0)
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-    return Math.round((end - now) / (24 * 60 * 60 * 1000))
-}
 
 const formatSize = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`)
 
@@ -72,7 +63,11 @@ const Upload = () => {
             return Promise.resolve()
         }
         return axios.get(`${URL}/student/overview`, { withCredentials: true })
-            .then((res) => setProblem((res.data.problems || []).find((p) => String(p.PROBLEM_ID) === String(probId)) || null))
+            .then((res) => {
+                const found = (res.data.problems || []).find((p) => String(p.PROBLEM_ID) === String(probId))
+                // the team's accepted-concepts limit travels with the challenge
+                setProblem(found ? { ...found, limitReached: Boolean(res.data.limitReached), maxAccepted: res.data.maxAccepted || 3 } : null)
+            })
             .catch(() => setProblem(null))
     }, [probId])
 
@@ -81,15 +76,16 @@ const Upload = () => {
     }, [loadProblem])
 
     const submission = problem?.submission || null
-    const assigned = problem?.ASSIGNMENT_STATUS === 'ASSIGNED'
     const status = submission ? normalizeStatus(submission.STATUS) : null
     // approved / rejected are final; "changes needed" reopens the submission for a revised upload
     const evaluated = status === 'APPROVED' || status === 'REJECTED'
     const changesRequested = status === 'CHANGES_REQUESTED'
-    const deadlinePassed = Boolean(problem?.DEADLINE_PASSED)
-    const canSubmit = Boolean(problem) && assigned && !evaluated && (!deadlinePassed || changesRequested)
+    // no deadlines: a closed challenge ("Concept Received") takes no new solutions, but a revision that was
+    // asked for can still come in; a team with the maximum accepted concepts cannot start new solutions
+    const closed = Boolean(problem?.IS_CLOSED) && !changesRequested
+    const limited = Boolean(problem?.limitReached) && !submission
+    const canSubmit = Boolean(problem) && !evaluated && !closed && !limited
     const replacing = status === 'PENDING' || changesRequested
-    const remaining = daysLeft(problem?.SUB_DEADLINE)
 
     // updating an existing submission: start from its current details, so only the PDF has to be chosen again
     useEffect(() => {
@@ -177,23 +173,11 @@ const Upload = () => {
 
     const renderStatusBadge = () => {
         if (!problem) return null
-        if (!assigned) return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Not assigned</span>
         if (submission) return <StatusBadge status={status} />
+        if (problem.IS_CLOSED) return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">Concept Received</span>
         return <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-[#c76f00]">Not submitted yet</span>
     }
 
-    const renderDeadline = () => {
-        if (!problem?.SUB_DEADLINE) return null
-        const tone = deadlinePassed ? 'text-red-600' : remaining <= 2 ? 'text-orange-600' : 'text-gray-600'
-        const label = deadlinePassed ? (changesRequested ? 'Deadline passed · your revision is still accepted' : 'Deadline passed') : remaining <= 0 ? 'Due today' : `${remaining} day${remaining === 1 ? '' : 's'} left`
-        return (
-            <div className={`flex items-center gap-2 text-sm ${tone}`}>
-                <FiCalendar className="shrink-0" />
-                <span>Deadline: <b>{formatDate(problem.SUB_DEADLINE)}</b></span>
-                {!evaluated && <span className="flex items-center gap-1"><FiClock /> {label}</span>}
-            </div>
-        )
-    }
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 text-gray-800">
@@ -202,7 +186,7 @@ const Upload = () => {
 
             <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 pt-28 pb-16">
                 <Link to="/student" className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-[#fc9300] transition mb-6">
-                    <FiArrowLeft /> Back to problem statements
+                    <FiArrowLeft /> Back to challenges
                 </Link>
 
                 <div className="mb-6">
@@ -223,8 +207,8 @@ const Upload = () => {
                 {problem === null && (
                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
                         <FiAlertTriangle className="mx-auto text-4xl text-[#fc9300] mb-3" />
-                        <h2 className="text-lg font-semibold text-gray-900">Problem statement not found</h2>
-                        <p className="text-sm text-gray-600 mt-1">Open the problem statement from your dashboard and choose "Submit Solution" there.</p>
+                        <h2 className="text-lg font-semibold text-gray-900">Challenge not found</h2>
+                        <p className="text-sm text-gray-600 mt-1">Open the challenge from your dashboard and choose "Submit Solution" there.</p>
                         <Link to="/student" className="inline-block mt-5 px-5 py-2.5 rounded-xl bg-[#fc9300] text-white font-medium hover:bg-[#e68400] transition">
                             Go to my dashboard
                         </Link>
@@ -249,7 +233,6 @@ const Upload = () => {
                                 {problem.DESCRIPTION && (
                                     <p className="text-sm text-gray-600 leading-relaxed line-clamp-4 whitespace-pre-line">{problem.DESCRIPTION}</p>
                                 )}
-                                <div className="mt-4">{renderDeadline()}</div>
                             </section>
 
                             {/* Success message after an upload */}
@@ -309,9 +292,9 @@ const Upload = () => {
                                 <section className="bg-red-50 border border-red-200 rounded-2xl p-5 flex gap-3 text-sm text-red-700">
                                     <FiAlertTriangle className="text-xl shrink-0 mt-0.5" />
                                     <div>
-                                        {!assigned
-                                            ? <>This problem statement is not assigned to your team yet. Request it from your SPOC under <b>Problem Statements</b> first.</>
-                                            : <>The deadline for this problem statement has passed, so solutions can no longer be submitted or changed.</>}
+                                        {closed
+                                            ? <>This challenge is closed (<b>Concept Received</b>), so it takes no new solutions.</>
+                                            : <>Your team already has {problem?.maxAccepted || 3} accepted concepts, which is the maximum, so you cannot submit solutions to new challenges.</>}
                                     </div>
                                 </section>
                             )}
@@ -487,7 +470,7 @@ const Upload = () => {
                                 <ul className="space-y-2.5 text-sm text-gray-600">
                                     {[
                                         `Attach up to ${MAX_FILES} files: PDF or PowerPoint (.pptx), up to ${MAX_MB} MB each.`,
-                                        'You can replace your solution until it is reviewed or the deadline passes.',
+                                        'You can replace your solution until it is reviewed, while the challenge is open.',
                                         "You get a confirmation email now, and the evaluator's decision and comment by email after the review.",
                                     ].map((text) => (
                                         <li key={text} className="flex gap-2">

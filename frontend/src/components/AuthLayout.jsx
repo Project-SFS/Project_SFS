@@ -7,7 +7,7 @@ import velMark from "../assets/Sakthiauto_vel.png";
 // Shared frame for the Login and Register pages: the Sakthi Auto brand panel on one side, the form on
 // the other. On small screens the brand panel becomes a compact strip above the form.
 const HIGHLIGHTS = [
-  "Real industry problem statements from Sakthi Auto",
+  "Real industry challenges from Sakthi Auto",
   "Teams submit their solutions and get reviewed with clear feedback",
   "SPOCs manage their college's teams in one place",
 ];

@@ -7,7 +7,7 @@ export const APPROVED = "APPROVED"
 export const REJECTED = "REJECTED"
 
 export const DECISIONS = [CHANGES_REQUESTED, APPROVED, REJECTED]
-export const DECISION_LABELS = { [PENDING]: "Awaiting review", [CHANGES_REQUESTED]: "Changes needed", [APPROVED]: "Approved", [REJECTED]: "Rejected" }
+export const DECISION_LABELS = { [PENDING]: "Awaiting review", [CHANGES_REQUESTED]: "Changes needed", [APPROVED]: "Concept accepted", [REJECTED]: "Rejected" }
 
 export const canTeamEdit = (status) => status === PENDING || status === CHANGES_REQUESTED
 // an evaluator can decide while it waits for review or while changes are requested; approve / reject are final
@@ -15,17 +15,17 @@ export const isFinal = (status) => status === APPROVED || status === REJECTED ||
 
 // Message for a team that tries to change a submission it can no longer change
 export const lockedMessage = (status) =>
-    status === APPROVED ? "Your solution was approved and can no longer be changed"
+    status === APPROVED ? "Your concept was accepted and can no longer be changed"
         : "Your solution was rejected and can no longer be changed"
 
-// Deadline / problem check for an upload. A team asked for changes may still send its revision after the
-// deadline; a missing problem always blocks.
+// Open-challenge check for an upload. A team asked for changes may still send its revision after the
+// challenge was closed; a missing challenge always blocks.
 export const uploadClosedReason = (closedReason, previous) =>
-    closedReason && !(previous?.STATUS === CHANGES_REQUESTED && closedReason !== "Problem not found") ? closedReason : null
+    closedReason && !(previous?.STATUS === CHANGES_REQUESTED && closedReason !== "Challenge not found") ? closedReason : null
 
 // External evaluation: 5 criteria, 20 marks each (100). key = request field, column = database column.
 export const CRITERIA = [
-    { key: "understanding", column: "EVAL_UNDERSTANDING", label: "Understanding of Problem Statement", max: 20 },
+    { key: "understanding", column: "EVAL_UNDERSTANDING", label: "Understanding of the Challenge", max: 20 },
     { key: "solution", column: "EVAL_SOLUTION", label: "Proposed Solution & Innovation", max: 20 },
     { key: "tools", column: "EVAL_TOOLS", label: "Tools & Technologies Used", max: 20 },
     { key: "presentation", column: "EVAL_PRESENTATION", label: "PPT & Presentation", max: 20 },

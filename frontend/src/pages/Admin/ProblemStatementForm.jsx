@@ -7,20 +7,17 @@ import { FiSave, FiX } from "react-icons/fi";
 import { useNavigate } from "react-router-dom"; // Added import
 
 // "2026-10-31" -> "31 Oct 2026"
-const readableDate = (day) => (day ? new Date(`${day}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
 
-// Create a problem statement, or edit one when editId is given (every field, including the deadline)
+// Create a challenge, or edit one when editId is given. Challenges have no deadline: an admin closes them.
 const ProblemStatementForm = ({ editId }) => {
   const navigate = useNavigate(); // Added hook
   const editing = Boolean(editId);
   const [loadingProblem, setLoadingProblem] = useState(editing);
   const [loadError, setLoadError] = useState("");
-  const [originalDeadline, setOriginalDeadline] = useState("");
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");// User asked for Category, mapping Dept to it or separate? specific request: "category". Detail view usually shows Dept as category. I'll stick to 'Department' as the field name but label it Category/Department to be safe, or just add Category.
   const [category, setCategory] = useState("");
-  const [deadline, setDeadline] = useState("");
   // the same fields as the Excel import template
   const [domain, setDomain] = useState("");
   const [outcomes, setOutcomes] = useState("");
@@ -34,18 +31,15 @@ const ProblemStatementForm = ({ editId }) => {
       .then((res) => {
         const p = res.data?.problems?.[0];
         if (!p) throw new Error("not found");
-        const day = p.SUB_DEADLINE ? String(p.SUB_DEADLINE).slice(0, 10) : "";
         setTitle(p.TITLE || "");
         setDescription(p.DESCRIPTION || "");
         setCategory(String(p.CATEGORY || "").toLowerCase());
-        setDeadline(day);
-        setOriginalDeadline(day);
         setDomain(p.DOMAIN || "");
         setOutcomes(p.EXPECTED_OUTCOMES || "");
         setRequirements(p.REQUIREMENTS || "");
         setTechnology(p.TECHNOLOGY || "");
       })
-      .catch(() => setLoadError("This problem statement could not be loaded."))
+      .catch(() => setLoadError("This challenge could not be loaded."))
       .finally(() => setLoadingProblem(false));
   }, [editing, editId]);
 
@@ -53,14 +47,12 @@ const ProblemStatementForm = ({ editId }) => {
     setSaving(true);
     try {
       const res = await axios.put(`${URL}/problems/${editId}`, {
-        title, description, sub_date: deadline, category, domain, outcomes, requirements, technology,
+        title, description, category, domain, outcomes, requirements, technology,
       }, { withCredentials: true });
-      toast.success(res.data?.deadlineChanged
-        ? "Saved. Every team working on this problem and their SPOC have been emailed about the new deadline."
-        : "Problem statement saved", { position: "top-center", duration: 4000 });
+      toast.success("Challenge saved", { position: "top-center", duration: 4000 });
       setTimeout(() => navigate(`/admin/problems/${editId}/details`), 1200);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Could not save the problem statement", { position: "top-center" });
+      toast.error(error.response?.data?.message || "Could not save the challenge", { position: "top-center" });
       setSaving(false);
     }
   };
@@ -73,7 +65,6 @@ const ProblemStatementForm = ({ editId }) => {
       const response = await axios.post(`${URL}/addproblems`, {
         title: title,
         description: description,
-        sub_date: deadline,
         category: category,
         domain,
         outcomes,
@@ -84,7 +75,7 @@ const ProblemStatementForm = ({ editId }) => {
     );
 
 
-      const problem = toast.success("Problem Statement Added Successfully", {
+      const problem = toast.success("Challenge Added Successfully", {
         position: "top-center",
       });
 
@@ -105,7 +96,7 @@ const ProblemStatementForm = ({ editId }) => {
       toast.dismiss(problem)
 
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to Add Problem Statement", { position: "top-center" });
+      toast.error(error.response?.data?.message || "Failed to Add Challenge", { position: "top-center" });
     }
 
   };
@@ -114,10 +105,10 @@ const ProblemStatementForm = ({ editId }) => {
     return (
       <div className="min-h-screen bg-[#F7F8FC] flex items-start justify-center pt-20 px-6">
         <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] p-8 text-center max-w-md w-full">
-          {loadingProblem ? <p className="text-gray-600">Loading problem statement...</p> : (
+          {loadingProblem ? <p className="text-gray-600">Loading challenge...</p> : (
             <>
               <p className="text-[#1A202C]">{loadError}</p>
-              <button onClick={() => navigate("/admin/problems")} className="mt-4 px-4 py-2 rounded-xl bg-[#FF9900] text-white">Back to problem statements</button>
+              <button onClick={() => navigate("/admin/problems")} className="mt-4 px-4 py-2 rounded-xl bg-[#FF9900] text-white">Back to challenges</button>
             </>
           )}
         </div>
@@ -138,17 +129,10 @@ const ProblemStatementForm = ({ editId }) => {
         </button>
 
         <div className="mb-8 border-b border-gray-100 pb-4">
-          <h2 className="text-2xl font-bold text-[#1A202C]">{editing ? "Edit Problem Statement" : "Create Problem Statement"}</h2>
+          <h2 className="text-2xl font-bold text-[#1A202C]">{editing ? "Edit Challenge" : "Create Challenge"}</h2>
           <p className="text-[#718096] text-sm mt-1">
-            {editing ? "Update the details below and click Save Changes." : "Fill in the details to post a new problem for teams."}
+            {editing ? "Update the details below and click Save Changes." : "Fill in the details to post a new challenge for teams. It stays open until you close it."}
           </p>
-          {editing && deadline && originalDeadline && deadline !== originalDeadline && (
-            <p className="mt-3 text-sm rounded-xl bg-orange-50 border border-orange-200 text-[#C05621] px-4 py-2">
-              <b>New deadline: {readableDate(deadline)}</b> (was {readableDate(originalDeadline)}).
-              <br />
-              When you save, every team working on this problem and their SPOC will get an email about the {deadline > originalDeadline ? "extension" : "change"}.
-            </p>
-          )}
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
@@ -156,10 +140,10 @@ const ProblemStatementForm = ({ editId }) => {
 
             {/* Title (Full Width) */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-[#4A5568] mb-2">Problem Statement Title</label>
+              <label className="block text-sm font-semibold text-[#4A5568] mb-2">Challenge Title</label>
               <input
                 type="text"
-                placeholder="Enter the title of the problem statement"
+                placeholder="Enter the title of the challenge"
                 className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
                 onChange={(e) => setTitle(e.target.value)}
                 value={title}
@@ -189,7 +173,7 @@ const ProblemStatementForm = ({ editId }) => {
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-[#4A5568] mb-2">Description</label>
               <textarea
-                placeholder="Detailed description of the problem statement..."
+                placeholder="Detailed description of the challenge..."
                 rows="5"
                 className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
                 onChange={(e) => setDescription(e.target.value)}
@@ -198,19 +182,6 @@ const ProblemStatementForm = ({ editId }) => {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-[#4A5568] mb-2">
-                Submission Deadline
-              </label>
-              <input
-                type="date"
-                placeholder="Submission Deadline"
-                className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#FF9900]/20 focus:border-[#FF9900] transition-colors outline-none text-[#2D3748]"
-                onChange={(e) => setDeadline(e.target.value)}
-                value={deadline}
-                required
-              />
-            </div>
 
 
 
@@ -279,7 +250,7 @@ const ProblemStatementForm = ({ editId }) => {
               className="px-6 py-2.5 rounded-xl bg-[#FF9900] text-white hover:bg-[#E68500] font-medium shadow-md hover:shadow-lg transition-all flex items-center gap-2"
             >
               <FiSave />
-              {editing ? (saving ? "Saving…" : "Save Changes") : "Create Problem Statement"}
+              {editing ? (saving ? "Saving…" : "Save Changes") : "Create Challenge"}
             </button>
           </div>
         </form>

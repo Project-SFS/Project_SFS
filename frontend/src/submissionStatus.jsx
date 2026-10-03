@@ -3,7 +3,7 @@
 export const SUBMISSION_STATUS = {
   PENDING: { label: "Awaiting review", cls: "bg-yellow-100 text-yellow-800", border: "border-yellow-300", text: "text-yellow-800" },
   CHANGES_REQUESTED: { label: "Changes needed", cls: "bg-orange-100 text-orange-800", border: "border-orange-300", text: "text-orange-800" },
-  APPROVED: { label: "Approved", cls: "bg-green-100 text-green-800", border: "border-green-300", text: "text-green-800" },
+  APPROVED: { label: "Concept accepted", cls: "bg-green-100 text-green-800", border: "border-green-300", text: "text-green-800" },
   REJECTED: { label: "Rejected", cls: "bg-red-100 text-red-800", border: "border-red-300", text: "text-red-800" },
 };
 
@@ -31,7 +31,7 @@ export const StatusBadge = ({ status, className = "" }) => {
 
 // External evaluation: 5 criteria x 20 = 100 (same as backend utils/review.js)
 export const EVAL_CRITERIA = [
-  { key: "understanding", column: "EVAL_UNDERSTANDING", label: "Understanding of Problem Statement", hint: "Clarity of the problem, objectives, requirements, scope, and understanding of the real-world problem", max: 20 },
+  { key: "understanding", column: "EVAL_UNDERSTANDING", label: "Understanding of the Challenge", hint: "Clarity of the problem, objectives, requirements, scope, and understanding of the real-world problem", max: 20 },
   { key: "solution", column: "EVAL_SOLUTION", label: "Proposed Solution & Innovation", hint: "Relevance, originality, creativity, effectiveness, and suitability of the proposed solution", max: 20 },
   { key: "tools", column: "EVAL_TOOLS", label: "Tools & Technologies Used", hint: "Appropriateness of technologies, tools, frameworks, architecture, and justification for their selection", max: 20 },
   { key: "presentation", column: "EVAL_PRESENTATION", label: "PPT & Presentation", hint: "Quality and structure of PPT, clarity of explanation, communication skills, technical presentation, and ability to answer questions", max: 20 },

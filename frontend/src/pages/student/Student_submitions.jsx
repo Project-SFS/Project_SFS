@@ -38,7 +38,7 @@ export default function Student_submitions() {
   if (submissions.length === 0) {
     return (
       <div className="text-center text-gray-600 py-8">
-        You have not submitted any solutions yet. Request a problem statement under "Problem Statements" and submit once your SPOC approves it.
+        You have not submitted any solutions yet. Request a challenge under "Challenges" and submit once your SPOC approves it.
       </div>
     );
   }
@@ -52,7 +52,7 @@ export default function Student_submitions() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <span className="text-xs font-bold text-[#fc9300]">SFS_{s.PROBLEM_ID}</span>
-                <h3 className="text-base font-semibold text-gray-900">{s.PROBLEM_TITLE || "Problem statement"}</h3>
+                <h3 className="text-base font-semibold text-gray-900">{s.PROBLEM_TITLE || "Challenge"}</h3>
                 <p className="text-sm text-gray-600">
                   {s.SOL_TITLE || "Untitled solution"} · submitted {formatDate(s.SUB_DATE)}
                 </p>
@@ -92,7 +92,7 @@ export default function Student_submitions() {
                   submissionId={s.ID}
                   label="Withdraw"
                   className="!py-1.5 !rounded-md"
-                  confirmText="Withdraw this submission? You can submit again before the deadline."
+                  confirmText="Withdraw this solution? You can submit again while the challenge is open."
                   onDeleted={() => setSubmissions((prev) => prev.filter((x) => x.ID !== s.ID))}
                 />
               )}

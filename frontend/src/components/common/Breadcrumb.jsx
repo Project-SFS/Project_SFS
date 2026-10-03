@@ -6,7 +6,7 @@ const Breadcrumb = ({ problemId }) => {
   const location = useLocation();
   const pathnames = location.pathname.split('/').filter((x) => x);
 
-  // Do not show breadcrumb on the Problem Statements List page
+  // Do not show breadcrumb on the Challenges List page
   if (location.pathname === '/admin/problems') {
     return null;
   }
@@ -15,13 +15,13 @@ const Breadcrumb = ({ problemId }) => {
 
   if (location.pathname.match(/^\/admin\/problems\/[^\/]+\/details$/)) {
     breadcrumbItems = [
-      { label: 'Problem Statements', path: '/admin/problems' },
-      { label: 'Problem Statement Details', path: location.pathname },
+      { label: 'Challenges', path: '/admin/problems' },
+      { label: 'Challenge Details', path: location.pathname },
     ];
   } else if (location.pathname.match(/^\/admin\/submissions\/[^\/]+\/details$/)) {
     breadcrumbItems = [
-      { label: 'Problem Statements', path: '/admin/problems' },
-      ...(problemId ? [{ label: 'Problem Statement Details', path: `/admin/problems/${problemId}/details` }] : []),
+      { label: 'Challenges', path: '/admin/problems' },
+      ...(problemId ? [{ label: 'Challenge Details', path: `/admin/problems/${problemId}/details` }] : []),
       { label: 'Submission Details', path: location.pathname },
     ];
   } else {

@@ -5,16 +5,16 @@ import AsyncHandler from "../utils/AsyncHandler.js";
 import { notifyProblemsPublished } from "../utils/notifications.js";
 import { CATEGORIES, CATEGORY_CHOICES, parseCategory } from "../utils/categories.js";
 
-// Excel import of problem statements. The sheet always follows this template (first row = headers):
-//   S.No | Problem Title | Category | Problem Description | Domain | Expected Outcomes | Requirements | Technology
+// Excel import of challenges. The sheet always follows this template (first row = headers):
+//   S.No | Challenge Title | Category | Challenge Description | Domain | Expected Outcomes | Requirements | Technology
 // Any other column (e.g. an old "Upload Document" column) is ignored. Category is per row (Software,
-// Hardware or Combined); the deadline is chosen once in the import form and applies to every row.
+// Hardware or Combined). Challenges have no deadline: they stay open until an admin closes them.
 
 export const TEMPLATE_COLUMNS = [
     { key: "sno", header: "S.No", width: 8 },
-    { key: "title", header: "Problem Title", width: 40 },
+    { key: "title", header: "Challenge Title", width: 40 },
     { key: "category", header: "Category", width: 16 },
-    { key: "description", header: "Problem Description", width: 60 },
+    { key: "description", header: "Challenge Description", width: 60 },
     { key: "domain", header: "Domain", width: 22 },
     { key: "outcomes", header: "Expected Outcomes", width: 45 },
     { key: "requirements", header: "Requirements", width: 45 },
@@ -96,9 +96,9 @@ const validateRows = async (rows) => {
 
     return rows.map((r) => {
         const errors = [];
-        if (!r.title) errors.push("Problem Title is empty");
-        else if (r.title.length > LIMITS.title) errors.push(`Problem Title is longer than ${LIMITS.title} characters`);
-        if (!r.description) errors.push("Problem Description is empty");
+        if (!r.title) errors.push("Challenge Title is empty");
+        else if (r.title.length > LIMITS.title) errors.push(`Challenge Title is longer than ${LIMITS.title} characters`);
+        if (!r.description) errors.push("Challenge Description is empty");
         const categoryKey = parseCategory(r.category);
         if (!r.category) errors.push("Category is empty (Software, Hardware or Combined)");
         else if (!categoryKey) errors.push(`Category "${r.category}" is not valid: use Software, Hardware or Combined`);
@@ -110,7 +110,7 @@ const validateRows = async (rows) => {
         if (key && status !== "error") {
             if (taken.has(key)) {
                 status = "duplicate";
-                errors.push("A problem statement with this title already exists");
+                errors.push("A challenge with this title already exists");
             } else if (seen.has(key)) {
                 status = "duplicate";
                 errors.push(`Same title as row ${seen.get(key)} in this file`);
@@ -122,14 +122,14 @@ const validateRows = async (rows) => {
     });
 };
 
-// One problem statement; shared by the manual form and the import so both store the same fields
+// One challenge; shared by the manual form and the import so both store the same fields
 export const insertProblem = async (p, userId) => {
     const [result] = await connection.query(
         `INSERT INTO SolveForSakthi_Problems
             (TITLE, DESCRIPTION, SUB_DEADLINE, CATEGORY, DEPT, DOMAIN, EXPECTED_OUTCOMES, REQUIREMENTS, TECHNOLOGY, CREATED_BY, CREATED_AT)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, SYSUTCDATETIME())`,
         [
-            p.title, p.description, p.deadline, p.category,
+            p.title, p.description, p.deadline || null, p.category,
             // the older "department" column feeds the public list's Theme/Department column
             (p.domain || "CSE").slice(0, 50),
             p.domain || null, p.outcomes || null, p.requirements || null, p.technology || null, userId,
@@ -147,22 +147,18 @@ const memoryUpload = multer({
     },
 }).single("file");
 
-// POST /admin/problems/import (multipart: file, deadline, dryRun); the category comes from each row
+// POST /admin/problems/import (multipart: file, dryRun); the category comes from each row
 //   dryRun=true  -> only checks the file and returns every row with its status (nothing is saved)
-//   dryRun=false -> also adds the ready rows as problem statements
+//   dryRun=false -> also adds the ready rows as challenges
 const Import_problems = AsyncHandler(async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: "Choose the filled-in Excel template (.xlsx) to import" });
     }
-    const deadline = String(req.body.deadline || "").trim();
     const dryRun = String(req.body.dryRun) !== "false";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || Number.isNaN(new Date(deadline).getTime())) {
-        return res.status(400).json({ message: "Choose a submission deadline for the imported problem statements" });
-    }
 
     const parsed = await readSheet(req.file.buffer);
     if (parsed.error) return res.status(400).json({ message: parsed.error });
-    if (parsed.rows.length === 0) return res.status(400).json({ message: "The file has the template headers but no problem statements below them" });
+    if (parsed.rows.length === 0) return res.status(400).json({ message: "The file has the template headers but no challenges below them" });
     if (parsed.rows.length > MAX_ROWS) return res.status(400).json({ message: `The file has ${parsed.rows.length} rows; import at most ${MAX_ROWS} at a time` });
 
     const rows = await validateRows(parsed.rows);
@@ -178,7 +174,7 @@ const Import_problems = AsyncHandler(async (req, res) => {
 
     const created = [];
     for (const r of importable) {
-        const id = await insertProblem({ ...r, deadline }, req.user.ID);
+        const id = await insertProblem({ ...r, deadline: null }, req.user.ID);
         created.push({ id, title: r.title, row: r.row });
     }
     if (created.length) notifyProblemsPublished(created.map((c) => c.id));
@@ -189,7 +185,7 @@ const Import_problems = AsyncHandler(async (req, res) => {
 const Problem_import_template = AsyncHandler(async (req, res) => {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "Solve For Sakthi";
-    const sheet = workbook.addWorksheet("Problem Statements", { views: [{ state: "frozen", ySplit: 1 }] });
+    const sheet = workbook.addWorksheet("Challenges", { views: [{ state: "frozen", ySplit: 1 }] });
     sheet.columns = TEMPLATE_COLUMNS.map(({ key, header, width }) => ({ key, header, width }));
     const header = sheet.getRow(1);
     header.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -211,17 +207,16 @@ const Problem_import_template = AsyncHandler(async (req, res) => {
     help.columns = [{ width: 28 }, { width: 90 }];
     [
         ["How to fill this template", ""],
-        ["", "Add one problem statement per row in the \"Problem Statements\" sheet. Keep the header row unchanged."],
+        ["", "Add one challenge per row in the \"Challenges\" sheet. Keep the header row unchanged."],
         ["S.No", "Optional running number (1, 2, 3...)."],
-        ["Problem Title", "Required. Up to 300 characters. Titles must be unique: rows whose title already exists are skipped."],
+        ["Challenge Title", "Required. Up to 300 characters. Titles must be unique: rows whose title already exists are skipped."],
         ["Category", "Required. Pick from the dropdown: Software, Hardware or Combined (needs both hardware and software)."],
-        ["Problem Description", "Required. The full problem statement."],
+        ["Challenge Description", "Required. The full description of the challenge."],
         ["Domain", "Optional. e.g. Automotive, Manufacturing, Energy."],
         ["Expected Outcomes", "Optional. What a good solution should deliver."],
         ["Requirements", "Optional. Constraints, data or skills needed."],
         ["Technology", "Optional. e.g. IoT, Machine Learning, Embedded C."],
         ["", ""],
-        ["Deadline", "Chosen in the admin panel when importing; it applies to every row of the file."],
         ["Example row", "1 | Smart energy monitoring | Combined | Monitor energy use per machine... | Manufacturing | Live dashboard... | Sensor data access | IoT"],
     ].forEach((row, i) => {
         const added = help.addRow(row);
@@ -231,7 +226,7 @@ const Problem_import_template = AsyncHandler(async (req, res) => {
     });
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", 'attachment; filename="problem-statements-template.xlsx"');
+    res.setHeader("Content-Disposition", 'attachment; filename="challenges-template.xlsx"');
     await workbook.xlsx.write(res);
     res.end();
 });

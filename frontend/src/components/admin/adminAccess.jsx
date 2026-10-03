@@ -4,12 +4,12 @@ import { FiLock } from "react-icons/fi";
 // The logged-in admin and what they may do. The main admin has every permission and alone manages admins.
 // Permissions: PROBLEMS (upload problems), EVALUATE (evaluate submissions), USERS (manage users).
 export const PERMISSION_LABELS = {
-  PROBLEMS: "Upload problems",
+  PROBLEMS: "Upload challenges",
   EVALUATE: "Evaluate submissions",
   USERS: "Manage users",
 };
 export const PERMISSION_HINTS = {
-  PROBLEMS: "Create, edit, delete and import problem statements",
+  PROBLEMS: "Create, edit, close, delete and import challenges",
   EVALUATE: "Review submissions (decision, marks, comment) and delete them",
   USERS: "Users and teams, SPOC approvals, creating SPOCs, passwords, assigning problems",
 };

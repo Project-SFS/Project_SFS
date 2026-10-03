@@ -1,10 +1,9 @@
 import { runGraduation } from "./graduation.js"
-import { runDeadlineReminders } from "./deadlineReminders.js"
 
 // Background jobs: run once at startup and then every 6 hours
 //   - graduation: archive teams whose members have all graduated
-//   - deadline reminders: email team leads 2 days before a deadline
-const JOBS = [["Graduation check", runGraduation], ["Deadline reminders", runDeadlineReminders]]
+// (challenges have no deadlines any more, so there are no deadline reminders)
+const JOBS = [["Graduation check", runGraduation]]
 const EVERY_MS = 6 * 60 * 60 * 1000
 
 let running = false

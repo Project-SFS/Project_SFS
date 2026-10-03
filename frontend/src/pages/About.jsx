@@ -53,7 +53,7 @@ const impactData = [
   {
     icon: FaCheckCircle,
     title: "100+ Solutions Deployed",
-    stat: "Problem Statements Solved",
+    stat: "Challenges Solved",
     desc: "Successfully turning challenging industry needs into scalable, working prototypes and deployments.",
   },
   {
@@ -166,7 +166,7 @@ const HeroSection = () => (
             <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center text-xs sm:text-sm">
               <div className="p-2 sm:p-3 rounded-xl bg-gray-50 border border-gray-100">
                 <p className={`font-bold ${ACCENT_COLOR}`}>100+</p>
-                <p className="mt-1 text-gray-600">Problem Statements</p>
+                <p className="mt-1 text-gray-600">Challenges</p>
               </div>
               <div className="p-2 sm:p-3 rounded-xl bg-gray-50 border border-gray-100">
                 <p className={`font-bold ${ACCENT_COLOR}`}>20+</p>

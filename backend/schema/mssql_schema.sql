@@ -377,3 +377,10 @@ GO
 IF COL_LENGTH(N'dbo.SolveForSakthi_Team_List', N'REMOVED_AT') IS NULL
     ALTER TABLE SolveForSakthi_Team_List ADD REMOVED_AT DATETIME2 NULL, REMOVED_BY INT NULL
 GO
+
+-- Challenges have no deadlines any more: an admin closes a challenge when the concepts are in
+-- ("Concept Received"); a closed challenge takes no new solutions. SUB_DEADLINE stays for old data only.
+IF COL_LENGTH(N'dbo.SolveForSakthi_Problems', N'IS_CLOSED') IS NULL
+    ALTER TABLE SolveForSakthi_Problems ADD IS_CLOSED BIT NOT NULL CONSTRAINT DF_SolveForSakthi_Problems_IS_CLOSED DEFAULT 0,
+        CLOSED_AT DATETIME2 NULL, CLOSED_BY INT NULL
+GO

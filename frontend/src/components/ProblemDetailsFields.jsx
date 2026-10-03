@@ -1,4 +1,4 @@
-// The problem statement template's extra fields (Domain, Technology, Expected Outcomes, Requirements),
+// The challenge template's extra fields (Domain, Technology, Expected Outcomes, Requirements),
 // shown wherever a problem's details are opened. Takes the problem row as the API returns it.
 const ProblemDetailsFields = ({ problem, className = "" }) => {
   if (!problem) return null;

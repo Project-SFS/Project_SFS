@@ -1,23 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
-import { FiShield, FiBriefcase, FiUserPlus } from "react-icons/fi";
+import { FiShield, FiBriefcase, FiUserPlus, FiUsers } from "react-icons/fi";
+import TeamImportPanel from "../../components/TeamImportPanel";
 import { URL } from "../../Utils";
 import PasswordFields, { passwordsReady } from "../../components/PasswordFields";
 import { useAdmin, PERMISSION_LABELS, PERMISSION_HINTS } from "../../components/admin/adminAccess";
 
 const ROLES = [
-  { value: "ADMIN", label: "Platform Admin", icon: FiShield, hint: "Another admin. Choose below what they may do; every admin can see the dashboard, problem statements, submissions and exports." },
-  { value: "SPOC", label: "SPOC", icon: FiBriefcase, hint: "College coordinator: creates teams and assigns problem statements to them." },
+  { value: "ADMIN", label: "Platform Admin", icon: FiShield, hint: "Another admin. Choose below what they may do; every admin can see the dashboard, challenges, submissions and exports." },
+  { value: "SPOC", label: "SPOC", icon: FiBriefcase, hint: "College coordinator: creates and manages the college's teams." },
 ];
 
 const EMPTY = { name: "", email: "", phone: "", college: "", college_code: "", password: "" };
 
-// Platform admin creates Admin / SPOC accounts. They are active immediately and the
-// new user receives their login details by email.
+// Bulk team creation for a chosen college (SPOC) from the Excel template
+const BulkTeams = () => {
+  const [spocs, setSpocs] = useState(null);
+  useEffect(() => {
+    axios.get(`${URL}/get_all_users`, { withCredentials: true })
+      .then((res) => {
+        const users = Array.isArray(res.data) ? res.data : res.data?.data || res.data?.users || [];
+        setSpocs(users.filter((u) => String(u.ROLE).toUpperCase() === "SPOC" && String(u.STATUS).toUpperCase() === "ACTIVE"));
+      })
+      .catch(() => setSpocs([]));
+  }, []);
+  if (!spocs) return <p className="text-sm text-[#A0AEC0]">Loading SPOCs…</p>;
+  return <TeamImportPanel spocs={spocs} onDone={(r) => toast.success(`${r.summary.imported} team(s) created`)} />;
+};
+
+// Platform admin creates Admin / SPOC accounts (active immediately; the new user receives their login details
+// by email), or creates many teams at once from an Excel file.
 export default function CreateUser() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState("single");
   const [role, setRole] = useState("SPOC");
   // only the main admin creates admins, and chooses their permissions
   const { canManageAdmins } = useAdmin();
@@ -58,16 +75,32 @@ export default function CreateUser() {
   const roleInfo = ROLES.find((r) => r.value === role);
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className={mode === "bulk" ? "max-w-6xl mx-auto" : "max-w-3xl mx-auto"}>
       <Toaster position="top-right" />
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-[#1A202C] flex items-center gap-3">
           <FiUserPlus className="text-[#FF9900]" /> Create User
         </h1>
         <p className="text-[#718096] mt-1">
-          Accounts created here are active immediately. The user gets an email with their login details.
+          {mode === "bulk"
+            ? "Create many teams at once from the Excel template. Every team lead gets the team login by email."
+            : "Accounts created here are active immediately. The user gets an email with their login details."}
         </p>
+        <div className="mt-4 inline-flex bg-gray-100 border border-gray-200 rounded-xl p-1">
+          {[["single", "Single account", FiUserPlus], ["bulk", "Bulk import teams (Excel)", FiUsers]].map(([key, label, Icon]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setMode(key)}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${mode === key ? "bg-[#FF9900] text-white shadow" : "text-gray-700 hover:bg-white"}`}
+            >
+              <Icon /> {label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {mode === "bulk" ? <BulkTeams /> : (<>
 
       {created && (
         <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
@@ -200,6 +233,7 @@ export default function CreateUser() {
           </button>
         </div>
       </form>
+      </>)}
     </div>
   );
 }
