@@ -439,6 +439,7 @@ const ProblemStatementDetail = () => {
               <option value="PENDING">Awaiting review</option>
               <option value="CHANGES_REQUESTED">Changes needed</option>
               <option value="APPROVED">Concept accepted</option>
+              <option value="CONCEPT_CLOSED">Concept closed</option>
               <option value="REJECTED">Rejected</option>
             </select>
           </label>
@@ -521,7 +522,7 @@ const ProblemStatementDetail = () => {
                       onClick={() => navigate(`/admin/submissions/${sub.id}/details`)}
                       className="bg-[#FF9900] text-white font-bold px-4 py-2 rounded-xl shadow hover:bg-[#e68900]"
                     >
-                      {!can('EVALUATE') || sub.status === 'APPROVED' || sub.status === 'REJECTED' ? 'View' : 'Review'}
+                      {!can('EVALUATE') || ['APPROVED', 'REJECTED', 'CONCEPT_CLOSED'].includes(sub.status) ? 'View' : 'Review'}
                     </button>
 
                   </td>

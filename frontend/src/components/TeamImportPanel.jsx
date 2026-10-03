@@ -8,8 +8,8 @@ import Pagination, { usePagination } from "./common/Pagination";
 // The file is checked first (nothing is saved); then the ready teams are created like the team form does.
 //   spocs    - admins pass the approved SPOCs to choose from; SPOCs import for themselves (no prop)
 //   onDone   - called after teams were created
-const COLUMNS = ["Team Name", "Role", "Member Name", "Email", "Phone", "Gender", "Graduation Year", "Mentor Name", "Mentor Email"];
-const REQUIRED = ["Team Name", "Role", "Member Name", "Email", "Phone", "Gender", "Graduation Year"];
+const COLUMNS = ["Team Name", "Role", "Member Name", "Email", "Phone", "Gender", "Graduation Year", "Interests", "Mentor Name", "Mentor Email"];
+const REQUIRED = ["Team Name", "Role", "Member Name", "Email", "Phone", "Gender", "Graduation Year", "Interests"];
 const VIEWS = [["all", "All teams"], ["ready", "Will be created"], ["error", "Will be skipped"]];
 
 const TeamImportPanel = ({ spocs = null, onDone }) => {
@@ -103,7 +103,7 @@ const TeamImportPanel = ({ spocs = null, onDone }) => {
         <div className="md:col-span-2 rounded-2xl border border-[#E2E8F0] bg-white p-5">
           <div className="text-xs font-semibold uppercase tracking-wide text-[#FF9900] mb-1">Step 1</div>
           <h3 className="font-semibold text-[#1A202C] mb-1">Fill in the template</h3>
-          <p className="text-sm text-[#718096] mb-3">One row per person. Rows with the same Team Name form one team (2–5 people, one Team Lead).</p>
+          <p className="text-sm text-[#718096] mb-3">One row per person. Rows with the same Team Name form one team (2–5 people, one Team Lead). Interests: Software, Hardware and/or Combined, separated by commas.</p>
           <ol className="text-sm text-[#4A5568] space-y-1 list-decimal pl-5">
             {COLUMNS.map((c) => <li key={c}>{c}{REQUIRED.includes(c) && <span className="text-red-500"> *</span>}</li>)}
           </ol>
@@ -197,7 +197,7 @@ const TeamImportPanel = ({ spocs = null, onDone }) => {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="font-semibold text-[#1A202C]">{t.name}</div>
-                    <div className="text-xs text-[#718096]">Rows {t.rows.join(", ")}{t.mentorName ? ` · Mentor: ${t.mentorName}` : ""}</div>
+                    <div className="text-xs text-[#718096]">Rows {t.rows.join(", ")}{t.interestLabel ? ` · Interests: ${t.interestLabel}` : ""}{t.mentorName ? ` · Mentor: ${t.mentorName}` : ""}</div>
                   </div>
                   {t.status === "ready"
                     ? <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800"><FiCheckCircle /> Ready</span>

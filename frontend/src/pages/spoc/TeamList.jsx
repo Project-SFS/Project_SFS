@@ -526,6 +526,7 @@ const MAX_TEAM = 5;
 const roleFor = (i) => (i === 0 ? "Team Lead" : `Member ${i}`);
 const newMember = (i) => ({ role: roleFor(i), name: "", email: "", phone: "", gender: "", gradYear: "" });
 const emptyTeam = () => ({ teamName: "", members: [newMember(0), newMember(1)] });
+const INTEREST_OPTIONS = [["software", "Software"], ["hardware", "Hardware"], ["combined", "Combined (Hardware + Software)"]];
 
 // a member can graduate this year or up to ten years ahead (e.g. 2026-2036); the team leaves the SPOC list after its last member graduates
 const GRAD_YEARS = Array.from({ length: 11 }, (_, i) => new Date().getFullYear() + i);
@@ -559,6 +560,9 @@ function TeamList({ embedded = false }) {
   const [showImport, setShowImport] = useState(false); // bulk team import from Excel
 
   const [mentorName, setMentorName] = useState("");
+  // challenge categories the team is interested in (it is emailed only about these); at least one
+  const [interests, setInterests] = useState([]);
+  const toggleInterest = (key) => setInterests((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   const [mentorEmail, setMentorEmail] = useState("");
 
   axios.defaults.withCredentials = true;
@@ -660,6 +664,7 @@ function TeamList({ embedded = false }) {
       setEmailErrors({});
       setTeamFormData({ teamName: e.NAME, members: loaded });
       setMentorEmail(res.data.mentor[0].MENTOR_EMAIL);
+      setInterests(String(res.data.mentor[0].INTERESTS || "").split(",").filter(Boolean));
       setMentorName(res.data.mentor[0].MENTOR_NAME);
     });
     setShowCreateTeamModal(true);
@@ -669,6 +674,10 @@ function TeamList({ embedded = false }) {
   const handleCreateTeam = async (e) => {
     e.preventDefault();
     if (checking) return;
+    if (interests.length === 0) {
+      toast.error("Choose at least one interest: Software, Hardware or Combined");
+      return;
+    }
 
     // 1) check every email first (duplicates in this form, already in 2 teams, lead already used);
     //    nothing is saved and no mail is sent until all of them are fine
@@ -698,6 +707,7 @@ function TeamList({ embedded = false }) {
           id: team_id,
           mentorEmail: mentorEmail,
           mentorName: mentorName,
+          interests,
         })
         .then((res) => {
           if (res.data == "Updated") {
@@ -720,6 +730,7 @@ function TeamList({ embedded = false }) {
           Teamdata: teamFormData,
           mentorEmail: mentorEmail,
           mentorName: mentorName,
+          interests,
         })
         .then((res) => {
           // the team lead's login is created by the server together with the team, and emailed to the lead
@@ -729,6 +740,7 @@ function TeamList({ embedded = false }) {
             setShowCreateTeamModal(false);
             setTeamFormData(emptyTeam());
             setEmailErrors({});
+            setInterests([]);
             allteams();
           }
         })
@@ -876,6 +888,9 @@ function TeamList({ embedded = false }) {
                           <th className="px-4 sm:px-6 py-3 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">
                             Lead Phone
                           </th>
+                          <th className="px-4 sm:px-6 py-3 text-left text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                            Interests
+                          </th>
                           <th className="px-4 sm:px-6 py-3 text-center text-[11px] sm:text-xs font-semibold text-gray-600 uppercase tracking-wider">
                             Edit
                           </th>
@@ -918,6 +933,11 @@ function TeamList({ embedded = false }) {
                               onClick={() => SelectedTeam(team)}
                             >
                               {team.LEAD_PHONE}
+                            </td>
+                            <td className="px-4 sm:px-6 py-3 text-gray-600" onClick={() => SelectedTeam(team)}>
+                              {team.INTERESTS
+                                ? String(team.INTERESTS).split(",").map((k) => <span key={k} className="inline-block mr-1 mb-1 px-2 py-0.5 rounded-full bg-orange-50 text-[#c76f00] text-xs font-medium capitalize">{k}</span>)
+                                : <span className="text-xs text-gray-400" title="Gets emails about every new challenge until interests are set">Not set</span>}
                             </td>
                             <td className="px-4 sm:px-6 py-3 text-center">
                               <button
@@ -997,6 +1017,7 @@ function TeamList({ embedded = false }) {
                   setfetched_s(true);
                   setTeamFormData(emptyTeam());
             setEmailErrors({});
+            setInterests([]);
                 }}
                 className="text-gray-500 hover:text-gray-700 text-xl"
               >
@@ -1062,6 +1083,30 @@ function TeamList({ embedded = false }) {
                       required
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Interests: the team is emailed only about new challenges in these categories */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h4 className="text-base sm:text-lg font-semibold text-gray-800">
+                  Interests <span className="text-red-500">*</span>
+                </h4>
+                <p className="text-xs text-gray-500 mb-3">Choose one or more. The team gets emails only about new challenges in these categories.</p>
+                <div className="flex flex-wrap gap-2">
+                  {INTEREST_OPTIONS.map(([key, label]) => {
+                    const on = interests.includes(key);
+                    return (
+                      <button
+                        type="button"
+                        key={key}
+                        onClick={() => toggleInterest(key)}
+                        aria-pressed={on}
+                        className={`px-4 py-2 rounded-full text-sm font-medium border transition ${on ? "bg-[#fc8f00] border-[#fc8f00] text-white" : "bg-white border-gray-300 text-gray-700 hover:border-[#fc8f00]"}`}
+                      >
+                        {on ? "✓ " : ""}{label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1175,6 +1220,7 @@ function TeamList({ embedded = false }) {
                     setfetched_s(true);
                     setTeamFormData(emptyTeam());
             setEmailErrors({});
+            setInterests([]);
                     setteam_id(0);
                   }}
                   className="px-5 py-2 border border-gray-300 text-sm text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

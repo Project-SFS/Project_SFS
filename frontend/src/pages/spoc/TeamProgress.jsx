@@ -115,7 +115,7 @@ export default function TeamProgress() {
                           </td>
                           <td className="py-2 px-3"><SubmissionStatus submission={sub} /></td>
                           <td className="py-2 px-3 whitespace-nowrap">
-                            {sub.EVAL_TOTAL != null && isAccepted(sub.STATUS) ? <b>{sub.EVAL_TOTAL} / 100</b> : "—"}
+                            {sub.EVAL_TOTAL != null && (isAccepted(sub.STATUS) || sub.STATUS === "CONCEPT_CLOSED") ? <b>{sub.EVAL_TOTAL} / 100</b> : "—"}
                           </td>
                           <td className="py-2 px-3">
                             {sub.EVALUATION_COMMENT ? (

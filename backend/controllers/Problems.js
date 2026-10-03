@@ -4,6 +4,7 @@ import AsyncHandler from "../utils/AsyncHandler.js";
 import { insertProblem } from "./ProblemImport.js";
 import { filePathsOf, unlinkAll } from "../utils/submissionFiles.js";
 import { parseCategory } from "../utils/categories.js";
+import { notifyProblemsPublished } from "../utils/notifications.js";
 
 // Challenges are public, but who created / closed them (admin emails) is only for admins.
 // There are no deadlines: a challenge is open until an admin closes it ("Concept Received").
@@ -61,6 +62,8 @@ const Post_problem = AsyncHandler(async (req, res) => {
         domain: text(domain), outcomes: text(outcomes), requirements: text(requirements), technology: text(technology),
     }, req.user.ID);
 
+    // SPOCs and the teams interested in this category are told about the new challenge
+    notifyProblemsPublished([insertId]);
     res.status(201).json({ result: { insertId, affectedRows: 1 }, ...req.body });
 })
 

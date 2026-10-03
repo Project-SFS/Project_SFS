@@ -6,6 +6,7 @@ import { loadTeamFor } from "../utils/teamAccess.js";
 import { layout, escapeHtml, notifyTeamLogin, deliver, background } from "../utils/notifications.js";
 import { gradYearRange } from "../utils/graduation.js";
 import { checkTeamEmails, issuesMessage } from "../utils/teamEmails.js";
+import { serializeInterests } from "../utils/categories.js";
 
 // A team is the team lead plus 1-4 members (2-5 people). The first person is always the team lead,
 // whose email is the team's login.
@@ -99,12 +100,12 @@ const createLeadLogin = async ({ email, name, college, teamId }) => {
 // Creates a team from already-validated members (see readMembers + checkTeamEmails): the team, its members
 // and the team lead's login, then emails the members and the lead's login details. Used by the team form and
 // the Excel import. Throws (after undoing the half-created team) when it cannot be saved.
-export const createTeam = async ({ spocId, teamName, members, mentorName, mentorEmail }) => {
+export const createTeam = async ({ spocId, teamName, members, mentorName, mentorEmail, interests }) => {
   const lead = members[0];
   const [spocRows] = await connection.query("SELECT COLLEGE FROM SolveForSakthi_Users WHERE ID = ?", [spocId]);
   const [result] = await connection.query(
-    "INSERT INTO SolveForSakthi_Team_List (NAME, SPOC_ID, MENTOR_NAME, MENTOR_EMAIL, LEAD_EMAIL, LEAD_PHONE, CREATED_AT) VALUES (?,?,?,?,?,?, SYSUTCDATETIME())",
-    [teamName, spocId, clean(mentorName, 50), clean(mentorEmail, 50), lead.email, lead.phone]
+    "INSERT INTO SolveForSakthi_Team_List (NAME, SPOC_ID, MENTOR_NAME, MENTOR_EMAIL, LEAD_EMAIL, LEAD_PHONE, INTERESTS, CREATED_AT) VALUES (?,?,?,?,?,?,?, SYSUTCDATETIME())",
+    [teamName, spocId, clean(mentorName, 50), clean(mentorEmail, 50), lead.email, lead.phone, serializeInterests(interests) || null]
   );
   const teamId = result.insertId;
   let password;
@@ -133,7 +134,7 @@ const Check_team_members = AsyncHandler(async (req, res) => {
 });
 
 const Add_Team_Members = AsyncHandler(async (req, res) => {
-  const { Teamdata, mentorEmail, mentorName } = req.body;
+  const { Teamdata, mentorEmail, mentorName, interests } = req.body;
   const { id } = req.params;
   // a SPOC creates teams only under their own account
   if (req.user.ROLE !== "ADMIN" && String(req.user.ID) !== String(id)) {
@@ -141,11 +142,12 @@ const Add_Team_Members = AsyncHandler(async (req, res) => {
   }
   const teamName = clean(Teamdata?.teamName, 50);
   if (!teamName) return res.status(400).json({ message: "Enter a team name" });
+  if (!serializeInterests(interests)) return res.status(400).json({ message: "Choose at least one interest: Software, Hardware or Combined" });
   const members = await validateTeam(req, res, Teamdata?.members, null);
   if (!members) return;
   let teamId;
   try {
-    teamId = await createTeam({ spocId: id, teamName, members, mentorName, mentorEmail });
+    teamId = await createTeam({ spocId: id, teamName, members, mentorName, mentorEmail, interests });
   } catch {
     return res.status(500).json({ message: "The team could not be saved. Please try again." });
   }
@@ -153,11 +155,12 @@ const Add_Team_Members = AsyncHandler(async (req, res) => {
 });
 
 const Update_team = AsyncHandler(async (req, res) => {
-  const { team, id, mentorEmail, mentorName } = req.body;
+  const { team, id, mentorEmail, mentorName, interests } = req.body;
   const existing = await loadTeamFor(req, res, id, { manage: true });
   if (!existing) return;
   const teamName = clean(team?.teamName, 50);
   if (!teamName) return res.status(400).json({ message: "Enter a team name" });
+  if (!serializeInterests(interests)) return res.status(400).json({ message: "Choose at least one interest: Software, Hardware or Combined" });
   const members = await validateTeam(req, res, team?.members, existing.ID);
   if (!members) return;
   const lead = members[0];
@@ -166,8 +169,8 @@ const Update_team = AsyncHandler(async (req, res) => {
   const oldEmails = new Set(oldMembers.map((m) => String(m.EMAIL || "").trim().toLowerCase()));
 
   await connection.query(
-    "UPDATE SolveForSakthi_Team_List SET NAME = ?, MENTOR_NAME = ?, MENTOR_EMAIL = ?, LEAD_EMAIL = ?, LEAD_PHONE = ? WHERE ID = ?",
-    [teamName, clean(mentorName, 50), clean(mentorEmail, 50), lead.email, lead.phone, existing.ID]
+    "UPDATE SolveForSakthi_Team_List SET NAME = ?, MENTOR_NAME = ?, MENTOR_EMAIL = ?, LEAD_EMAIL = ?, LEAD_PHONE = ?, INTERESTS = ? WHERE ID = ?",
+    [teamName, clean(mentorName, 50), clean(mentorEmail, 50), lead.email, lead.phone, serializeInterests(interests) || null, existing.ID]
   );
   // members can be added or removed, so the list is replaced (member rows are not referenced elsewhere)
   await connection.query("DELETE FROM SolveForSakthi_Team_Members_List WHERE Team_ID = ?", [existing.ID]);

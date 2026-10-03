@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { interestLabels, parseInterests } from "../utils/categories.js";
 import { MAX_ACCEPTED } from "./TeamProblems.js";
 import JSZip from "jszip";
 import connection from "../database/db.js";
@@ -27,7 +28,7 @@ const loadSubmissions = async () => {
                s.EVALUATION_COMMENT, s.EVALUATED_AT, s.EVALUATED_BY,
                s.EVAL_UNDERSTANDING, s.EVAL_SOLUTION, s.EVAL_TOOLS, s.EVAL_PRESENTATION, s.EVAL_ACCEPTANCE, s.EVAL_TOTAL,
                p.TITLE AS PROBLEM_TITLE, p.CATEGORY, p.DOMAIN, p.IS_CLOSED,
-               t.ID AS TEAM_ID, t.NAME AS TEAM_NAME, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.GRADUATED_AT, t.REMOVED_AT,
+               t.ID AS TEAM_ID, t.NAME AS TEAM_NAME, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.GRADUATED_AT, t.REMOVED_AT, t.INTERESTS,
                COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
                spoc.ID AS SPOC_ID, spoc.NAME AS SPOC_NAME, spoc.EMAIL AS SPOC_EMAIL, spoc.PHONE AS SPOC_PHONE, spoc.COLLEGE, spoc.COLLEGE_CODE,
                ev.EMAIL AS REVIEWER_EMAIL, ev.NAME AS REVIEWER_NAME,
@@ -39,12 +40,16 @@ const loadSubmissions = async () => {
         LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
         LEFT JOIN SolveForSakthi_Users ev ON ev.ID = s.EVALUATED_BY
         ORDER BY s.PROBLEM_ID, s.ID`);
+    // each team's accepted concepts (a team can have at most MAX_ACCEPTED; closed concepts do not count)
+    const accepted = new Map();
+    rows.forEach((r) => { if (statusOf(r.STATUS) === "APPROVED") { const k = String(r.TEAM_EMAIL || "").toLowerCase(); accepted.set(k, (accepted.get(k) || 0) + 1); } });
+    rows.forEach((r) => { r.TEAM_ACCEPTED = accepted.get(String(r.TEAM_EMAIL || "").toLowerCase()) || 0; });
     return rows;
 };
 
 const loadTeams = async () => {
     const [teams] = await connection.query(`
-        SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.CREATED_AT, t.GRADUATED_AT, t.REMOVED_AT, t.SPOC_ID,
+        SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.CREATED_AT, t.GRADUATED_AT, t.REMOVED_AT, t.SPOC_ID, t.INTERESTS,
                COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
                spoc.NAME AS SPOC_NAME, spoc.EMAIL AS SPOC_EMAIL, spoc.COLLEGE, spoc.COLLEGE_CODE
         FROM SolveForSakthi_Team_List t
@@ -65,7 +70,7 @@ const loadTeams = async () => {
             // the challenges the team submitted a solution to
             challenges: teamSubs.map((x) => ({ PROBLEM_ID: x.PROBLEM_ID, TITLE: x.TITLE })),
             SUBMISSIONS: teamSubs.length,
-            AWAITING: count("PENDING"), CHANGES: count("CHANGES_REQUESTED"), APPROVED: count("APPROVED"), REJECTED: count("REJECTED"),
+            AWAITING: count("PENDING"), CHANGES: count("CHANGES_REQUESTED"), APPROVED: count("APPROVED"), REJECTED: count("REJECTED"), CLOSED: count("CONCEPT_CLOSED"),
             BEST_MARKS: marks.length ? Math.max(...marks) : null,
         };
     });
@@ -109,6 +114,8 @@ const SUBMISSION_COLUMNS = [
     { key: "mentor", header: "Mentor", group: "Team", width: 28, value: (r) => [r.MENTOR_NAME, r.MENTOR_EMAIL].filter(Boolean).join(" · ") },
     { key: "graduationYear", header: "Graduation year", group: "Team", width: 14, type: "number", value: (r) => r.GRADUATION_YEAR },
     { key: "teamStatus", header: "Team status", group: "Team", width: 12, value: (r) => (r.TEAM_ID ? teamStatusOf(r) : "Deleted") },
+    { key: "teamInterests", header: "Team interests", group: "Team", width: 22, value: (r) => (r.TEAM_ID ? interestLabels(r.INTERESTS) || "Not set (all)" : "") },
+    { key: "teamAccepted", header: `Team's accepted concepts (of ${MAX_ACCEPTED})`, group: "Team", width: 16, type: "number", value: (r) => r.TEAM_ACCEPTED },
     { key: "college", header: "College", group: "College & SPOC", width: 26, value: (r) => r.COLLEGE },
     { key: "collegeCode", header: "College code", group: "College & SPOC", width: 13, value: (r) => r.COLLEGE_CODE },
     { key: "spocName", header: "SPOC name", group: "College & SPOC", width: 20, value: (r) => r.SPOC_NAME },
@@ -131,6 +138,7 @@ const TEAM_COLUMNS = [
     { key: "leadEmail", header: "Team lead email", group: "Team", width: 28, value: (t) => t.LEAD_EMAIL },
     { key: "leadPhone", header: "Team lead phone", group: "Team", width: 15, value: (t) => t.LEAD_PHONE },
     { key: "mentor", header: "Mentor", group: "Team", width: 28, value: (t) => [t.MENTOR_NAME, t.MENTOR_EMAIL].filter(Boolean).join(" · ") },
+    { key: "interests", header: "Interests", group: "Team", width: 24, value: (t) => interestLabels(t.INTERESTS) || "Not set (all)" },
     { key: "memberCount", header: "Members", group: "Members", width: 10, type: "number", value: (t) => t.members.length },
     { key: "memberNames", header: "Member names", group: "Members", width: 40, value: (t) => t.members.map((m) => `${m.NAME}${m.GRAD_YEAR ? ` (${m.GRAD_YEAR})` : ""}`).join(", ") },
     { key: "memberEmails", header: "Member emails", group: "Members", width: 40, value: (t) => t.members.map((m) => m.EMAIL).filter(Boolean).join(", ") },
@@ -142,7 +150,9 @@ const TEAM_COLUMNS = [
     { key: "submissions", header: "Submissions", group: "Challenges & results", width: 12, type: "number", value: (t) => t.SUBMISSIONS },
     { key: "awaiting", header: "Awaiting review", group: "Challenges & results", width: 12, type: "number", value: (t) => t.AWAITING },
     { key: "changes", header: "Changes needed", group: "Challenges & results", width: 12, type: "number", value: (t) => t.CHANGES },
-    { key: "approved", header: "Concept accepted", group: "Challenges & results", width: 14, type: "number", value: (t) => t.APPROVED },
+    { key: "approved", header: `Concept accepted (of ${MAX_ACCEPTED})`, group: "Challenges & results", width: 16, type: "number", value: (t) => t.APPROVED },
+    { key: "atLimit", header: "At the limit", group: "Challenges & results", width: 11, value: (t) => (t.APPROVED >= MAX_ACCEPTED ? "Yes" : "No") },
+    { key: "closedConcepts", header: "Concept closed", group: "Challenges & results", width: 13, type: "number", value: (t) => t.CLOSED },
     { key: "rejected", header: "Rejected", group: "Challenges & results", width: 11, type: "number", value: (t) => t.REJECTED },
     { key: "bestMarks", header: `Best marks (/${MARKS_TOTAL})`, group: "Challenges & results", width: 13, type: "number", value: (t) => t.BEST_MARKS },
 ];
@@ -182,6 +192,8 @@ const filterSubmissions = (rows, f = {}) => {
         && (min === null || (r.EVAL_TOTAL != null && r.EVAL_TOTAL >= min))
         && (max === null || (r.EVAL_TOTAL != null && r.EVAL_TOTAL <= max))
         && matchesTeamStatus(r, f.teamStatus)
+        && inList(list(f.categories), String(r.CATEGORY || "").toLowerCase())
+        && (!f.challengeStatus || f.challengeStatus === "all" || (f.challengeStatus === "closed" ? Boolean(r.IS_CLOSED) : !r.IS_CLOSED))
         && (!q || [r.TEAM_NAME, r.TEAM_EMAIL, r.SOL_TITLE, r.PROBLEM_TITLE, r.COLLEGE].some((v) => String(v || "").toLowerCase().includes(q))));
 };
 
@@ -201,6 +213,13 @@ const matchesGraduation = (t, f) => {
     return mode === "exact" ? teamYear === year : teamYear <= year;
 };
 
+// interests filter: any of the chosen categories; "notset" = teams without interests (they get every challenge)
+const matchesInterests = (t, chosen) => {
+    if (!chosen.length) return true;
+    const mine = parseInterests(t.INTERESTS);
+    return chosen.some((c) => (c === "notset" ? mine.length === 0 : mine.includes(c)));
+};
+
 const filterTeams = (teams, f = {}) => {
     const q = String(f.search || "").trim().toLowerCase();
     return teams.filter((t) =>
@@ -209,6 +228,11 @@ const filterTeams = (teams, f = {}) => {
         && (!f.submissions || f.submissions === "all" || (f.submissions === "with" ? t.SUBMISSIONS > 0 : t.SUBMISSIONS === 0))
         && (list(f.problemIds).length === 0 || t.challenges.some((a) => list(f.problemIds).includes(String(a.PROBLEM_ID))))
         && matchesGraduation(t, f)
+        && matchesInterests(t, list(f.interests))
+        && (!f.accepted || f.accepted === "all"
+            || (f.accepted === "none" && t.APPROVED === 0)
+            || (f.accepted === "some" && t.APPROVED > 0 && t.APPROVED < MAX_ACCEPTED)
+            || (f.accepted === "limit" && t.APPROVED >= MAX_ACCEPTED))
         && (!q || [t.NAME, t.LEAD_EMAIL, t.COLLEGE, t.SPOC_NAME].some((v) => String(v || "").toLowerCase().includes(q))));
 };
 
@@ -291,6 +315,10 @@ const describeFilters = (type, f = {}, lookups) => {
     if (f.graduationYear) out.push(["Graduation year", `${GRADUATION_MATCH[f.graduationMatch] || GRADUATION_MATCH.upto} ${f.graduationYear}`]);
     if (list(f.spocStatuses).length) out.push(["SPOC status", list(f.spocStatuses).join(", ")]);
     if (f.hasTeams && f.hasTeams !== "all") out.push(["SPOCs", f.hasTeams === "with" ? "With teams" : "Without teams"]);
+    if (list(f.categories).length) out.push(["Categories", list(f.categories).join(", ")]);
+    if (f.challengeStatus && f.challengeStatus !== "all") out.push(["Challenges", f.challengeStatus === "closed" ? "Concept Received (closed) only" : "Open only"]);
+    if (list(f.interests).length) out.push(["Team interests", list(f.interests).map((k) => (k === "notset" ? "Not set" : k)).join(", ")]);
+    if (f.accepted && f.accepted !== "all") out.push(["Accepted concepts", { none: "None yet", some: `1 to ${MAX_ACCEPTED - 1}`, limit: `At the limit (${MAX_ACCEPTED})` }[f.accepted] || f.accepted]);
     if (f.search) out.push(["Search", f.search]);
     return out;
 };
@@ -312,21 +340,21 @@ const buildSubmissionsWorkbook = async (workbook, rows, columns, sheets, filters
 
     if (sheets.summary !== false) {
         const sheet = workbook.addWorksheet("Summary by challenge", { views: [{ state: "frozen", ySplit: 1 }] });
-        const head = ["Challenge ID", "Challenge title", "Category", "Status", "Teams", "Submissions", "Awaiting review", "Changes needed", "Concept accepted", "Rejected", "Average marks", "Highest marks"];
-        sheet.columns = head.map((h, i) => ({ header: h, width: [12, 40, 12, 17, 10, 13, 14, 14, 15, 11, 13, 13][i] }));
+        const head = ["Challenge ID", "Challenge title", "Category", "Status", "Teams", "Submissions", "Awaiting review", "Changes needed", "Concept accepted", "Rejected", "Concept closed", "Average marks", "Highest marks"];
+        sheet.columns = head.map((h, i) => ({ header: h, width: [12, 40, 12, 17, 10, 13, 14, 14, 15, 11, 13, 13, 13][i] }));
         styleHeader(sheet.getRow(1));
         const totals = Array(8).fill(0);
         for (const [id, subs] of byProblem) {
             const p = problemOf.get(id) || {};
             const count = (st) => subs.filter((s) => statusOf(s.STATUS) === st).length;
             const marks = subs.map((s) => s.EVAL_TOTAL).filter((m) => m != null);
-            const values = [p.TEAM_COUNT ?? 0, subs.length, count("PENDING"), count("CHANGES_REQUESTED"), count("APPROVED"), count("REJECTED")];
+            const values = [p.TEAM_COUNT ?? 0, subs.length, count("PENDING"), count("CHANGES_REQUESTED"), count("APPROVED"), count("REJECTED"), count("CONCEPT_CLOSED")];
             values.forEach((v, i) => { totals[i] += v; });
             sheet.addRow([id ? `SFS_${id}` : "", p.TITLE || "(deleted challenge)", p.CATEGORY || "", p.ID ? (p.IS_CLOSED ? "Concept Received" : "Open") : "", ...values,
                 marks.length ? Math.round((marks.reduce((a, b) => a + b, 0) / marks.length) * 10) / 10 : null,
                 marks.length ? Math.max(...marks) : null]);
         }
-        const total = sheet.addRow(["", "Total", "", null, ...totals.slice(0, 6), null, null]);
+        const total = sheet.addRow(["", "Total", "", null, ...totals.slice(0, 7), null, null]);
         total.font = { bold: true };
         total.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFF4E5" } };
     }
@@ -493,7 +521,7 @@ const buildProblemReport = (problem, subs, columns, reviews, user) => {
         ["Category", problem.CATEGORY || "—"], ["Domain", problem.DOMAIN || "—"],
         ["Status", problem.IS_CLOSED ? "Concept Received" : "Open"], ["Teams", problem.TEAM_COUNT ?? 0],
         ["Submissions", subs.length], ["Awaiting review", count("PENDING")], ["Changes needed", count("CHANGES_REQUESTED")],
-        ["Concept accepted", count("APPROVED")], ["Rejected", count("REJECTED")],
+        ["Concept accepted", count("APPROVED")], ["Rejected", count("REJECTED")], ["Concept closed", count("CONCEPT_CLOSED")],
         ["Average marks", marks.length ? `${Math.round((marks.reduce((a, b) => a + b, 0) / marks.length) * 10) / 10} / ${MARKS_TOTAL}` : "—"],
         ["Highest marks", marks.length ? `${Math.max(...marks)} / ${MARKS_TOTAL}` : "—"],
         ["Generated", `${new Date().toLocaleString("en-IN", { timeZone, dateStyle: "medium", timeStyle: "short" })} by ${user?.EMAIL || ""}`],

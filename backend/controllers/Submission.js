@@ -2,8 +2,8 @@ import fs from "fs";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import connection from "../database/db.js";
 import { today, checkProblemOpen } from "../utils/deadline.js";
-import { notifySubmission, notifyReviewed, loadSubmission, notifySubmissionRemoved, notifyLimitReached } from "../utils/notifications.js";
-import { DECISIONS, CHANGES_REQUESTED, APPROVED, REJECTED, CRITERIA, parseMarks, canTeamEdit, lockedMessage, uploadClosedReason, isFinal } from "../utils/review.js";
+import { notifySubmission, notifyReviewed, loadSubmission, notifySubmissionRemoved, notifyLimitReached, notifyConceptClosed } from "../utils/notifications.js";
+import { DECISIONS, CHANGES_REQUESTED, APPROVED, REJECTED, CONCEPT_CLOSED, CRITERIA, parseMarks, canTeamEdit, lockedMessage, uploadClosedReason, isFinal } from "../utils/review.js";
 import { newSolutionBlockedReason, acceptedCount, acceptedByTeam, MAX_ACCEPTED } from "./TeamProblems.js";
 import { canViewTeamOfLead } from "../utils/teamAccess.js";
 import { withFiles, loadFiles, filePathsOf, unlinkAll, shareToken, SHARE_DAYS } from "../utils/submissionFiles.js";
@@ -391,6 +391,34 @@ const Delete_submission = AsyncHandler(async (req, res) => {
     res.json({ message: role === "STUDENT" ? "Submission withdrawn" : "Submission deleted" });
 });
 
+// POST /submissions/:id/close-concept { comment? } - an evaluator closes an accepted concept ("Concept closed").
+// It keeps its marks and history but no longer counts towards the team's accepted-concepts limit (e.g. 3 -> 2),
+// so the team can submit to a new challenge again. The team lead and the SPOC are emailed.
+const Close_concept = AsyncHandler(async (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) return res.status(400).json({ message: "Invalid submission id" });
+    const comment = String(req.body?.comment ?? "").trim().slice(0, COMMENT_MAX);
+    const [rows] = await connection.query("SELECT STATUS, TEAM_EMAIL FROM SolveForSakthi_Submissions WHERE ID = ?", [id]);
+    if (!rows[0]) return res.status(404).json({ message: "Submission not found" });
+    if (!["APPROVED", "ACCEPTED"].includes(String(rows[0].STATUS || "").toUpperCase())) {
+        return res.status(409).json({ message: "Only an accepted concept can be closed" });
+    }
+    const before = await acceptedCount(rows[0].TEAM_EMAIL);
+    const [updated] = await connection.query(
+        `UPDATE SolveForSakthi_Submissions SET STATUS = ?, EVALUATION_COMMENT = COALESCE(?, EVALUATION_COMMENT), EVALUATED_BY = ?, EVALUATED_AT = SYSUTCDATETIME()
+         WHERE ID = ? AND STATUS IN ('APPROVED', 'ACCEPTED')`, [CONCEPT_CLOSED, comment || null, req.user.ID, id]);
+    if (!updated.affectedRows) return res.status(409).json({ message: "Only an accepted concept can be closed" });
+    await connection.query(
+        "INSERT INTO SolveForSakthi_Submission_Reviews (SUBMISSION_ID, DECISION, COMMENT, REVIEWED_BY, REVIEWED_AT) VALUES (?, ?, ?, ?, SYSUTCDATETIME())",
+        [id, CONCEPT_CLOSED, comment || "Concept closed", req.user.ID]);
+    const after = await acceptedCount(rows[0].TEAM_EMAIL);
+    notifyConceptClosed(id, after, MAX_ACCEPTED);
+    res.json({
+        message: `Concept closed. The team now has ${after} of ${MAX_ACCEPTED} accepted concepts${before >= MAX_ACCEPTED && after < MAX_ACCEPTED ? " and can submit to new challenges again" : ""}. The team and their SPOC were emailed.`,
+        status: CONCEPT_CLOSED, acceptedBefore: before, acceptedAfter: after,
+    });
+});
+
 // POST /submission_files/:id/share -> a signed link to one file (anyone with it can open the file until it
 // expires). Only people who can see the submission can create one.
 const Share_submission_file = AsyncHandler(async (req, res) => {
@@ -403,4 +431,4 @@ const Share_submission_file = AsyncHandler(async (req, res) => {
     res.json({ token: shareToken(fileId), days: SHARE_DAYS, expiresAt: new Date(Date.now() + SHARE_DAYS * 864e5).toISOString() });
 });
 
-export { Share_submission_file, Delete_submission, SubmitSolution, check_status_submission, Get_solution, Get_all_submissions, Get_submission_by_id, Review_submission, Get_submission_by_prob_id, fetch_submissions_by_email };
+export { Close_concept, Share_submission_file, Delete_submission, SubmitSolution, check_status_submission, Get_solution, Get_all_submissions, Get_submission_by_id, Review_submission, Get_submission_by_prob_id, fetch_submissions_by_email };

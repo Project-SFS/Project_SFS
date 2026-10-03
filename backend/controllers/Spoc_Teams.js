@@ -30,7 +30,7 @@ const Fetch_Team_Members = AsyncHandler(async (req, res) => {
 
     // use parameterized query to avoid SQL injection
     const [result, err1] = await connection.query("select * from SolveForSakthi_Team_Members_List where Team_ID = ? order by ID", [parsedId]);
-    const [mentor, err2] = await connection.query("select MENTOR_NAME, MENTOR_EMAIL from SolveForSakthi_Team_List where ID = ?", [parsedId]);
+    const [mentor, err2] = await connection.query("select MENTOR_NAME, MENTOR_EMAIL, INTERESTS from SolveForSakthi_Team_List where ID = ?", [parsedId]);
 
     // console.log(result)
     res.json({result : result, mentor:mentor})
@@ -89,7 +89,7 @@ const fetch_team_id_email = AsyncHandler(async (req, res) => {
 const buildAdminTeams = async (teamId = null) => {
     const one = teamId != null;
     const [teams] = await connection.query(`
-        SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.CREATED_AT, t.SPOC_ID,
+        SELECT t.ID, t.NAME, t.LEAD_EMAIL, t.LEAD_PHONE, t.MENTOR_NAME, t.MENTOR_EMAIL, t.CREATED_AT, t.SPOC_ID, t.INTERESTS,
                t.GRADUATED_AT, t.REMOVED_AT, rb.EMAIL AS REMOVED_BY_EMAIL, COALESCE(t.GRADUATION_YEAR, (SELECT MAX(m.GRAD_YEAR) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID)) AS GRADUATION_YEAR,
                spoc.NAME AS SPOC_NAME, spoc.EMAIL AS SPOC_EMAIL, spoc.COLLEGE, spoc.COLLEGE_CODE,
                (SELECT COUNT(*) FROM SolveForSakthi_Team_Members_List m WHERE m.Team_ID = t.ID) AS MEMBER_COUNT,

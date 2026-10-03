@@ -143,6 +143,7 @@ const TeamDetailsModal = ({ team: given = null, teamId = null, onClose }) => {
                     ["Team login", team.REMOVED_AT ? "Closed (team removed)" : team.GRADUATED_AT ? "Closed (graduated)" : team.HAS_LOGIN ? "Created" : "Not created yet"],
                     ["Graduation year", team.GRADUATION_YEAR ? `${team.GRADUATION_YEAR} (highest member year)` : "Not set"],
                     ["Mentor", [team.MENTOR_NAME, team.MENTOR_EMAIL].filter(Boolean).join(" · ")],
+                    ["Interests", team.INTERESTS ? String(team.INTERESTS).split(",").map((k) => k.charAt(0).toUpperCase() + k.slice(1)).join(", ") : "Not set (emailed about every challenge)"],
                     ["SPOC", [team.SPOC_NAME, team.SPOC_EMAIL].filter(Boolean).join(" · ")],
                     ["College code", team.COLLEGE_CODE],
                     ["Registered", formatDate(team.CREATED_AT)],

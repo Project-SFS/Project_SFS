@@ -5,9 +5,12 @@ import { hasPermission, PERMISSIONS } from "../utils/permissions.js";
 import { gradYearRange } from "../utils/graduation.js";
 import { checkTeamEmails, MAX_TEAMS } from "../utils/teamEmails.js";
 import { readMembers, createTeam, MIN_TEAM_SIZE, MAX_TEAM_SIZE } from "./Team_members.js";
+import { parseInterests, interestLabels } from "../utils/categories.js";
 
 // Excel import of teams. One row per person; rows with the same Team Name form one team:
-//   Team Name | Role | Member Name | Email | Phone | Gender | Graduation Year | Mentor Name | Mentor Email
+//   Team Name | Role | Member Name | Email | Phone | Gender | Graduation Year | Interests | Mentor Name | Mentor Email
+// Interests: the challenge categories the team wants to hear about (Software, Hardware, Combined; several
+// separated by commas), filled on any row of the team.
 // Role is "Team Lead" (exactly one per team, its email becomes the team login) or "Member".
 // Every team is checked with the same rules as the team form before anything is saved (dryRun), and the
 // file is checked as a whole too (an email in several teams of the file counts towards the team limit).
@@ -21,6 +24,7 @@ export const TEAM_TEMPLATE_COLUMNS = [
     { key: "phone", header: "Phone", width: 15 },
     { key: "gender", header: "Gender", width: 10 },
     { key: "gradYear", header: "Graduation Year", width: 15 },
+    { key: "interests", header: "Interests", width: 26 },
     { key: "mentorName", header: "Mentor Name", width: 22 },
     { key: "mentorEmail", header: "Mentor Email", width: 28 },
 ];
@@ -36,6 +40,7 @@ const headerKey = (text) => {
     if (h.includes("mentor") && h.includes("email")) return "mentorEmail";
     if (h.includes("mentor")) return "mentorName";
     if (h.includes("role")) return "role";
+    if (h.includes("interest") || h.includes("preference")) return "interests";
     if (h.includes("email") || h === "mail") return "email";
     if (h.includes("phone") || h.includes("mobile") || h.includes("contact")) return "phone";
     if (h.includes("gender") || h === "sex") return "gender";
@@ -144,6 +149,11 @@ const validateTeams = async (rows) => {
             if (!Number.isInteger(year) || year < min || year > max) messages.push(`${who}: Graduation Year must be between ${min} and ${max}`);
         }
         const mentor = g.rows.find((r) => r.mentorName || r.mentorEmail) || {};
+        // interests: from any row of the team (all of them combined)
+        const interestText = g.rows.map((r) => r.interests).filter(Boolean).join(",");
+        const interests = parseInterests(interestText);
+        if (!interestText) messages.push("Interests is empty: give at least one of Software, Hardware, Combined");
+        else if (!interests.length) messages.push(`Interests "${interestText}" is not valid: use Software, Hardware and/or Combined`);
         if (mentor.mentorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mentor.mentorEmail)) messages.push("Mentor Email is not a valid email address");
 
         const members = ordered.map((r) => ({ name: r.name, email: r.email, phone: r.phone, gender: genderOf(r.gender), gradYear: r.gradYear }));
@@ -174,6 +184,8 @@ const validateTeams = async (rows) => {
             rows: g.rows.map((r) => r.row),
             mentorName: mentor.mentorName || "",
             mentorEmail: mentor.mentorEmail || "",
+            interests,
+            interestLabel: interestLabels(interests.join(",")),
             members: (checked || members).map((m, i) => ({ role: checked ? m.role : (i === 0 && leads.length ? "Team Lead" : "Member"), name: m.name, email: m.email })),
             status: messages.length ? "error" : "ready",
             messages: [...new Set(messages)],
@@ -216,7 +228,7 @@ const Import_teams = AsyncHandler(async (req, res) => {
     const failed = [];
     for (const t of ready) {
         try {
-            const id = await createTeam({ spocId: spoc.id, teamName: t.name, members: t._members, mentorName: t.mentorName, mentorEmail: t.mentorEmail });
+            const id = await createTeam({ spocId: spoc.id, teamName: t.name, members: t._members, mentorName: t.mentorName, mentorEmail: t.mentorEmail, interests: t.interests });
             created.push({ id, name: t.name });
         } catch {
             failed.push(t.name);
@@ -259,11 +271,12 @@ const Team_import_template = AsyncHandler(async (req, res) => {
         ["Phone", "Required."],
         ["Gender", "Required. Male, Female or Other."],
         ["Graduation Year", `Required. ${min} to ${max}. The team closes after its last member graduates.`],
+        ["Interests", "Required. The challenge categories the team is interested in: Software, Hardware and/or Combined, separated by commas (e.g. \"Hardware, Combined\"). Fill it on any one row of the team. The team is emailed only about new challenges in these categories."],
         ["Mentor Name / Email", "Optional. Fill them on any one row of the team (usually the team lead's)."],
         ["", ""],
         ["What happens", "The file is checked first and nothing is saved until you confirm. Teams with a problem are skipped and listed with the reason. For every created team the lead gets the login by email and every member a welcome email."],
-        ["Example", "Team Alpha | Team Lead | Priya S | priya@college.edu | 9876543210 | Female | 2027 | Dr. Kumar | kumar@college.edu"],
-        ["", "Team Alpha | Member | Arun K | arun@college.edu | 9876501234 | Male | 2028 |  | "],
+        ["Example", "Team Alpha | Team Lead | Priya S | priya@college.edu | 9876543210 | Female | 2027 | Hardware, Combined | Dr. Kumar | kumar@college.edu"],
+        ["", "Team Alpha | Member | Arun K | arun@college.edu | 9876501234 | Male | 2028 |  |  | "],
     ].forEach((row, i) => {
         const added = help.addRow(row);
         added.alignment = { vertical: "top", wrapText: true };

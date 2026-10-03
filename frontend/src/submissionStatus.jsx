@@ -4,6 +4,8 @@ export const SUBMISSION_STATUS = {
   PENDING: { label: "Awaiting review", cls: "bg-yellow-100 text-yellow-800", border: "border-yellow-300", text: "text-yellow-800" },
   CHANGES_REQUESTED: { label: "Changes needed", cls: "bg-orange-100 text-orange-800", border: "border-orange-300", text: "text-orange-800" },
   APPROVED: { label: "Concept accepted", cls: "bg-green-100 text-green-800", border: "border-green-300", text: "text-green-800" },
+  // an accepted concept closed afterwards: keeps its marks, no longer counts towards the team's limit
+  CONCEPT_CLOSED: { label: "Concept closed", cls: "bg-slate-200 text-slate-700", border: "border-slate-300", text: "text-slate-700" },
   REJECTED: { label: "Rejected", cls: "bg-red-100 text-red-800", border: "border-red-300", text: "text-red-800" },
 };
 
@@ -19,6 +21,11 @@ export const teamCanEdit = (status) => ["PENDING", "CHANGES_REQUESTED"].includes
 
 // reviewed at least once and not waiting for a review again
 export const isReviewed = (status) => normalizeStatus(status) !== "PENDING";
+
+// final decisions: nothing can be changed any more
+export const isFinalStatus = (status) => ["APPROVED", "REJECTED", "CONCEPT_CLOSED"].includes(normalizeStatus(status));
+// marks were given (accepted concepts, also after they were closed)
+export const hasMarks = (status) => ["APPROVED", "CONCEPT_CLOSED"].includes(normalizeStatus(status));
 
 export const StatusBadge = ({ status, className = "" }) => {
   const meta = statusMeta(status);

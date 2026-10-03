@@ -76,7 +76,7 @@ export default function Student_submitions() {
                 <p className="text-sm text-gray-800 whitespace-pre-line">{s.EVALUATION_COMMENT || "No comment was added."}</p>
               </div>
             )}
-            {status === "APPROVED" && <MarksBreakdown row={s} className="mt-3" />}
+            {(status === "APPROVED" || status === "CONCEPT_CLOSED") && <MarksBreakdown row={s} className="mt-3" />}
 
             <div className="mt-4 flex flex-wrap gap-2">
               {status === "CHANGES_REQUESTED" && (

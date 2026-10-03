@@ -64,7 +64,7 @@ export default function TeamProblemStatements() {
     const sub = p.submission;
     const status = sub ? normalizeStatus(sub.STATUS) : null;
     const changes = status === "CHANGES_REQUESTED";
-    const final = status === "APPROVED" || status === "REJECTED";
+    const final = status === "APPROVED" || status === "REJECTED" || status === "CONCEPT_CLOSED";
     // a revision that was asked for can still come in after the challenge is closed
     const closed = p.IS_CLOSED && !changes;
     // the limit only stops NEW solutions; solutions already under way can be finished
@@ -175,7 +175,7 @@ export default function TeamProblemStatements() {
                       Your solution: <span className="font-medium text-gray-800">{sub.SOL_TITLE || "Untitled"}</span> ({formatDate(sub.SUB_DATE)})
                     </div>
                   )}
-                  {sub && sub.EVAL_TOTAL != null && normalizeStatus(sub.STATUS) === "APPROVED" && (
+                  {sub && sub.EVAL_TOTAL != null && ["APPROVED", "CONCEPT_CLOSED"].includes(normalizeStatus(sub.STATUS)) && (
                     <div>
                       Marks: <span className="font-semibold text-gray-900">{sub.EVAL_TOTAL} / 100</span>
                     </div>

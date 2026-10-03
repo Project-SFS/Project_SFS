@@ -384,3 +384,9 @@ IF COL_LENGTH(N'dbo.SolveForSakthi_Problems', N'IS_CLOSED') IS NULL
     ALTER TABLE SolveForSakthi_Problems ADD IS_CLOSED BIT NOT NULL CONSTRAINT DF_SolveForSakthi_Problems_IS_CLOSED DEFAULT 0,
         CLOSED_AT DATETIME2 NULL, CLOSED_BY INT NULL
 GO
+
+-- A team's interests (any of software, hardware, combined; comma-separated). Teams are emailed only about new
+-- challenges in the categories they are interested in; NULL (older teams) means every category.
+IF COL_LENGTH(N'dbo.SolveForSakthi_Team_List', N'INTERESTS') IS NULL
+    ALTER TABLE SolveForSakthi_Team_List ADD INTERESTS VARCHAR(100) NULL
+GO

@@ -14,7 +14,7 @@ import { Import_teams, Team_import_template } from "../controllers/TeamImport.js
 import { Reset_summary, Reset_send_otp, Reset_confirm } from "../controllers/Reset.js";
 import { Import_problems, Problem_import_template, memoryUpload } from "../controllers/ProblemImport.js";
 import { Export_options, Export_data, Export_problem_reports, List_all_submissions } from "../controllers/Export.js";
-import { Share_submission_file, Delete_submission, Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email, Review_submission, check_status_submission } from "../controllers/Submission.js";
+import { Close_concept, Share_submission_file, Delete_submission, Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email, Review_submission, check_status_submission } from "../controllers/Submission.js";
 // import { Get_all_submissions, SubmitSolution, Get_submission_by_id, Get_submission_by_prob_id, fetch_submissions_by_email,check_status_submission } from "../controllers/Submission.js";
 import { handleSpocApprove, Spoc_approve } from "../controllers/Spoc.js";
 import { sendMailToSpoc } from "../controllers/SendMail.js";
@@ -108,6 +108,7 @@ router.post("/delete_problem", requireAuth, requireRole(['ADMIN']), requirePermi
 router.route("/upload_files").post(requireAuth, upload.any(), uploadFiles)
 router.route("/submission_files/:id/share").post(requireAuth, Share_submission_file); // signed link to one solution file
 router.route("/delete_submission").post(requireAuth, requireRole(['ADMIN', 'STUDENT']), Delete_submission)
+router.route("/submissions/:id/close-concept").post(requireAuth, requireRole(['ADMIN']), requirePermission('EVALUATE'), Close_concept); // accepted -> "Concept closed" (frees a slot of the team's limit)
 router.route("/review_submission").post(requireAuth, requireRole(['ADMIN']), requirePermission('EVALUATE'), Review_submission) // Changes needed / Approve / Reject + comment
 
 export default router;

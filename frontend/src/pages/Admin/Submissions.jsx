@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiSearch, FiClock, FiEdit3, FiCheckCircle, FiXCircle, FiInbox, FiRotateCcw, FiChevronRight } from 'react-icons/fi';
+import { FiSearch, FiClock, FiEdit3, FiCheckCircle, FiXCircle, FiInbox, FiRotateCcw, FiChevronRight, FiArchive } from 'react-icons/fi';
 import Pagination, { usePagination } from '../../components/common/Pagination';
 import { StatusBadge, EVAL_TOTAL_MAX } from '../../submissionStatus';
 import { URL } from '../../Utils';
@@ -15,6 +15,7 @@ const STATUS_CARDS = [
   { key: 'PENDING', label: 'Awaiting review', icon: FiClock, cls: 'text-yellow-700 bg-yellow-50' },
   { key: 'CHANGES_REQUESTED', label: 'Changes needed', icon: FiEdit3, cls: 'text-orange-700 bg-orange-50' },
   { key: 'APPROVED', label: 'Concept accepted', icon: FiCheckCircle, cls: 'text-green-700 bg-green-50' },
+  { key: 'CONCEPT_CLOSED', label: 'Concept closed', icon: FiArchive, cls: 'text-slate-700 bg-slate-100' },
   { key: 'REJECTED', label: 'Rejected', icon: FiXCircle, cls: 'text-red-700 bg-red-50' },
 ];
 const SORTS = [
@@ -85,7 +86,7 @@ const Submissions = () => {
       </div>
 
       {/* Status cards: click to filter */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         {STATUS_CARDS.map(({ key, label, icon: Icon, cls }) => {
           const active = f.status === key;
           return (
@@ -199,7 +200,7 @@ const Submissions = () => {
                       </td>
                       <td className="px-5 py-3 whitespace-nowrap text-[#4A5568]">{readable(r.SUB_DATE)}</td>
                       <td className="px-5 py-3"><StatusBadge status={r.STATUS} /></td>
-                      <td className="px-5 py-3 whitespace-nowrap">{r.STATUS === 'APPROVED' && r.EVAL_TOTAL != null ? <b>{r.EVAL_TOTAL} / {EVAL_TOTAL_MAX}</b> : <span className="text-[#A0AEC0]">—</span>}</td>
+                      <td className="px-5 py-3 whitespace-nowrap">{(r.STATUS === 'APPROVED' || r.STATUS === 'CONCEPT_CLOSED') && r.EVAL_TOTAL != null ? <b>{r.EVAL_TOTAL} / {EVAL_TOTAL_MAX}</b> : <span className="text-[#A0AEC0]">—</span>}</td>
                       <td className="px-5 py-3 text-[#4A5568] max-w-[12rem]">
                         {/* a revised upload is waiting again: the reviewer shown is from the earlier round */}
                         {r.STATUS === 'PENDING' && r.REVIEW_COUNT > 0
@@ -232,7 +233,7 @@ const Submissions = () => {
                       <StatusBadge status={r.STATUS} />
                     </div>
                     <div className="mt-2 text-xs text-[#A0AEC0]">
-                      Submitted {readable(r.SUB_DATE)}{r.STATUS === 'APPROVED' && r.EVAL_TOTAL != null ? ` · ${r.EVAL_TOTAL}/${EVAL_TOTAL_MAX}` : ''}
+                      Submitted {readable(r.SUB_DATE)}{(r.STATUS === 'APPROVED' || r.STATUS === 'CONCEPT_CLOSED') && r.EVAL_TOTAL != null ? ` · ${r.EVAL_TOTAL}/${EVAL_TOTAL_MAX}` : ''}
                     </div>
                   </Link>
                 </li>

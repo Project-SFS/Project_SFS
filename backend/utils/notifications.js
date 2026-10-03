@@ -3,6 +3,7 @@ import { sendMail, trackMailWork } from "./mailer.js"
 import { CRITERIA, MARKS_TOTAL } from "./review.js"
 import { currentOrigin } from "./requestContext.js"
 import { hasPermission, parsePermissions } from "./permissions.js"
+import { teamWantsCategory, interestLabels } from "./categories.js"
 
 // Transactional emails. Every function is fire-and-forget: it never throws into the request
 // that triggered it, so a mail outage cannot break submitting, scoring or approving.
@@ -249,6 +250,35 @@ const notifyLimitReached = (teamEmail, closed) => background("limit reached", as
     }
 })
 
+// An accepted concept was closed: it no longer counts towards the team's limit. Team lead and SPOC, separately.
+const notifyConceptClosed = (submissionId, acceptedNow, maxAccepted) => background("concept closed", async () => {
+    const s = await loadSubmission(submissionId)
+    if (!s) return
+    const free = acceptedNow < maxAccepted
+    const rows = [["Challenge", s.PROBLEM_TITLE], ["Solution", s.SOL_TITLE || "—"], ["Status", "Concept closed"], ["Accepted concepts now", `${acceptedNow} of ${maxAccepted}`]]
+    const outro = s.EVALUATION_COMMENT ? `<div style="border-left:4px solid #4a5568;background:#f7f8fc;padding:12px 16px;"><div style="font-weight:bold;margin-bottom:6px;">Note from the evaluator</div>${escapeHtml(s.EVALUATION_COMMENT).replace(/\n/g, "<br>")}</div>` : ""
+    deliver("concept closed -> team", {
+        to: s.TEAM_EMAIL,
+        subject: `Concept closed: ${s.PROBLEM_TITLE}`,
+        html: layout({
+            heading: "Your accepted concept was closed",
+            intro: `Team <b>${escapeHtml(s.TEAM_NAME || s.TEAM_EMAIL)}</b>, your accepted concept for <b>${escapeHtml(s.PROBLEM_TITLE)}</b> has been closed. It keeps its marks, but it no longer counts towards your team's limit: your team now has <b>${acceptedNow} of ${maxAccepted}</b> accepted concepts.${free ? " You can submit solutions to new challenges again." : ""}`,
+            rows, outro, linkPath: "/student", linkLabel: "Open team portal",
+        }),
+    })
+    if (s.SPOC_EMAIL) {
+        deliver("concept closed -> SPOC", {
+            to: s.SPOC_EMAIL,
+            subject: `Concept closed: team ${s.TEAM_NAME || s.TEAM_EMAIL} · ${s.PROBLEM_TITLE}`,
+            html: layout({
+                heading: "A team's accepted concept was closed",
+                intro: `Team <b>${escapeHtml(s.TEAM_NAME || s.TEAM_EMAIL)}</b>'s accepted concept for <b>${escapeHtml(s.PROBLEM_TITLE)}</b> was closed. The team now has <b>${acceptedNow} of ${maxAccepted}</b> accepted concepts.${free ? " It can submit to new challenges again." : ""} The team lead has been emailed the same.`,
+                rows, outro, linkPath: "/spoc", linkLabel: "Open Team Progress",
+            }),
+        })
+    }
+})
+
 // A platform admin created an account for someone (login details included, since there is no other way to get them)
 const notifyAccountCreated = ({ email, name, role, password }) => background("account created", async () => {
     const roleName = { ADMIN: "platform admin", SPOC: "SPOC" }[role] || role
@@ -282,8 +312,10 @@ const notifySubmissionRemoved = (s) => background("submission removed", async ()
 })
 
 // Challenges were imported from Excel: one mail per SPOC listing them (instead of one mail per problem)
-// Challenges were imported from Excel: ONE short mail per SPOC and per active team (never one per challenge, never cc).
-// It previews the first two problems and links to the full list for the rest.
+// New challenges (one created in the admin panel, or many imported from Excel): ONE short mail per SPOC with all of
+// them, and ONE per active team with only the challenges in the team's interests (a team with no matching
+// challenge gets nothing; older teams without interests get everything). Never one mail per challenge, never cc.
+// Each mail previews the first two challenges and links to the rest.
 const PUBLISH_PREVIEW = 2
 const notifyProblemsPublished = (problemIds) => background("problems published", async () => {
     const ids = (problemIds || []).map(Number).filter(Number.isInteger)
@@ -291,47 +323,61 @@ const notifyProblemsPublished = (problemIds) => background("problems published",
     const [problems] = await connection.query(
         `SELECT ID, TITLE, CATEGORY, DOMAIN, DESCRIPTION FROM SolveForSakthi_Problems WHERE ID IN (${ids.map(() => "?").join(", ")}) ORDER BY ID`, ids)
     if (!problems.length) return
-    const [spocs] = await connection.query("SELECT EMAIL, NAME FROM SolveForSakthi_Users WHERE ROLE = 'SPOC' AND STATUS = 'ACTIVE'")
-    const total = problems.length
-    const more = total - PUBLISH_PREVIEW
     const card = (p) => `
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin:0 0 10px;">
           <div style="font-size:12px;color:#fc9300;font-weight:bold;">SFS_${p.ID}${p.CATEGORY ? ` · ${escapeHtml(String(p.CATEGORY).charAt(0).toUpperCase() + String(p.CATEGORY).slice(1))}` : ""}${p.DOMAIN ? ` · ${escapeHtml(p.DOMAIN)}` : ""}</div>
           <div style="font-weight:bold;color:#2f3640;margin:2px 0 4px;">${escapeHtml(p.TITLE)}</div>
           ${p.DESCRIPTION ? `<div style="font-size:13px;color:#4a5568;">${escapeHtml(clip(p.DESCRIPTION, 160))}</div>` : ""}
         </div>`
-    const outro = `${problems.slice(0, PUBLISH_PREVIEW).map(card).join("")}${more > 0
-        ? `<p style="margin:4px 0 0;font-weight:bold;color:#2f3640;">+ ${more} more challenge${more === 1 ? "" : "s"}. Use the button below to view them all.</p>`
-        : ""}`
-    const subject = total === 1 ? `New challenge: ${problems[0].TITLE}` : `${total} new challenges on Solve For Sakthi`
-    const heading = total === 1 ? "A new challenge is available" : `${total} new challenges are available`
-    const what = total === 1 ? "a new challenge has" : `${total} new challenges have`
-    const linkLabel = total > PUBLISH_PREVIEW ? `View all ${total} challenges` : "View challenges"
-    // the same email to every SPOC...
+    // subject, heading, preview and button for a list of challenges
+    const mailFor = (list) => {
+        const total = list.length
+        const more = total - PUBLISH_PREVIEW
+        return {
+            total,
+            subject: total === 1 ? `New challenge: ${list[0].TITLE}` : `${total} new challenges on Solve For Sakthi`,
+            heading: total === 1 ? "A new challenge is available" : `${total} new challenges are available`,
+            what: total === 1 ? "a new challenge has" : `${total} new challenges have`,
+            outro: `${list.slice(0, PUBLISH_PREVIEW).map(card).join("")}${more > 0
+                ? `<p style="margin:4px 0 0;font-weight:bold;color:#2f3640;">+ ${more} more challenge${more === 1 ? "" : "s"}. Use the button below to view them all.</p>`
+                : ""}`,
+            linkLabel: total > PUBLISH_PREVIEW ? `View all ${total} challenges` : "View challenges",
+        }
+    }
+    const year = new Date().getFullYear()
+
+    // every SPOC: all the new challenges
+    const all = mailFor(problems)
+    const [spocs] = await connection.query("SELECT EMAIL, NAME FROM SolveForSakthi_Users WHERE ROLE = 'SPOC' AND STATUS = 'ACTIVE'")
     for (const spoc of spocs) {
         deliver("problems published -> SPOC", {
             to: spoc.EMAIL,
-            subject,
+            subject: all.subject,
             html: layout({
-                heading,
-                intro: `Hello ${escapeHtml(spoc.NAME || "")}, ${what} been published for Solve For Sakthi ${new Date().getFullYear()}. Your teams can submit solutions to them straight away from their team portal.`,
-                outro,
-                linkPath: "/problemstatements", linkLabel,
+                heading: all.heading,
+                intro: `Hello ${escapeHtml(spoc.NAME || "")}, ${all.what} been published for Solve For Sakthi ${year}. Your teams interested in ${all.total === 1 ? "this category" : "these categories"} have been emailed too, and every team can submit solutions from its team portal.`,
+                outro: all.outro,
+                linkPath: "/problemstatements", linkLabel: all.linkLabel,
             }),
         })
     }
-    // ...and to every active team (its lead's email is the team login), one email each, never cc
+
+    // every active team (its lead's email is the team login): only the challenges in its interests
     const [teams] = await connection.query(
-        "SELECT NAME, LEAD_EMAIL FROM SolveForSakthi_Team_List WHERE GRADUATED_AT IS NULL AND LEAD_EMAIL IS NOT NULL AND LEAD_EMAIL <> ''")
+        "SELECT NAME, LEAD_EMAIL, INTERESTS FROM SolveForSakthi_Team_List WHERE GRADUATED_AT IS NULL AND LEAD_EMAIL IS NOT NULL AND LEAD_EMAIL <> ''")
     for (const team of teams) {
+        const mine = problems.filter((p) => teamWantsCategory(team.INTERESTS, p.CATEGORY))
+        if (!mine.length) continue
+        const m = mailFor(mine)
+        const interests = interestLabels(team.INTERESTS)
         deliver("problems published -> team", {
             to: team.LEAD_EMAIL,
-            subject,
+            subject: m.subject,
             html: layout({
-                heading,
-                intro: `Team <b>${escapeHtml(team.NAME || "")}</b>, ${what} been published for Solve For Sakthi ${new Date().getFullYear()}. You can submit a solution to any open challenge from your team portal.`,
-                outro,
-                linkPath: "/student", linkLabel,
+                heading: m.heading,
+                intro: `Team <b>${escapeHtml(team.NAME || "")}</b>, ${m.what} been published for Solve For Sakthi ${year}${interests ? ` in your interests (${escapeHtml(interests)})` : ""}. You can submit a solution to any open challenge from your team portal.`,
+                outro: m.outro,
+                linkPath: "/student", linkLabel: m.linkLabel,
             }),
         })
     }
@@ -421,4 +467,4 @@ const notifyOwnPasswordChanged = ({ email, name }) => background("own password c
     })
 })
 
-export { notifyLimitReached, evaluatorAdmins, deliver, background, notifyTeamLogin, notifyOwnPasswordChanged, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifySubmission, notifyReviewed }
+export { notifyConceptClosed, notifyLimitReached, evaluatorAdmins, deliver, background, notifyTeamLogin, notifyOwnPasswordChanged, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifySubmission, notifyReviewed }

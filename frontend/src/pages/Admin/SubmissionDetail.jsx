@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { FiArrowLeft, FiEdit3, FiCheckCircle, FiXCircle, FiSend, FiClock, FiShare2, FiMonitor, FiFileText, FiLock } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit3, FiCheckCircle, FiXCircle, FiSend, FiClock, FiShare2, FiMonitor, FiFileText, FiLock, FiArchive } from 'react-icons/fi';
 import { fileHref, createShareLink, copyText, isPublicSite, officeViewerUrl, formatSize } from '../../submissionFiles';
 import axios from 'axios';
 import { URL } from '../../Utils';
@@ -297,6 +297,24 @@ const SubmissionDetail = () => {
     : !allMarks ? `Give marks for all five criteria to accept the concept (${filledMarks.length}/${EVAL_CRITERIA.length} filled).`
     : '';
 
+  // accepted concept -> "Concept closed": no longer counts towards the team's limit (e.g. 3 -> 2); team + SPOC are emailed
+  const closeConcept = async () => {
+    if (closing) return;
+    if (!window.confirm(`Close this concept? It keeps its marks, but the team's accepted concepts go from ${teamAccepted} to ${Math.max(0, teamAccepted - 1)} of ${maxAccepted}${teamAccepted >= maxAccepted ? ', so the team can submit to new challenges again' : ''}. The team and their SPOC are emailed. This cannot be undone.`)) return;
+    setClosing(true);
+    setMessage(null);
+    try {
+      const res = await axios.post(`${URL}/submissions/${submission.submission_id || id}/close-concept`, { comment: closeNote.trim() }, { withCredentials: true });
+      setMessage({ type: 'success', text: res.data?.message || 'Concept closed' });
+      setCloseNote('');
+      await load();
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Could not close the concept' });
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const sendReview = async () => {
     if (!chosen || commentMissing || marksProblem || saving) return;
     if (chosen.value !== 'CHANGES_REQUESTED'
@@ -324,6 +342,8 @@ const SubmissionDetail = () => {
   };
 
   const [teamOpen, setTeamOpen] = useState(false);
+  const [closeNote, setCloseNote] = useState('');
+  const [closing, setClosing] = useState(false);
   // review history, 25 per page (hook kept above the early returns)
   const reviewPages = usePagination(submission?.reviews || [], { resetKey: id });
 
@@ -453,14 +473,44 @@ const SubmissionDetail = () => {
         </div>
 
         {/* Review (needs the Evaluate submissions permission) */}
-        {status === 'APPROVED' || status === 'REJECTED' ? (
-          // approved / rejected are final: the decision cannot be changed any more
-          <div className={`bg-white rounded-2xl shadow-sm p-6 border-2 ${statusMeta(status).border} text-sm text-[#4A5568] flex items-start gap-3`}>
-            <FiLock className={`text-xl shrink-0 mt-0.5 ${statusMeta(status).text}`} />
-            <div>
-              <div className="font-semibold text-[#1A202C]">Final decision: {statusMeta(status).label}</div>
-              This submission was {status === 'APPROVED' ? 'accepted (Concept accepted)' : 'rejected'}. That decision is final and can no longer be changed. Only submissions awaiting review or with changes needed can be reviewed.
+        {status === 'APPROVED' || status === 'REJECTED' || status === 'CONCEPT_CLOSED' ? (
+          // accepted / rejected / closed are final: the decision cannot be changed any more
+          <div className={`bg-white rounded-2xl shadow-sm p-6 border-2 ${statusMeta(status).border} text-sm text-[#4A5568]`}>
+            <div className="flex items-start gap-3">
+              <FiLock className={`text-xl shrink-0 mt-0.5 ${statusMeta(status).text}`} />
+              <div>
+                <div className="font-semibold text-[#1A202C]">Final decision: {statusMeta(status).label}</div>
+                {status === 'APPROVED'
+                  ? <>This concept was accepted. The decision cannot be changed, but you can <b>close the concept</b>: it keeps its marks and stops counting towards the team's {maxAccepted} accepted concepts (now {teamAccepted} of {maxAccepted}), so the team can take up a new challenge.</>
+                  : status === 'CONCEPT_CLOSED'
+                    ? <>This accepted concept was closed. It keeps its marks but no longer counts towards the team's limit (the team now has {teamAccepted} of {maxAccepted}).</>
+                    : <>This submission was rejected. That decision is final and can no longer be changed.</>}
+              </div>
             </div>
+            {/* accepted -> "Concept closed": frees one of the team's accepted-concept slots */}
+            {status === 'APPROVED' && canEvaluate && (
+              <div className="mt-4 pl-8 space-y-3">
+                <textarea
+                  value={closeNote}
+                  onChange={(e) => setCloseNote(e.target.value)}
+                  maxLength={COMMENT_MAX}
+                  rows={2}
+                  placeholder="Optional note for the team, e.g. why the concept is closed"
+                  className="w-full border border-[#E2E8F0] rounded-xl p-3 text-sm focus:ring-2 focus:ring-[#FF9900]/30 focus:border-[#FF9900] outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={closeConcept}
+                  disabled={closing}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-700 text-white text-sm font-semibold hover:bg-slate-800 disabled:opacity-60"
+                >
+                  <FiArchive /> {closing ? 'Closing…' : 'Close concept'}
+                </button>
+              </div>
+            )}
+            {message && (
+              <p className={`mt-4 pl-8 font-medium ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{message.text}</p>
+            )}
           </div>
         ) : !canEvaluate ? (
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-[#E2E8F0] text-sm text-[#718096]">

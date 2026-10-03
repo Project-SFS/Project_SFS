@@ -19,7 +19,8 @@ const DESCRIPTION_MAX = 1000
 // the three review outcomes, explained in the side panel
 const OUTCOMES = [
     ['CHANGES_REQUESTED', 'The evaluator tells you what to improve. Update your solution and upload it again, even if the challenge was closed meanwhile.'],
-    ['APPROVED', 'Your solution is accepted.'],
+    ['APPROVED', 'Your concept is accepted. It counts towards your team\'s 3 accepted concepts.'],
+    ['CONCEPT_CLOSED', 'The organisers closed an accepted concept. It keeps its marks but no longer counts towards the 3.'],
     ['REJECTED', 'Your solution is not accepted. The comment explains why.'],
 ]
 
@@ -78,7 +79,7 @@ const Upload = () => {
     const submission = problem?.submission || null
     const status = submission ? normalizeStatus(submission.STATUS) : null
     // approved / rejected are final; "changes needed" reopens the submission for a revised upload
-    const evaluated = status === 'APPROVED' || status === 'REJECTED'
+    const evaluated = status === 'APPROVED' || status === 'REJECTED' || status === 'CONCEPT_CLOSED'
     const changesRequested = status === 'CHANGES_REQUESTED'
     // no deadlines: a closed challenge ("Concept Received") takes no new solutions, but a revision that was
     // asked for can still come in; a team with the maximum accepted concepts cannot start new solutions
@@ -265,7 +266,7 @@ const Upload = () => {
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <h2 className="font-semibold text-gray-900">
-                                                    {status === 'APPROVED' ? 'Your solution is approved' : status === 'REJECTED' ? 'Your solution was not approved' : 'The evaluator asked for changes'}
+                                                    {status === 'APPROVED' ? 'Your concept is accepted' : status === 'CONCEPT_CLOSED' ? 'Your concept was closed' : status === 'REJECTED' ? 'Your solution was not approved' : 'The evaluator asked for changes'}
                                                 </h2>
                                                 <StatusBadge status={status} />
                                             </div>
@@ -281,7 +282,7 @@ const Upload = () => {
                                             ) : (
                                                 <p className="mt-3 text-sm text-gray-500">No comment was added.</p>
                                             )}
-                                            {normalizeStatus(submission.STATUS) === "APPROVED" && <MarksBreakdown row={submission} className="mt-4" />}
+                                            {["APPROVED", "CONCEPT_CLOSED"].includes(normalizeStatus(submission.STATUS)) && <MarksBreakdown row={submission} className="mt-4" />}
                                         </div>
                                     </div>
                                 </section>

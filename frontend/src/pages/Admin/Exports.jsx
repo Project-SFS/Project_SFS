@@ -12,16 +12,18 @@ import { downloadFile } from "../../downloadFile";
 
 const TABS = [
   { key: "submissions", label: "Submissions", icon: FiFileText, hint: "Every submission with its challenge, team, college, review, marks and comments" },
-  { key: "teams", label: "Teams", icon: FiUsers, hint: "Every team with its members, SPOC, problems and results" },
+  { key: "teams", label: "Teams", icon: FiUsers, hint: "Every team with its members, interests, SPOC, challenges, accepted concepts and results" },
   { key: "spocs", label: "SPOCs", icon: FiUserCheck, hint: "Every SPOC with their college, account status and activity" },
 ];
 
-const STATUSES = [["PENDING", "Awaiting review"], ["CHANGES_REQUESTED", "Changes needed"], ["APPROVED", "Concept accepted"], ["REJECTED", "Rejected"]];
+const STATUSES = [["PENDING", "Awaiting review"], ["CHANGES_REQUESTED", "Changes needed"], ["APPROVED", "Concept accepted"], ["REJECTED", "Rejected"], ["CONCEPT_CLOSED", "Concept closed"]];
+const CATEGORY_OPTIONS = [["software", "Software"], ["hardware", "Hardware"], ["combined", "Combined"]];
+const INTEREST_OPTIONS = [...CATEGORY_OPTIONS, ["notset", "Not set (gets every challenge)"]];
 const SPOC_STATUSES = [["ACTIVE", "Active"], ["PENDING", "Awaiting approval"], ["REJECTED", "Rejected"]];
 
 const EMPTY = {
-  submissions: { problemIds: [], statuses: [], colleges: [], reviewers: [], submittedFrom: "", submittedTo: "", reviewedFrom: "", reviewedTo: "", marksMin: "", marksMax: "", teamStatus: "all", search: "" },
-  teams: { colleges: [], teamStatus: "all", submissions: "all", problemIds: [], graduationMatch: "upto", graduationYear: "", search: "" },
+  submissions: { problemIds: [], statuses: [], colleges: [], reviewers: [], submittedFrom: "", submittedTo: "", reviewedFrom: "", reviewedTo: "", marksMin: "", marksMax: "", teamStatus: "all", categories: [], challengeStatus: "all", search: "" },
+  teams: { colleges: [], teamStatus: "all", submissions: "all", problemIds: [], graduationMatch: "upto", graduationYear: "", interests: [], accepted: "all", search: "" },
   spocs: { spocStatuses: [], colleges: [], hasTeams: "all", search: "" },
 };
 const DEFAULT_SHEETS = { summary: true, byProblem: true, all: true, reviewHistory: false, members: false, includeEmptyProblems: true };
@@ -214,6 +216,8 @@ const Exports = () => {
                     <MultiSelect label="Colleges" options={collegeOptions} value={f.colleges} onChange={setF("colleges")} placeholder="All colleges" />
                     <MultiSelect label="Reviewed by" options={(options.reviewers || []).map((r) => [r, r])} value={f.reviewers} onChange={setF("reviewers")} placeholder="Anyone (or not reviewed)" />
                     <Select label="Teams" value={f.teamStatus} onChange={setF("teamStatus")} options={[["all", "Every team"], ["active", "Active teams only"], ["graduated", "Graduated teams only"], ["removed", "Teams removed by SPOC"]]} />
+                    <MultiSelect label="Challenge category" options={CATEGORY_OPTIONS} value={f.categories} onChange={setF("categories")} placeholder="Every category" />
+                    <Select label="Challenge status" value={f.challengeStatus} onChange={setF("challengeStatus")} options={[["all", "Open and Concept Received"], ["open", "Open challenges only"], ["closed", "Concept Received (closed) only"]]} />
                     <div className="grid grid-cols-2 gap-2">
                       <label className="block"><span className={lbl}>Marks from</span><input type="number" min="0" max="100" value={f.marksMin} onChange={(e) => setF("marksMin")(e.target.value)} className={field} placeholder="0" /></label>
                       <label className="block"><span className={lbl}>Marks to</span><input type="number" min="0" max="100" value={f.marksMax} onChange={(e) => setF("marksMax")(e.target.value)} className={field} placeholder="100" /></label>
@@ -233,6 +237,8 @@ const Exports = () => {
                     <Select label="Team status" value={f.teamStatus} onChange={setF("teamStatus")} options={[["all", "Every team"], ["active", "Active only"], ["graduated", "Graduated only"], ["removed", "Removed by SPOC"]]} />
                     <Select label="Submissions" value={f.submissions} onChange={setF("submissions")} options={[["all", "All teams"], ["with", "Has submissions"], ["without", "No submissions"]]} />
                     <MultiSelect label="Submitted to challenge" options={problemOptions} value={f.problemIds} onChange={setF("problemIds")} placeholder="Any challenge" />
+                    <MultiSelect label="Interests" options={INTEREST_OPTIONS} value={f.interests} onChange={setF("interests")} placeholder="Any interest" />
+                    <Select label="Accepted concepts" value={f.accepted} onChange={setF("accepted")} options={[["all", "Any number"], ["none", "None yet"], ["some", "1 or 2 (below the limit)"], ["limit", "At the limit (3)"]]} />
                     {/* members graduate in different years, so the admin chooses how the year is matched */}
                     <div className="sm:col-span-2">
                       <span className={lbl}>Graduation year</span>

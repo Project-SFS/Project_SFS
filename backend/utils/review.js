@@ -5,17 +5,21 @@ export const PENDING = "PENDING"
 export const CHANGES_REQUESTED = "CHANGES_REQUESTED"
 export const APPROVED = "APPROVED"
 export const REJECTED = "REJECTED"
+// an accepted concept the admins closed afterwards: it keeps its marks and history but no longer counts
+// towards the team's accepted-concepts limit, so the team can take up a new challenge
+export const CONCEPT_CLOSED = "CONCEPT_CLOSED"
 
 export const DECISIONS = [CHANGES_REQUESTED, APPROVED, REJECTED]
-export const DECISION_LABELS = { [PENDING]: "Awaiting review", [CHANGES_REQUESTED]: "Changes needed", [APPROVED]: "Concept accepted", [REJECTED]: "Rejected" }
+export const DECISION_LABELS = { [PENDING]: "Awaiting review", [CHANGES_REQUESTED]: "Changes needed", [APPROVED]: "Concept accepted", [REJECTED]: "Rejected", [CONCEPT_CLOSED]: "Concept closed" }
 
 export const canTeamEdit = (status) => status === PENDING || status === CHANGES_REQUESTED
 // an evaluator can decide while it waits for review or while changes are requested; approve / reject are final
-export const isFinal = (status) => status === APPROVED || status === REJECTED || status === "ACCEPTED"
+export const isFinal = (status) => status === APPROVED || status === REJECTED || status === CONCEPT_CLOSED || status === "ACCEPTED"
 
 // Message for a team that tries to change a submission it can no longer change
 export const lockedMessage = (status) =>
     status === APPROVED ? "Your concept was accepted and can no longer be changed"
+        : status === CONCEPT_CLOSED ? "This concept was closed and can no longer be changed"
         : "Your solution was rejected and can no longer be changed"
 
 // Open-challenge check for an upload. A team asked for changes may still send its revision after the
