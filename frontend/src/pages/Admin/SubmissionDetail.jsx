@@ -288,6 +288,10 @@ const SubmissionDetail = () => {
   const marksTotal = EVAL_CRITERIA.reduce((sum, c) => sum + (Number(marks[c.key]) || 0), 0);
   // marks only belong to an approval: shown, required and sent only when "Approve" is chosen
   const isApproval = chosen?.value === 'APPROVED';
+  // the team's accepted concepts (a team can have at most maxAccepted)
+  const teamAccepted = Number(submission?.team_accepted_count) || 0;
+  const maxAccepted = Number(submission?.max_accepted) || 3;
+  const teamAtLimit = teamAccepted >= maxAccepted;
   const marksProblem = !isApproval ? ''
     : !marksValid ? 'Each mark must be a whole number from 0 to 20.'
     : !allMarks ? `Give marks for all five criteria to accept the concept (${filledMarks.length}/${EVAL_CRITERIA.length} filled).`
@@ -296,17 +300,19 @@ const SubmissionDetail = () => {
   const sendReview = async () => {
     if (!chosen || commentMissing || marksProblem || saving) return;
     if (chosen.value !== 'CHANGES_REQUESTED'
-      && !window.confirm(`${chosen.label} this submission? This decision is final and cannot be changed later.`)) return;
+      && !window.confirm(chosen.value === 'APPROVED'
+        ? `Accept this concept? It will be concept ${teamAccepted + 1} of ${maxAccepted} for this team${teamAccepted + 1 >= maxAccepted ? ', which reaches the limit: the team\'s other open solutions will be closed automatically' : ''}. This decision is final.`
+        : `${chosen.label} this submission? This decision is final and cannot be changed later.`)) return;
     setSaving(true);
     setMessage(null);
     try {
-      await axios.post(`${URL}/review_submission`, {
+      const res = await axios.post(`${URL}/review_submission`, {
         subid: submission.submission_id || id,
         decision,
         comment: comment.trim(),
         marks: isApproval && allMarks ? Object.fromEntries(EVAL_CRITERIA.map((c) => [c.key, Number(marks[c.key])])) : undefined,
       }, { withCredentials: true });
-      setMessage({ type: 'success', text: `Saved as "${chosen.result}" and emailed to the team and their SPOC.` });
+      setMessage({ type: 'success', text: res.data?.autoClosed?.length ? `Saved as "${chosen.result}". ${res.data.message}` : `Saved as "${chosen.result}" and emailed to the team and their SPOC.` });
       setDecision('');
       setComment('');
       await load();
@@ -390,6 +396,23 @@ const SubmissionDetail = () => {
                 )}
               </InfoRow>
               <InfoRow label="College">{submission.college_name}</InfoRow>
+              <InfoRow label="Team's accepted concepts">
+                <div className="flex flex-wrap items-center gap-2">
+                  <b>{teamAccepted} of {maxAccepted}</b>
+                  {teamAtLimit && <span className="text-xs font-semibold text-green-700">limit reached</span>}
+                </div>
+                {(submission.team_accepted || []).length > 0 && (
+                  <ul className="mt-1 text-sm space-y-0.5">
+                    {submission.team_accepted.map((a) => (
+                      <li key={a.SUBMISSION_ID}>
+                        <Link to={`/admin/submissions/${a.SUBMISSION_ID}/details`} className="text-[#2B6CB0] hover:underline">
+                          SFS_{a.PROBLEM_ID} · {a.TITLE || 'Deleted challenge'}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </InfoRow>
               <InfoRow label="Submitted Date">{formatDate(submission.submitted_date)}</InfoRow>
               {submission.sol_link && (
                 <InfoRow label="Solution Link">
@@ -452,23 +475,34 @@ const SubmissionDetail = () => {
               : 'Changes were requested and the team has not sent a revision yet. You can still give a new decision; it is emailed again. Accept concept and Reject are final.'}
           </p>
 
+          <p className={`mb-4 text-sm rounded-xl px-4 py-2.5 border ${teamAtLimit ? 'bg-green-50 border-green-200 text-green-900' : 'bg-[#F7F8FC] border-[#E2E8F0] text-[#4A5568]'}`}>
+            This team has <b>{teamAccepted} of {maxAccepted}</b> accepted concepts.
+            {teamAtLimit
+              ? ' It reached the maximum, so this solution can only get Changes needed or Reject.'
+              : teamAccepted === maxAccepted - 1
+                ? ` Accepting this concept reaches the limit: the team's other open solutions will be closed automatically.`
+                : ''}
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" role="radiogroup" aria-label="Decision">
             {DECISIONS.map((d) => {
               const Icon = d.icon;
               const selected = decision === d.value;
+              // a team with the maximum accepted concepts cannot get another one
+              const disabled = d.value === 'APPROVED' && teamAtLimit;
               return (
                 <button
                   key={d.value}
                   type="button"
                   role="radio"
                   aria-checked={selected}
+                  disabled={disabled}
                   onClick={() => setDecision(d.value)}
-                  className={`text-left rounded-xl border p-4 transition-all ${selected ? d.active : 'border-[#E2E8F0] hover:border-gray-300 hover:bg-gray-50'}`}
+                  className={`text-left rounded-xl border p-4 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${selected ? d.active : 'border-[#E2E8F0] hover:border-gray-300 hover:bg-gray-50'}`}
                 >
                   <div className="flex items-center gap-2 font-semibold text-[#1A202C]">
                     <Icon className={`text-xl ${d.iconCls}`} /> {d.label}
                   </div>
-                  <p className="text-xs text-[#718096] mt-1.5">{d.hint}</p>
+                  <p className="text-xs text-[#718096] mt-1.5">{disabled ? `This team already has ${maxAccepted} accepted concepts.` : d.hint}</p>
                 </button>
               );
             })}

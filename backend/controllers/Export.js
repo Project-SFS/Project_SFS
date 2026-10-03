@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { MAX_ACCEPTED } from "./TeamProblems.js";
 import JSZip from "jszip";
 import connection from "../database/db.js";
 import AsyncHandler from "../utils/AsyncHandler.js";
@@ -588,15 +589,22 @@ const Export_problem_reports = AsyncHandler(async (req, res) => {
 // Only the fields the list needs, never the description or files.
 const List_all_submissions = AsyncHandler(async (req, res) => {
     const rows = await loadSubmissions();
+    // how many accepted concepts each team has (a team can have at most MAX_ACCEPTED)
+    const acceptedPerTeam = new Map();
+    rows.forEach((r) => {
+        const key = String(r.TEAM_EMAIL || "").toLowerCase();
+        if (statusOf(r.STATUS) === "APPROVED") acceptedPerTeam.set(key, (acceptedPerTeam.get(key) || 0) + 1);
+    });
     const out = rows
         .map((r) => ({
             ID: r.ID, PROBLEM_ID: r.PROBLEM_ID, PROBLEM_TITLE: r.PROBLEM_TITLE, CATEGORY: r.CATEGORY, IS_CLOSED: Boolean(r.IS_CLOSED),
             SOL_TITLE: r.SOL_TITLE, SUB_DATE: day(r.SUB_DATE), STATUS: statusOf(r.STATUS),
             TEAM_ID: r.TEAM_ID, TEAM_NAME: r.TEAM_NAME, TEAM_EMAIL: r.TEAM_EMAIL, COLLEGE: r.COLLEGE,
             EVAL_TOTAL: r.EVAL_TOTAL, EVALUATED_AT: r.EVALUATED_AT, REVIEWER_EMAIL: r.REVIEWER_EMAIL, REVIEW_COUNT: Number(r.REVIEW_COUNT) || 0,
+            TEAM_ACCEPTED: acceptedPerTeam.get(String(r.TEAM_EMAIL || "").toLowerCase()) || 0,
         }))
         .sort((a, b) => b.ID - a.ID);
-    res.json({ submissions: out });
+    res.json({ submissions: out, maxAccepted: MAX_ACCEPTED });
 });
 
 export { Export_options, Export_data, Export_problem_reports, List_all_submissions };

@@ -225,6 +225,30 @@ const notifyReviewed = (submissionId) => background("reviewed", async () => {
     }
 })
 
+// The team reached the maximum of accepted concepts: its other open solutions were closed automatically.
+// One email to the team lead and one to their SPOC (never cc), listing the closed solutions.
+const notifyLimitReached = (teamEmail, closed) => background("limit reached", async () => {
+    const [rows] = await connection.query(`
+        SELECT t.NAME AS TEAM_NAME, spoc.EMAIL AS SPOC_EMAIL
+        FROM SolveForSakthi_Team_List t LEFT JOIN SolveForSakthi_Users spoc ON spoc.ID = t.SPOC_ID
+        WHERE t.LEAD_EMAIL = ?`, [teamEmail])
+    const teamName = rows[0]?.TEAM_NAME || teamEmail
+    const list = closed.map((s, i) => [`${i + 1}`, `${s.PROBLEM_TITLE || "Challenge"} · ${s.SOL_TITLE || "Untitled solution"}`])
+    const intro = `Team <b>${escapeHtml(teamName)}</b> now has <b>3 accepted concepts</b>, which is the maximum. Congratulations! Its other solutions that were still open have been closed automatically, and the team cannot start solutions for new challenges.`
+    deliver("limit reached -> team", {
+        to: teamEmail,
+        subject: "Your team reached 3 accepted concepts",
+        html: layout({ heading: "3 accepted concepts: limit reached", intro, rows: list, outro: "The closed solutions show as Rejected with the reason in your team portal.", linkPath: "/student", linkLabel: "Open team portal" }),
+    })
+    if (rows[0]?.SPOC_EMAIL) {
+        deliver("limit reached -> SPOC", {
+            to: rows[0].SPOC_EMAIL,
+            subject: `Team ${teamName} reached 3 accepted concepts`,
+            html: layout({ heading: "A team reached the limit of accepted concepts", intro, rows: list, linkPath: "/spoc", linkLabel: "Open Team Progress" }),
+        })
+    }
+})
+
 // A platform admin created an account for someone (login details included, since there is no other way to get them)
 const notifyAccountCreated = ({ email, name, role, password }) => background("account created", async () => {
     const roleName = { ADMIN: "platform admin", SPOC: "SPOC" }[role] || role
@@ -258,7 +282,7 @@ const notifySubmissionRemoved = (s) => background("submission removed", async ()
 })
 
 // Challenges were imported from Excel: one mail per SPOC listing them (instead of one mail per problem)
-// Challenges were imported from Excel: ONE short mail per SPOC (never one per problem, never cc).
+// Challenges were imported from Excel: ONE short mail per SPOC and per active team (never one per challenge, never cc).
 // It previews the first two problems and links to the full list for the rest.
 const PUBLISH_PREVIEW = 2
 const notifyProblemsPublished = (problemIds) => background("problems published", async () => {
@@ -279,15 +303,35 @@ const notifyProblemsPublished = (problemIds) => background("problems published",
     const outro = `${problems.slice(0, PUBLISH_PREVIEW).map(card).join("")}${more > 0
         ? `<p style="margin:4px 0 0;font-weight:bold;color:#2f3640;">+ ${more} more challenge${more === 1 ? "" : "s"}. Use the button below to view them all.</p>`
         : ""}`
+    const subject = total === 1 ? `New challenge: ${problems[0].TITLE}` : `${total} new challenges on Solve For Sakthi`
+    const heading = total === 1 ? "A new challenge is available" : `${total} new challenges are available`
+    const what = total === 1 ? "a new challenge has" : `${total} new challenges have`
+    const linkLabel = total > PUBLISH_PREVIEW ? `View all ${total} challenges` : "View challenges"
+    // the same email to every SPOC...
     for (const spoc of spocs) {
-        deliver("problems published", {
+        deliver("problems published -> SPOC", {
             to: spoc.EMAIL,
-            subject: total === 1 ? `New challenge: ${problems[0].TITLE}` : `${total} new challenges on Solve For Sakthi`,
+            subject,
             html: layout({
-                heading: total === 1 ? "A new challenge is available" : `${total} new challenges are available`,
-                intro: `Hello ${escapeHtml(spoc.NAME || "")}, ${total === 1 ? "a new challenge has" : `${total} new challenges have`} been published for Solve For Sakthi ${new Date().getFullYear()}. Your teams can submit solutions to them straight away from their team portal.`,
+                heading,
+                intro: `Hello ${escapeHtml(spoc.NAME || "")}, ${what} been published for Solve For Sakthi ${new Date().getFullYear()}. Your teams can submit solutions to them straight away from their team portal.`,
                 outro,
-                linkPath: "/problemstatements", linkLabel: total > PUBLISH_PREVIEW ? `View all ${total} challenges` : "View challenges",
+                linkPath: "/problemstatements", linkLabel,
+            }),
+        })
+    }
+    // ...and to every active team (its lead's email is the team login), one email each, never cc
+    const [teams] = await connection.query(
+        "SELECT NAME, LEAD_EMAIL FROM SolveForSakthi_Team_List WHERE GRADUATED_AT IS NULL AND LEAD_EMAIL IS NOT NULL AND LEAD_EMAIL <> ''")
+    for (const team of teams) {
+        deliver("problems published -> team", {
+            to: team.LEAD_EMAIL,
+            subject,
+            html: layout({
+                heading,
+                intro: `Team <b>${escapeHtml(team.NAME || "")}</b>, ${what} been published for Solve For Sakthi ${new Date().getFullYear()}. You can submit a solution to any open challenge from your team portal.`,
+                outro,
+                linkPath: "/student", linkLabel,
             }),
         })
     }
@@ -377,4 +421,4 @@ const notifyOwnPasswordChanged = ({ email, name }) => background("own password c
     })
 })
 
-export { evaluatorAdmins, deliver, background, notifyTeamLogin, notifyOwnPasswordChanged, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifySubmission, notifyReviewed }
+export { notifyLimitReached, evaluatorAdmins, deliver, background, notifyTeamLogin, notifyOwnPasswordChanged, notifyPasswordChanged, notifyTeamGraduated, notifyProblemsPublished, layout, escapeHtml, loadSubmission, notifyAccountCreated, notifySubmissionRemoved, notifyAccountDecision, notifySubmission, notifyReviewed }

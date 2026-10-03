@@ -2,9 +2,9 @@ import fs from "fs";
 import AsyncHandler from "../utils/AsyncHandler.js";
 import connection from "../database/db.js";
 import { today, checkProblemOpen } from "../utils/deadline.js";
-import { notifySubmission, notifyReviewed, loadSubmission, notifySubmissionRemoved } from "../utils/notifications.js";
+import { notifySubmission, notifyReviewed, loadSubmission, notifySubmissionRemoved, notifyLimitReached } from "../utils/notifications.js";
 import { DECISIONS, CHANGES_REQUESTED, APPROVED, REJECTED, CRITERIA, parseMarks, canTeamEdit, lockedMessage, uploadClosedReason, isFinal } from "../utils/review.js";
-import { newSolutionBlockedReason } from "./TeamProblems.js";
+import { newSolutionBlockedReason, acceptedCount, acceptedByTeam, MAX_ACCEPTED } from "./TeamProblems.js";
 import { canViewTeamOfLead } from "../utils/teamAccess.js";
 import { withFiles, loadFiles, filePathsOf, unlinkAll, shareToken, SHARE_DAYS } from "../utils/submissionFiles.js";
 
@@ -153,6 +153,10 @@ const Get_submission_by_prob_id = AsyncHandler(async (req, res) => {
 
 
     
+    // each team's accepted concepts, so the evaluator sees it in the list
+    const accepted = await acceptedByTeam(data.map((d) => d.LEAD_EMAIL));
+    res.send(data.map((d) => ({ ...d, team_accepted_count: (accepted.get(String(d.LEAD_EMAIL || "").toLowerCase()) || []).length, max_accepted: MAX_ACCEPTED })));
+    return;
     res.send(data)
 })
 
@@ -203,13 +207,37 @@ WHERE s.ID = ?;
         WHERE r.SUBMISSION_ID = ?
         ORDER BY r.ID DESC`, [id]);
     const files = (await loadFiles([result[0].submission_id])).get(Number(result[0].submission_id)) || [];
-    res.status(200).json({ ...result[0], reviews, files });
+    // the team's accepted concepts (count and which challenges), shown next to the review
+    const [[team]] = await connection.query("SELECT TEAM_EMAIL FROM SolveForSakthi_Submissions WHERE ID = ?", [result[0].submission_id]);
+    const accepted = (await acceptedByTeam([team?.TEAM_EMAIL])).get(String(team?.TEAM_EMAIL || "").toLowerCase()) || [];
+    res.status(200).json({ ...result[0], reviews, files, team_accepted_count: accepted.length, team_accepted: accepted, max_accepted: MAX_ACCEPTED });
 });
 
 // Admin reviews a submission: Changes needed / Approved / Rejected, with a comment and the evaluation marks
 // (5 criteria x 20), emailed to the team lead and, separately, to their SPOC. Marks are required to approve or reject
 // and optional when asking for changes. Changes needed lets the team upload a revised solution.
 const COMMENT_MAX = 5000;
+// The team reached MAX_ACCEPTED accepted concepts: every other solution of the team that is still open
+// (awaiting review or changes needed) is closed as Rejected, with the reason in its review history.
+// Returns the closed solutions ({ ID, SOL_TITLE, PROBLEM_TITLE }).
+const LIMIT_NOTE = `Closed automatically: your team reached the limit of ${MAX_ACCEPTED} accepted concepts.`;
+const closeOpenSolutions = async (teamEmail, reviewerId) => {
+    const [open] = await connection.query(`
+        SELECT s.ID, s.SOL_TITLE, p.TITLE AS PROBLEM_TITLE
+        FROM SolveForSakthi_Submissions s LEFT JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID
+        WHERE s.TEAM_EMAIL = ? AND s.STATUS IN ('PENDING', 'CHANGES_REQUESTED')`, [teamEmail]);
+    for (const s of open) {
+        await connection.query(
+            `UPDATE SolveForSakthi_Submissions SET STATUS = 'REJECTED', EVALUATION_COMMENT = ?, EVALUATED_BY = ?, EVALUATED_AT = SYSUTCDATETIME(),
+                 EVAL_UNDERSTANDING = NULL, EVAL_SOLUTION = NULL, EVAL_TOOLS = NULL, EVAL_PRESENTATION = NULL, EVAL_ACCEPTANCE = NULL, EVAL_TOTAL = NULL
+             WHERE ID = ? AND STATUS IN ('PENDING', 'CHANGES_REQUESTED')`, [LIMIT_NOTE, reviewerId, s.ID]);
+        await connection.query(
+            "INSERT INTO SolveForSakthi_Submission_Reviews (SUBMISSION_ID, DECISION, COMMENT, REVIEWED_BY, REVIEWED_AT) VALUES (?, 'REJECTED', ?, ?, SYSUTCDATETIME())",
+            [s.ID, LIMIT_NOTE, reviewerId]);
+    }
+    return open;
+};
+
 const Review_submission = AsyncHandler(async (req, res) => {
     const subid = parseInt(req.body.subid, 10);
     const decision = String(req.body.decision || "").toUpperCase();
@@ -227,10 +255,16 @@ const Review_submission = AsyncHandler(async (req, res) => {
         return res.status(400).json({ message: `The comment can be at most ${COMMENT_MAX} characters` });
     }
     // approved / rejected are final: the decision can no longer be changed
-    const [current] = await connection.query("SELECT STATUS FROM SolveForSakthi_Submissions WHERE ID = ?", [subid]);
+    const [current] = await connection.query("SELECT STATUS, TEAM_EMAIL FROM SolveForSakthi_Submissions WHERE ID = ?", [subid]);
     if (!current[0]) return res.status(404).json({ message: "Submission not found" });
     if (isFinal(String(current[0].STATUS || "").toUpperCase())) {
         return res.status(409).json({ message: "This submission already has a final decision (Concept accepted or Rejected) that cannot be changed." });
+    }
+
+    // a team can have at most MAX_ACCEPTED accepted concepts
+    const teamEmail = current[0].TEAM_EMAIL;
+    if (decision === APPROVED && (await acceptedCount(teamEmail)) >= MAX_ACCEPTED) {
+        return res.status(409).json({ message: `This team already has ${MAX_ACCEPTED} accepted concepts, which is the maximum. Choose Changes needed or Reject.` });
     }
 
     // marks belong to an approval only: required to approve, ignored (and cleared) for changes / reject
@@ -261,8 +295,20 @@ const Review_submission = AsyncHandler(async (req, res) => {
         [subid, decision, comment || null, req.user.ID, ...markValues]
     );
     notifyReviewed(subid);
+
+    // this acceptance brought the team to the limit: its other open solutions are closed automatically
+    // (marked Rejected with a note in their review history) and the team lead and SPOC get one email about it
+    let autoClosed = [];
+    if (decision === APPROVED && (await acceptedCount(teamEmail)) >= MAX_ACCEPTED) {
+        autoClosed = await closeOpenSolutions(teamEmail, req.user.ID);
+        if (autoClosed.length) notifyLimitReached(teamEmail, autoClosed);
+    }
+
     res.status(200).json({
-        message: "Review saved and emailed to the team",
+        message: autoClosed.length
+            ? `Review saved and emailed. The team reached ${MAX_ACCEPTED} accepted concepts, so its ${autoClosed.length} other open solution(s) were closed automatically.`
+            : "Review saved and emailed to the team",
+        autoClosed: autoClosed.map((s) => s.ID),
         status: decision,
         comment: comment || null,
         marks,

@@ -7,6 +7,7 @@ import { StatusBadge, EVAL_TOTAL_MAX } from '../../submissionStatus';
 import { URL } from '../../Utils';
 import { useAdmin } from '../../components/admin/adminAccess';
 import TeamDetailsModal from '../../components/admin/TeamDetailsModal';
+import AcceptedBadge from '../../components/AcceptedBadge';
 
 // Every submission across all challenges, for admins who evaluate. Waiting ones come first
 // by default so the evaluator sees what needs attention.
@@ -34,11 +35,12 @@ const Submissions = () => {
   const navigate = useNavigate();
   const { can } = useAdmin();
   const [teamOpen, setTeamOpen] = useState(null); // team id whose details dialog is open
+  const [maxAccepted, setMaxAccepted] = useState(3);
   const set = (key) => (value) => setF((prev) => ({ ...prev, [key]: value }));
 
   useEffect(() => {
     axios.get(`${URL}/admin/submissions/all`, { withCredentials: true })
-      .then((res) => setRows(res.data.submissions || []))
+      .then((res) => { setRows(res.data.submissions || []); setMaxAccepted(res.data.maxAccepted || 3); })
       .catch((err) => setError(err.response?.data?.message || 'The submissions could not be loaded. Please refresh the page.'))
       .finally(() => setLoading(false));
   }, []);
@@ -192,6 +194,7 @@ const Submissions = () => {
                         ) : (
                           <div className="text-[#1A202C] truncate">{r.TEAM_NAME || r.TEAM_EMAIL}</div>
                         )}
+                        <AcceptedBadge count={r.TEAM_ACCEPTED} max={maxAccepted} className="mt-0.5" />
                         <div className="text-xs text-[#718096] truncate">{r.COLLEGE || '—'}</div>
                       </td>
                       <td className="px-5 py-3 whitespace-nowrap text-[#4A5568]">{readable(r.SUB_DATE)}</td>
@@ -224,6 +227,7 @@ const Submissions = () => {
                         <div className="font-medium text-[#1A202C] truncate">{r.SOL_TITLE || 'Untitled'}</div>
                         <div className="text-xs text-[#718096] truncate">SFS_{r.PROBLEM_ID} · {r.PROBLEM_TITLE}</div>
                         <div className="text-xs text-[#718096] truncate">{r.TEAM_NAME || r.TEAM_EMAIL} · {r.COLLEGE || '—'}</div>
+                        <AcceptedBadge count={r.TEAM_ACCEPTED} max={maxAccepted} className="mt-1" />
                       </div>
                       <StatusBadge status={r.STATUS} />
                     </div>

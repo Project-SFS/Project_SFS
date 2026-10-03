@@ -19,6 +19,20 @@ export const acceptedCount = async (leadEmail) => {
     return Number(row?.n) || 0;
 };
 
+// Accepted concepts for many teams at once: Map lower-case lead email -> [{ SUBMISSION_ID, PROBLEM_ID, TITLE }]
+export const acceptedByTeam = async (leadEmails) => {
+    const emails = [...new Set((leadEmails || []).filter(Boolean).map((e) => String(e).toLowerCase()))];
+    const map = new Map(emails.map((e) => [e, []]));
+    if (!emails.length) return map;
+    const [rows] = await connection.query(
+        `SELECT s.ID AS SUBMISSION_ID, s.PROBLEM_ID, s.TEAM_EMAIL, p.TITLE
+         FROM SolveForSakthi_Submissions s LEFT JOIN SolveForSakthi_Problems p ON p.ID = s.PROBLEM_ID
+         WHERE s.TEAM_EMAIL IN (${emails.map(() => "?").join(", ")}) AND s.STATUS IN ${ACCEPTED_STATUSES}
+         ORDER BY s.ID`, emails);
+    rows.forEach((r) => map.get(String(r.TEAM_EMAIL).toLowerCase())?.push({ SUBMISSION_ID: r.SUBMISSION_ID, PROBLEM_ID: r.PROBLEM_ID, TITLE: r.TITLE }));
+    return map;
+};
+
 // Message when the team may not START a new solution, otherwise null
 export const newSolutionBlockedReason = async (leadEmail) =>
     (await acceptedCount(leadEmail)) >= MAX_ACCEPTED

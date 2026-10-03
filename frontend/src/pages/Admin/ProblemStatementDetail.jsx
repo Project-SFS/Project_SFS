@@ -20,6 +20,7 @@ import {
 } from 'react-icons/fi';
 import { copyText } from '../../submissionFiles';
 import TeamDetailsModal from '../../components/admin/TeamDetailsModal';
+import AcceptedBadge from '../../components/AcceptedBadge';
 import { URL } from '../../Utils';
 import { StatusBadge, normalizeStatus } from '../../submissionStatus';
 import Pagination, { usePagination } from '../../components/common/Pagination';
@@ -126,6 +127,8 @@ const ProblemStatementDetail = () => {
           team_name: s.team_name || s.TEAM_EMAIL || 'N/A',
           team_note: !s.team_name ? 'team deleted' : s.REMOVED_AT ? 'removed by SPOC' : s.GRADUATED_AT ? 'graduated' : '',
           college: s.college_name || '',
+          teamAccepted: Number(s.team_accepted_count) || 0,
+          maxAccepted: Number(s.max_accepted) || 3,
           title: s.SOL_TITLE || 'No Title',
           status: normalizeStatus(s.STATUS),
           comment: s.EVALUATION_COMMENT || '',
@@ -503,6 +506,7 @@ const ProblemStatementDetail = () => {
                       <div className="break-all">{sub.team_name}</div>
                     )}
                     {sub.team_note && <div className="text-xs font-normal text-[#A0AEC0]">{sub.team_note}</div>}
+                    {sub.team_id && <AcceptedBadge count={sub.teamAccepted} max={sub.maxAccepted} className="mt-1" />}
                   </td>
                   <td className="p-4 text-[#4A5568]">{sub.college || <span className="text-[#A0AEC0]">—</span>}</td>
                   <td className="p-4">
